@@ -14,3 +14,6 @@ xcuserdata/
 *.csv
 .env
 .env.*
+
+# iCloud Drive conflict copies (e.g. "ShareViewController 2.swift")
+* [0-9].*

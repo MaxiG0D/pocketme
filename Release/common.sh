@@ -21,6 +21,15 @@ if requested:
 MATERIALIZE
 fail() { echo "error: $*" >&2; exit 1; }
 step() { echo "==> $*"; }
+# iCloud Drive leaves conflict copies like "ShareViewController 2.swift"; XcodeGen would compile both.
+duplicates=("${(@f)$(cd "${ROOT_DIR}" && find project.yml App Shared Tests Config ShareExtension-iOS ShareExtension-macOS \
+  -name '* [0-9].*' -not -path '*/.git/*' 2>/dev/null || true)}")
+duplicates=(${duplicates:#})
+if (( ${#duplicates} )); then
+  echo "error: iCloud made duplicate copies of these files. Compare them with the originals, then delete the copies:" >&2
+  printf '  %s\n' "${duplicates[@]}" >&2
+  exit 1
+fi
 PROJECT_PATH="${CACHE_DIR}/Project/PocketMe.xcodeproj"
 generate() {
   mkdir -p "${CACHE_DIR}/Project"
