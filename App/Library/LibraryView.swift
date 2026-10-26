@@ -6,6 +6,7 @@ import SwiftUI
 struct LibraryView: View {
     @Environment(LibraryStore.self) private var store
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.horizontalSizeClass) private var sizeClass
     @Query(sort: \Article.savedAt, order: .reverse) private var articles: [Article]
     var favoritesOnly = false
     @State private var archive = false
@@ -13,7 +14,7 @@ struct LibraryView: View {
     @State private var showSearch = false
     @State private var addLink = false
     @State private var selection: UUID?
-    @State private var columns = NavigationSplitViewVisibility.automatic
+    @State private var columns = NavigationSplitViewVisibility.doubleColumn
     @State private var toDelete: Article?
 
     private var filtered: [Article] {
@@ -44,6 +45,9 @@ struct LibraryView: View {
             Button("Cancel", role: .cancel) { toDelete = nil }
         }
         .onChange(of: articles.map(\.id)) { _, ids in if let selection, !ids.contains(selection) { self.selection = nil } }
+        .onAppear(perform: ensureSelection)
+        .onChange(of: filtered.map(\.id)) { _, _ in ensureSelection() }
+        .onChange(of: sizeClass) { _, _ in ensureSelection() }
         .onChange(of: store.requestedArticleID) { _, id in if let id { selection = id; store.requestedArticleID = nil } }
         .sensoryFeedback(.success, trigger: store.savedToken).sensoryFeedback(.success, trigger: store.actionToken)
         .animation(reduceMotion ? nil : .snappy(duration: 0.25), value: archive)
@@ -115,6 +119,12 @@ struct LibraryView: View {
         }
     }
 
+    /// Side by side, the reader pane never opens blank: it shows the article being read, else the newest.
+    private func ensureSelection() {
+        guard sizeClass == .regular else { return }
+        if let selection, filtered.contains(where: { $0.id == selection }) { return }
+        selection = (current ?? filtered.first)?.id
+    }
     private func pasteOrAdd() { if let link = Clipboard.link { _ = store.saveLink(link) } else { addLink = true } }
     @ViewBuilder private func articleMenu(_ article: Article) -> some View {
         Button(article.isFavorite ? "Remove favorite" : "Favorite", systemImage: "bookmark") { store.favorite(article) }
