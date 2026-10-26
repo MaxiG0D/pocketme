@@ -6,9 +6,13 @@ extension LibraryStore {
     func saveLink(_ raw: String, title: String? = nil) -> Article? {
         guard let persistence else { return nil }
         do {
-            let article = try ArticleRepository(context: persistence.container.mainContext).save(url: raw, title: title)
+            let context = persistence.container.mainContext
+            let normalized = try URLNormalizer.normalize(raw)
+            let known = try context.fetchCount(FetchDescriptor<Article>(predicate: #Predicate { $0.normalizedURL == normalized })) > 0
+            let article = try ArticleRepository(context: context).save(url: raw, title: title)
             errorMessage = nil
             savedToken += 1
+            show(known ? "Already saved" : "Saved")
             processor?.start()
             return article
         } catch { errorMessage = (error as? URLNormalizer.InvalidURL)?.errorDescription ?? "This link couldn’t be saved. Please try again."; return nil }
@@ -28,6 +32,7 @@ extension LibraryStore {
                 try ArticleRepository(context: persistence.container.mainContext).save(url: entry.url, title: entry.title, at: entry.savedAt)
                 try await queue.acknowledge([entry.id])
                 savedToken += 1
+                show("Saved")
               }
             }
             processor?.start()
@@ -45,9 +50,15 @@ extension LibraryStore {
     }
 
     func archive(_ article: Article) {
-        article.archivedAt = article.archivedAt == nil ? .now : nil
+        let archiving = article.archivedAt == nil
+        article.archivedAt = archiving ? .now : nil
         persist()
         actionToken += 1
+        show(archiving ? "Archived" : "Moved to Reading") { [weak self, weak article] in
+            guard let article, article.modelContext != nil else { return }
+            article.archivedAt = archiving ? nil : .now
+            self?.persist()
+        }
     }
 
     func favorite(_ article: Article) { article.isFavorite.toggle(); persist(); actionToken += 1 }

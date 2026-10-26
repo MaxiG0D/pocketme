@@ -38,6 +38,7 @@ struct PocketMeApp: App {
         .commands {
             CommandGroup(replacing: .newItem) {
                 Button("Save a link") { store.focusPasteToken += 1 }.keyboardShortcut("n")
+                Button("Search") { store.findToken += 1 }.keyboardShortcut("f")
             }
             CommandGroup(after: .toolbar) {
                 Button("Show or Hide List") { store.toggleListToken += 1 }.keyboardShortcut("s", modifiers: [.command, .control])

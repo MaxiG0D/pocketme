@@ -15,8 +15,6 @@ struct LibraryView: View {
     @State private var selection: UUID?
     @State private var columns = NavigationSplitViewVisibility.automatic
     @State private var toDelete: Article?
-    @State private var saved = false
-    @State private var toast: Task<Void, Never>?
 
     private var filtered: [Article] {
         let section: LibrarySection = favoritesOnly ? .favorites : archive ? .archive : .unread
@@ -44,10 +42,6 @@ struct LibraryView: View {
         .confirmationDialog("Delete this article?", isPresented: Binding(get: { toDelete != nil }, set: { if !$0 { toDelete = nil } }), titleVisibility: .visible) {
             Button("Delete article", role: .destructive) { if let article = toDelete { store.delete(article) }; toDelete = nil }
             Button("Cancel", role: .cancel) { toDelete = nil }
-        }
-        .onChange(of: store.savedToken) { _, _ in
-            saved = true; toast?.cancel()
-            toast = Task { try? await Task.sleep(for: .seconds(2)); if !Task.isCancelled { saved = false } }
         }
         .onChange(of: articles.map(\.id)) { _, ids in if let selection, !ids.contains(selection) { self.selection = nil } }
         .onChange(of: store.requestedArticleID) { _, id in if let id { selection = id; store.requestedArticleID = nil } }
@@ -99,9 +93,8 @@ struct LibraryView: View {
             }
         }
         .refreshable { store.refresh(); await store.drainInbox() }
-        .overlay(alignment: .bottom) {
-            if saved { Text("Saved").font(Typo.button).padding(.horizontal, 22).padding(.vertical, 12).background(Theme.ink, in: Capsule()).foregroundStyle(Theme.paper).padding(.bottom, 20).accessibilityAddTraits(.updatesFrequently) }
-        }
+        .overlay(alignment: .bottom) { ToastView(store: store) }
+        .animation(reduceMotion ? nil : .snappy(duration: 0.25), value: store.toast?.id)
     }
 
     @ViewBuilder private var filters: some View {

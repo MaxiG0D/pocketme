@@ -50,7 +50,7 @@ struct ReaderView: View {
             if article.status == .pending {
                 VStack(spacing: 20) {
                     Text(article.title).font(Typo.sheetTitle)
-                    Text("Getting your article ready…").font(Typo.meta).foregroundStyle(Theme.muted)
+                    ProgressView().accessibilityLabel("Getting your article ready")
                     originalButton
                 }.padding(32).frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if article.status == .ready && article.contentHTML == nil {

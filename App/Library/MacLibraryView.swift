@@ -11,9 +11,12 @@ struct MacLibraryView: View {
     @State private var listVisible = true
     @State private var toDelete: Article?
     @State private var showAdd = false
+    @State private var search = ""
+    @State private var searching = false
+    @FocusState private var searchFocused: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private var filtered: [Article] {
-        articles.filter { section.includes($0) }
+        articles.filter { section.includes($0) && (search.isEmpty || ($0.title + " " + $0.siteName).localizedCaseInsensitiveContains(search)) }
             .sorted { section == .archive ? ($0.archivedAt ?? .distantPast) > ($1.archivedAt ?? .distantPast) : $0.savedAt > $1.savedAt }
     }
     private var openArticle: Article? { readerID.flatMap { id in articles.first { $0.id == id } } }
@@ -33,10 +36,13 @@ struct MacLibraryView: View {
         .frame(minWidth: 900, minHeight: 600)
         #endif
         .background(Theme.paper)
+        .overlay(alignment: .bottom) { ToastView(store: store) }
+        .animation(reduceMotion ? nil : .snappy(duration: 0.25), value: store.toast?.id)
         .onAppear(perform: ensureSelection)
         .onChange(of: section) { _, _ in ensureSelection() }
         .onChange(of: filtered.map(\.id)) { _, _ in ensureSelection() }
         .onChange(of: store.focusPasteToken) { _, _ in addLink() }
+        .onChange(of: store.findToken) { _, _ in listVisible = true; searching = true; searchFocused = true }
         .onChange(of: store.toggleListToken) { _, _ in listVisible.toggle() }
         .onChange(of: store.requestedArticleID) { _, id in
             if let id { section = .unread; readerID = id; store.requestedArticleID = nil }
@@ -60,7 +66,7 @@ struct MacLibraryView: View {
                     if articles.isEmpty {
                         EmptyStateView { pasteFromClipboard() }
                     } else {
-                        Text("No articles here yet").font(Typo.meta).foregroundStyle(Theme.muted)
+                        Text(search.isEmpty ? "No articles here yet" : "No matching articles").font(Typo.meta).foregroundStyle(Theme.muted)
                     }
                 }.frame(maxWidth: .infinity, maxHeight: .infinity)
             }
@@ -69,8 +75,10 @@ struct MacLibraryView: View {
 
     private var list: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 8) { addButton; tabs }.padding(.horizontal, 12).padding(.top, 44).padding(.bottom, 10)
+            HStack(spacing: 8) { addButton; tabs; Spacer(minLength: 0); searchButton }.padding(.horizontal, 12).padding(.top, 44).padding(.bottom, searching ? 6 : 10)
+            if searching { searchField }
             if let message = store.errorMessage { Text(message).font(Typo.meta).foregroundStyle(Theme.muted).padding(.horizontal, 16).padding(.bottom, 8) }
+            ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(spacing: 2) {
                     ForEach(filtered) { article in
@@ -80,16 +88,41 @@ struct MacLibraryView: View {
                     }
                 }.padding(.horizontal, 12).padding(.bottom, 24)
             }.scrollIndicators(.hidden)
+            .onChange(of: readerID) { _, id in if let id { proxy.scrollTo(id) } }
+            }
         }.background(Theme.paper)
             .focusable().focusEffectDisabled()
             .onKeyPress(.downArrow) { step(1) }
             .onKeyPress(.upArrow) { step(-1) }
+            .onKeyPress("e") { act { store.archive($0) } }
+            .onKeyPress("f") { act { store.favorite($0) } }
+            .onKeyPress(.delete) { act { toDelete = $0 } }
+            .onKeyPress(.deleteForward) { act { toDelete = $0 } }
             #if os(macOS)
             .onPasteCommand(of: [.url, .plainText]) { providers in
                 let item = NSExtensionItem(); item.attachments = providers
                 Task { if let url = try? await ShareInput.link(from: [item]) { _ = store.saveLink(url.absoluteString) } }
             }
             #endif
+    }
+    private var searchButton: some View {
+        Button { searching.toggle(); searchFocused = searching; if !searching { search = "" } } label: {
+            Image(systemName: "magnifyingglass").font(.system(size: 13, weight: .medium)).foregroundStyle(searching ? Theme.ink : Theme.muted)
+                .frame(width: 28, height: 28)
+        }.buttonStyle(.plain).accessibilityLabel("Search").help("Search (⌘F)")
+    }
+    private var searchField: some View {
+        HStack(spacing: 6) {
+            TextField("Title or site", text: $search).textFieldStyle(.plain).font(Typo.sans(13)).focused($searchFocused)
+                .onSubmit { searchFocused = false }
+                .onExitCommand { search = ""; searching = false; searchFocused = false }
+            if !search.isEmpty {
+                Button { search = "" } label: { Image(systemName: "xmark.circle.fill") }
+                    .buttonStyle(.plain).foregroundStyle(Theme.muted.opacity(0.7)).accessibilityLabel("Clear")
+            }
+        }.padding(.horizontal, 10).frame(height: 30)
+            .background(Theme.chip, in: Capsule())
+            .padding(.horizontal, 12).padding(.bottom, 10)
     }
     private var addButton: some View {
         Button(action: addLink) {
@@ -128,9 +161,16 @@ struct MacLibraryView: View {
         readerID = filtered[index + delta].id
         return .handled
     }
+    /// Runs a list shortcut on the open article; ignored while typing in the search field.
+    private func act(_ action: (Article) -> Void) -> KeyPress.Result {
+        guard !searchFocused, let article = openArticle else { return .ignored }
+        action(article)
+        return .handled
+    }
     @ViewBuilder private func menu(_ article: Article) -> some View {
         Button("Open original in browser") { if let url = URL(string: article.url) { openURL(url) } }
         Button("Copy link") { Clipboard.copy(article.url) }
+        if let url = URL(string: article.url) { ShareLink("Share", item: url) }
         Button(article.isFavorite ? "Remove favorite" : "Favorite") { store.favorite(article) }
         Button(article.archivedAt == nil ? "Archive" : "Unarchive") { store.archive(article) }
         if article.status == .failed { Button("Retry") { store.retry(article) } }

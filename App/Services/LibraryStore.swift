@@ -10,11 +10,14 @@ final class LibraryStore {
     var readerPreferences = ReaderPreferences()
     var focusPasteToken = 0
     var toggleListToken = 0
+    var findToken = 0
     var processor: ProcessingCoordinator?
     var requestedArticleID: UUID?
     var savedToken = 0
     var actionToken = 0
     var draining = false
+    private(set) var toast: Toast?
+    @ObservationIgnored private var toastTask: Task<Void, Never>?
     @ObservationIgnored private var inboxObserver: InboxObserver?
     private var opening = false
     @ObservationIgnored private var remoteChanges: Task<Void, Never>?
@@ -52,6 +55,17 @@ final class LibraryStore {
         }
     }
 
+    func show(_ text: String, undo: (@MainActor () -> Void)? = nil) {
+        let toast = Toast(text: text, undo: undo)
+        self.toast = toast
+        toastTask?.cancel()
+        toastTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(undo == nil ? 2 : 4))
+            if !Task.isCancelled, self?.toast?.id == toast.id { self?.toast = nil }
+        }
+    }
+    func dismissToast() { toastTask?.cancel(); toast = nil }
+
     func refresh() {
         guard let persistence else { return }
         do {
@@ -60,4 +74,10 @@ final class LibraryStore {
             processor?.start()
         } catch { errorMessage = "Some articles couldn’t be updated. Please try again." }
     }
+}
+
+struct Toast: Identifiable {
+    let id = UUID()
+    let text: String
+    var undo: (@MainActor () -> Void)?
 }

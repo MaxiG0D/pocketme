@@ -11,6 +11,7 @@ struct ArticleMetaView: View {
                 HStack(spacing: 0) {
                     Text("Couldn’t load · ").foregroundStyle(Theme.muted)
                     Button("Retry") { store.retry(article) }.buttonStyle(.plain).underline().foregroundStyle(Theme.ink)
+                        .padding(.vertical, 12).contentShape(Rectangle()).padding(.vertical, -12)
                 }.font(Typo.meta)
             } else if article.status == .pending || store.processor?.downloading.contains(article.id) == true ||
                         (article.contentHTML != nil && store.processor != nil && store.processor?.offlineReady.contains(article.id) != true) {
