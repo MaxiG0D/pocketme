@@ -29,4 +29,20 @@ struct SaveQueueTests {
         #expect(entries.count == 20)
         #expect(Set(entries.map(\.url)).count == 20)
     }
+
+    @Test func malformedLinesDoNotBlockTheInbox() async throws {
+        let folder = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let queue = try SaveQueue(directory: folder)
+        try await queue.append(url: "https://example.com/one")
+        let file = folder.appending(path: "SaveInbox.jsonl")
+        var data = try Data(contentsOf: file)
+        data.append(Data("not json\n".utf8))
+        try data.write(to: file)
+        try await queue.append(url: "https://example.com/two")
+        let entries = try await queue.entries()
+        #expect(entries.map(\.url) == ["https://example.com/one", "https://example.com/two"])
+        try await queue.acknowledge(Set(entries.map(\.id)))
+        #expect(try await queue.entries().isEmpty)
+    }
 }

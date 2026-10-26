@@ -29,7 +29,7 @@ struct ReaderWebView {
 
     @MainActor func update(_ web: WKWebView, coordinator: Coordinator) {
         coordinator.parent = self
-        let key = article.id.uuidString + ":\(article.contentHTML?.hashValue ?? 0):\(fileURL?.path ?? ""):\(article.statusRaw)"
+        let key = article.id.uuidString + ":\(article.contentHTML?.count ?? 0):\(article.wordCount):\(fileURL?.path ?? ""):\(article.statusRaw)"
         if coordinator.loadedKey != key {
             coordinator.loadedKey = key
             if let fileURL {

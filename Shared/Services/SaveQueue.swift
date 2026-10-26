@@ -46,8 +46,9 @@ actor SaveQueue {
 
     private static func read(_ location: URL) throws -> [Entry] {
         guard FileManager.default.fileExists(atPath: location.path) else { return [] }
-        return try Data(contentsOf: location).split(separator: 0x0A).map {
-            try JSONDecoder().decode(Entry.self, from: Data($0))
+        // A malformed line must not wedge the whole inbox; skip it (acknowledge rewrites the file without it).
+        return try Data(contentsOf: location).split(separator: 0x0A).compactMap {
+            try? JSONDecoder().decode(Entry.self, from: Data($0))
         }
     }
 
