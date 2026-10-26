@@ -1,8 +1,7 @@
 #!/bin/zsh
 set -euo pipefail
-# Matches the original Carnet applet's arguments; publishing requires distribution setup.
+# Matches the original Carnet applet's arguments. Publishing signs, notarizes and uploads to GitHub Releases.
 if [[ " $* " != *' --no-publish '* ]]; then
-  echo 'error: PocketMe publishing needs distribution setup in M7. Uncheck Publish for a local archive.' >&2
-  exit 1
+  exec /bin/zsh "$(dirname "$0")/publish_mac.sh" "$@"
 fi
 exec /bin/zsh "$(dirname "$0")/archive.sh" Mac "$@"

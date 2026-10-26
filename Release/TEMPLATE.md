@@ -6,4 +6,6 @@ The applet's Finder/Dock icon uses PocketMe's approved taupe pocket artwork at M
 
 The release applet is a separate developer tool: keep its Carnet template UI, even though the PocketMe product uses its own design system. Do not restyle it or add a new UI.
 
-The applet supports local builds, tests, device installation, and unsigned Mac/iOS archives. TestFlight uploads and publishing are blocked until M7 sets up PocketMe’s own signing, App Store listing, icons and distribution. No Carnet credentials, release folders or release scripts are used.
+The applet supports local builds, tests, device installation, and unsigned Mac/iOS archives. TestFlight uploads are blocked until M7 sets up PocketMe’s own signing, App Store listing, icons and distribution. No Carnet credentials, release folders or release scripts are used.
+
+Mac publishing is `Release/publish_mac.sh`: Developer ID signing, notarization, a zip and Sparkle `appcast.xml` on GitHub Releases. The Sparkle private key lives only in the Keychain.

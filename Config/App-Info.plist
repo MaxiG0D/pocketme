@@ -23,6 +23,14 @@
 		<string>Newsreader.ttf</string>
 		<string>Inter.ttf</string>
 	</array>
+	<key>SUFeedURL</key>
+	<string>https://github.com/maxig0d/pocketme/releases/latest/download/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>$(SPARKLE_PUBLIC_ED_KEY)</string>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUEnableInstallerLauncherService</key>
+	<true/>
 	<key>LSMinimumSystemVersion</key>
 	<string>$(MACOSX_DEPLOYMENT_TARGET)</string>
 	<key>UILaunchScreen</key>

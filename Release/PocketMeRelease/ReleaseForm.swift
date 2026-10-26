@@ -60,7 +60,7 @@ struct ReleaseForm: View {
                     Section("Publish") {
                         Toggle(isOn: $model.publish) {
                             Text("Publish Mac release")
-                            Text(model.publish ? "Requires PocketMe distribution setup before publishing" : "Dry run: build and archive only")
+                            Text(model.publish ? "Signs, notarizes and publishes to GitHub for Sparkle updates" : "Dry run: build and archive only")
                         }
                     }
                 }

@@ -4,6 +4,9 @@ import SwiftUI
 struct PocketMeApp: App {
     @State private var store = LibraryStore()
     @Environment(\.scenePhase) private var scenePhase
+    #if os(macOS)
+    @State private var updater = AppUpdater()
+    #endif
     init() {
         Fonts.register()
         let store = LibraryStore()
@@ -36,6 +39,9 @@ struct PocketMeApp: App {
         .defaultSize(width: 1100, height: 760)
         .windowStyle(.hiddenTitleBar)
         .commands {
+            CommandGroup(after: .appInfo) {
+                Button("Check for Updates…") { updater.check() }
+            }
             CommandGroup(replacing: .newItem) {
                 Button("Save a link") { store.focusPasteToken += 1 }.keyboardShortcut("n")
                 Button("Search") { store.findToken += 1 }.keyboardShortcut("f")
