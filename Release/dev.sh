@@ -41,7 +41,7 @@ case "${1:-}" in
     step 'Building the Mac app'
     typeset -a mac_signing=(CODE_SIGNING_ALLOWED=NO)
     if [[ -n "$(config_value DEVELOPMENT_TEAM)" ]]; then
-      mac_signing=(-allowProvisioningUpdates)
+      mac_signing=(-allowProvisioningUpdates -allowProvisioningDeviceRegistration)
     fi
     xcodebuild build -quiet -project "${PROJECT_PATH}" -scheme PocketMe -configuration Debug \
       -destination 'platform=macOS' -derivedDataPath "${CACHE_DIR}/Mac" \
