@@ -116,18 +116,13 @@ struct LibraryView: View {
         if let selection, let article = articles.first(where: { $0.id == selection }) {
             ReaderView(article: article, close: { self.selection = nil }).id(article.id)
         } else {
-            ZStack {
-                Theme.paper.ignoresSafeArea()
-                if articles.isEmpty { ScrollView { EmptyStateView(paste: pasteOrAdd).frame(maxWidth: .infinity) } }
-                else { Text("Choose an article to read").font(Typo.meta).foregroundStyle(Theme.muted) }
-            }
+            Theme.paper.ignoresSafeArea()
         }
     }
 
     /// Side by side, the reader pane never opens blank: it shows the article being read, else the newest.
     private func ensureSelection() {
         guard sizeClass == .regular else { return }
-        columns = .doubleColumn
         if let selection, filtered.contains(where: { $0.id == selection }) { return }
         selection = (current ?? filtered.first)?.id
     }
