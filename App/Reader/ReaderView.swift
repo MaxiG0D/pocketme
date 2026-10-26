@@ -7,6 +7,9 @@ struct ReaderView: View {
     @Environment(\.openURL) private var openURL
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
+    #if os(iOS)
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    #endif
     @Query(sort: \Article.savedAt, order: .reverse) private var articles: [Article]
     let article: Article
     var backTitle = "Unread"
@@ -37,7 +40,9 @@ struct ReaderView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            #if os(macOS)
             header
+            #endif
             GeometryReader { geometry in
                 Rectangle().fill(preferences.theme.ink.opacity(0.06))
                 Rectangle().fill(Theme.accent).frame(width: geometry.size.width * progress)
@@ -83,10 +88,29 @@ struct ReaderView: View {
         .ignoresSafeArea(.container, edges: .top)
         #endif
         #if os(iOS)
-        .toolbar(.hidden, for: .navigationBar, .tabBar)
-        .background(NavigationPopEnabler())
+        // The system bar keeps Back first and moves to the side on the iPhone Duo outer display.
+        .toolbar(sizeClass == .compact ? .hidden : .automatic, for: .tabBar)
+        .navigationTitle("").navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(preferences.theme.paper, for: .navigationBar)
+        .toolbarBackgroundVisibility(.visible, for: .navigationBar)
+        .toolbarColorScheme(barScheme, for: .navigationBar)
+        .tint(preferences.theme.ink)
+        .toolbar {
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                Button("Reader settings", systemImage: "textformat.size") { settings = true }
+                if let url = URL(string: article.url) {
+                    ShareLink(item: url) { Label("Share", systemImage: "square.and.arrow.up") }
+                }
+            }
+        }
         #endif
     }
+
+    #if os(iOS)
+    private var barScheme: ColorScheme? {
+        switch preferences.theme { case .dark: .dark; case .light, .sepia: .light; case .auto: nil }
+    }
+    #endif
 
     private var header: some View {
         HStack(spacing: 0) {

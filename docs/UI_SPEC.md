@@ -36,7 +36,7 @@ enum Theme {
     static let muted    = Color("Muted")    // #6B6B66 / #9C9C95
     static let hairline = Color("Hairline") // #ECECE7 / white 8%
     static let chip     = Color("Chip")     // #EEEEEA / #2A2A28
-    static let accent   = Color("Accent")   // #E2562B both
+    static let accent   = Color("Accent")   // #C7461C / #E2562B (text on it: white / #1A1A1A, both 4.5:1 or better)
     static let success  = Color("Success")  // #3D7A4F / #5C9A6E
     static let pending  = Color("Pending")  // dot #C79A2E, label #8A6A1F / #D9B25A
 

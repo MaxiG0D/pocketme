@@ -83,7 +83,7 @@ Put these in `Shared/Design/Theme.swift` as a single source of truth.
 | `muted` (secondary text) | `#6B6B66` | `#9C9C95` |
 | `hairline` (dividers) | `#ECECE7` | `rgba(255,255,255,0.08)` |
 | `chip` (inactive pill) | `#EEEEEA` | `#2A2A28` |
-| `accent` (coral) | `#E2562B` | `#E2562B` |
+| `accent` (coral) | `#C7461C` | `#E2562B` |
 | `success` (archive green) | `#3D7A4F` | `#5C9A6E` |
 
 Sepia reader theme: paper `#F4ECDC`, ink `#2B2418`, body `#3A3022`, muted `#6E6150`.

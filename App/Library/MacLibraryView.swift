@@ -1,3 +1,4 @@
+#if os(macOS)
 import SwiftData
 import SwiftUI
 
@@ -68,7 +69,7 @@ struct MacLibraryView: View {
 
     private var list: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 8) { addButton; tabs }.padding(.horizontal, 12).padding(.top, listTopInset).padding(.bottom, 10)
+            HStack(spacing: 8) { addButton; tabs }.padding(.horizontal, 12).padding(.top, 44).padding(.bottom, 10)
             if let message = store.errorMessage { Text(message).font(Typo.meta).foregroundStyle(Theme.muted).padding(.horizontal, 16).padding(.bottom, 8) }
             ScrollView {
                 LazyVStack(spacing: 2) {
@@ -89,14 +90,6 @@ struct MacLibraryView: View {
                 Task { if let url = try? await ShareInput.link(from: [item]) { _ = store.saveLink(url.absoluteString) } }
             }
             #endif
-    }
-    /// On the Mac the hidden title bar leaves room for the traffic lights; elsewhere the safe area already does.
-    private var listTopInset: CGFloat {
-        #if os(macOS)
-        44
-        #else
-        8
-        #endif
     }
     private var addButton: some View {
         Button(action: addLink) {
@@ -161,7 +154,8 @@ private struct CompactRow: View {
     }
 }
 
-#if DEBUG && os(macOS)
+#if DEBUG
 #Preview("Light") { PreviewHost { store, articles in MacLibraryView().frame(width: 1440, height: 900) }.preferredColorScheme(.light) }
 #Preview("Dark") { PreviewHost { store, articles in MacLibraryView().frame(width: 1440, height: 900) }.preferredColorScheme(.dark) }
+#endif
 #endif

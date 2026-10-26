@@ -12,8 +12,6 @@ struct ArticleRow: View {
             ArticleThumb(article: article, width: Theme.rowThumb, height: Theme.rowThumb)
         }
         .padding(.vertical, 12).frame(maxWidth: .infinity, alignment: .leading)
-        .background(Theme.paper)
-        .overlay(alignment: .top) { Rectangle().fill(Theme.hairline).frame(height: 1) }
         .contentShape(Rectangle())
     }
 }
