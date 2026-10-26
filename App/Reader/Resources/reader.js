@@ -13,13 +13,10 @@
     const styleChanged = key !== styleKey; styleKey = key;
     document.documentElement.className = [config.theme, config.font === 'sans' ? 'sans' : '', config.mac ? 'mac' : ''].join(' ');
     document.documentElement.style.setProperty('--size', config.size + 'px');
-    const favorite = document.querySelector('[data-action="favorite"]'); if (favorite) favorite.textContent = config.favorite ? 'Favorited' : 'Favorite';
-    const archive = document.querySelector('[data-action="archive"]'); if (archive) archive.textContent = config.archived ? 'Unarchive' : 'Archive';
-    const upnext = document.querySelector('.upnext');
-    if (upnext) {
-      upnext.hidden = !config.nextTitle;
-      const button = upnext.querySelector('button'); if (button) button.textContent = config.nextTitle || '';
-    }
+    const label = (button, text) => { if (button) (button.querySelector('span') || button).textContent = text; };
+    const favorite = document.querySelector('[data-action="favorite"]');
+    label(favorite, config.favorite ? 'Favorited' : 'Favorite'); favorite?.classList.toggle('on', !!config.favorite);
+    label(document.querySelector('[data-action="archive"]'), config.archived ? 'Unarchive' : 'Archive');
     if (!restored) {
       desired = config.progress || 0;
       if (!restoring) {
@@ -44,6 +41,18 @@
     else if (!event.metaKey && !event.ctrlKey && event.key.toLowerCase() === 'f') { post('favorite'); event.preventDefault(); }
     else if (event.metaKey && ['+','=','-'].includes(event.key)) { post(event.key === '-' ? 'smaller' : 'larger'); event.preventDefault(); }
   });
+  window.pocketmeNext = next => {
+    const upnext = document.querySelector('.upnext'); if (!upnext) return;
+    upnext.hidden = !next; if (!next) return;
+    const thumb = upnext.querySelector('.thumb'), title = upnext.querySelector('.title'), meta = upnext.querySelector('.meta');
+    if (title) title.textContent = next.title;
+    if (meta) meta.textContent = next.meta;
+    if (thumb) {
+      thumb.className = 'thumb cover' + next.cover; thumb.textContent = '';
+      if (next.image) { const img = document.createElement('img'); img.alt = ''; img.src = next.image; thumb.classList.add('photo'); thumb.appendChild(img); }
+      else thumb.textContent = next.initial;
+    }
+  };
   window.pocketmeProgress = () => { progress(true); };
   post('ready');
 })();

@@ -21,5 +21,12 @@ hr{border:0;border-top:1px solid var(--hair);margin:2em 0}table{display:block;ma
 .end .done{font-size:13px;color:var(--muted);margin-bottom:14px}
 .btn{display:flex;align-items:center;justify-content:center;gap:8px;height:50px;border-radius:25px;font:600 15px var(--font-ui);border:0;width:100%;cursor:pointer}
 .btn.primary{background:var(--ink);color:var(--paper)}.btn.outline{height:46px;background:transparent;color:var(--ink);border:1px solid var(--hair)}
-.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}.upnext{text-align:left;margin-top:28px}.upnext button{font:600 18px/1.3 Newsreader,serif;background:none;border:0;text-align:left;color:var(--ink);padding:8px 0;cursor:pointer}
+.btn svg{width:18px;height:18px;flex-shrink:0;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}.btn.outline svg{width:16px;height:16px}.btn.on svg{fill:currentColor}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}.upnext{text-align:left;margin-top:28px}.upnext .kicker{margin-bottom:10px}
+.upnext button{display:flex;align-items:center;gap:12px;width:100%;background:none;border:0;padding:0;text-align:left;color:var(--ink);cursor:pointer}
+.upnext .thumb{width:56px;height:56px;flex-shrink:0;box-sizing:border-box;padding:7px 8px;border-radius:10px;overflow:hidden;font:600 26px/1 Newsreader,Georgia,serif}
+.upnext .thumb.photo{padding:0}.upnext .thumb img{display:block;width:100%;height:100%;object-fit:cover;border-radius:0}
+.upnext .info{display:flex;flex-direction:column;gap:3px;min-width:0}.upnext .title{font:600 15px/1.3 var(--font-ui)}.upnext .meta{font:13px/1.3 var(--font-ui);color:var(--muted)}
+.cover0{background:#1F3A5F;color:#FAFAF8}.cover1{background:#EDE4CF;color:#1A1A1A}.cover2{background:#E9D6BF;color:#1A1A1A}.cover3{background:#D6E4E1;color:#1A1A1A}
+.cover4{background:#E6DEEA;color:#1A1A1A}.cover5{background:#3B4A3F;color:#FAFAF8}.cover6{background:#5A3A2E;color:#FAFAF8}.cover7{background:#DCE3EC;color:#1A1A1A}
 button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:4px}

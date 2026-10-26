@@ -21,8 +21,10 @@ struct SavedSheetView: View {
                     VStack(alignment: .leading, spacing: 5) {
                         Text(flow.title).font(Typo.cardTitleSerif).lineLimit(3)
                         Text(flow.site).font(Typo.meta).foregroundStyle(Theme.muted)
-                        Text(flow.errorMessage ?? (flow.saved ? "Will download for offline" : "Saving…"))
-                            .font(Typo.sans(12.5).weight(.medium)).foregroundStyle(flow.errorMessage == nil ? Theme.success : Theme.muted)
+                        HStack(spacing: 4) {
+                            if flow.saved && flow.errorMessage == nil { Image(systemName: "arrow.down.to.line").font(.system(size: 11, weight: .bold)) }
+                            Text(flow.errorMessage ?? (flow.saved ? "Will download for offline" : "Saving…"))
+                        }.font(Typo.sans(12.5).weight(.medium)).foregroundStyle(flow.errorMessage == nil ? Theme.success : Theme.muted)
                     }
                 }
                 .padding(12).frame(maxWidth: .infinity, alignment: .leading)

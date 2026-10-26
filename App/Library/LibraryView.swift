@@ -82,16 +82,19 @@ struct LibraryView: View {
             HStack(spacing: 4) {
                 Text(favoritesOnly ? "Favorites" : "Reading").font(Typo.largeTitle).tracking(-0.5).foregroundStyle(Theme.ink).accessibilityAddTraits(.isHeader)
                 Spacer(minLength: 8)
-                Button { showSearch.toggle() } label: { Image(systemName: "magnifyingglass") }.buttonStyle(CircleIconButtonStyle()).accessibilityLabel("Search articles")
+                if !articles.isEmpty {
+                    Button { showSearch.toggle() } label: { Image(systemName: "magnifyingglass") }.buttonStyle(CircleIconButtonStyle()).accessibilityLabel("Search articles")
+                }
                 Button(action: pasteOrAdd) { Image(systemName: "plus").fontWeight(.semibold) }.buttonStyle(CircleIconButtonStyle(kind: .accent)).accessibilityLabel("Save a link")
             }
-            if !favoritesOnly {
+            // First launch shows only the title and +, so the empty state has the screen to itself.
+            if !favoritesOnly && !articles.isEmpty {
                 HStack(spacing: 6) {
                     Button("Unread · \(articles.filter { $0.archivedAt == nil }.count)") { archive = false }.buttonStyle(PillButtonStyle(selected: !archive))
                     Button("Archive") { archive = true }.buttonStyle(PillButtonStyle(selected: archive))
                 }
             }
-            if showSearch {
+            if showSearch && !articles.isEmpty {
                 TextField("Search title or site", text: $search).font(Typo.meta).padding(14)
                     .background(Theme.chip, in: RoundedRectangle(cornerRadius: 12)).autocorrectionDisabled()
             }

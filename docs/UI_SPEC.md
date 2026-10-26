@@ -200,10 +200,10 @@ struct ArticleThumb: View {
 
 ### 3.4 Reader settings sheet
 
-`.sheet` with `.presentationDetents([.height(360)])`, `.presentationCornerRadius(26)`, `.presentationBackground(Theme.surface)`, and a visible drag indicator. Content padding 20, vertical spacing 22:
+`.sheet` with `.presentationDetents([.height(330), .large])`, `.presentationCornerRadius(26)`, `.presentationBackground(Theme.surface)`, and a visible drag indicator. Content padding 20, vertical spacing 22:
 1. Size row: `A` button (44 circle, chip background, Inter 14 semibold), a 4pt track with an ink fill showing the position, and an `A` button (Inter 21 semibold).
 2. "THEME" kicker, then a 4-column grid with gap 10: each tile is 64pt tall, radius 14, filled with that theme's paper color, with "Aa" (Newsreader 18) above the label (Inter 13 semibold) in that theme's ink. The selected tile gets a 2pt accent stroke; others a 1pt `#E0E0DA` stroke.
-3. "FONT" kicker, then a segmented control drawn by us: a chip-colored container with radius 14 and padding 4; segments 42pt tall with radius 10, the selected one on `surface`. "Serif" is set in Newsreader 16, "Sans" in Inter 15.
+3. "FONT" kicker, then a segmented control drawn by us: a chip-colored container with radius 14 and padding 4; segments 42pt tall with radius 10, the selected one on `segmentSelected` (`#FFFFFF`, dark `#3A3A37`, always lighter than the container). "Serif" is set in Newsreader 16, "Sans" in Inter 15.
 
 The article behind the sheet updates live.
 
@@ -221,11 +221,13 @@ Centered column, horizontal padding 32, spacing 26:
 - "Nothing saved yet": sheetTitle (Newsreader 26).
 - Body: Inter 15, line spacing 1.5, color `#5E5E59` (dark: `#A8A8A1`). Text: "Save anything you want to read later. It downloads for offline and shows up on your Mac too."
 - Two step cards (`surface`, radius 14, hairline border, padding 14): a numbered 28pt chip circle, then the text with **bold** keywords.
+- Step text: "In Safari or any app, tap **Share**, then **PocketMe**" and "Or copy a link and tap **+** up top" (Mac: "click", and "Or paste a link in the field up top").
+- While the library is empty, the header shows only the title and `+` (no search button, no Unread/Archive pills).
 - Primary button "Paste link from clipboard" (`PrimaryButtonStyle`, ink fill).
 
 ### 3.7 Tab bar
 
-The system `TabView`, but tinted: `.tint(Theme.ink)` for the selected item and `Theme.muted` for unselected (set via `UITabBarAppearance` in the app init: background `paper` at 96% opacity, a hairline shadow color, and Inter 11 for the item titles). Icons: `book`, `bookmark`, `gearshape`.
+The system `TabView` (on iOS 26 this is the native floating glass bar, which is the approved look), tinted: `.tint(Theme.ink)` for the selected item and `Theme.muted` for unselected (set via `UITabBarAppearance` in the app init: background `paper` at 96% opacity, a hairline shadow color, and Inter 11 for the item titles). Icons: `book`, `bookmark`, `gearshape`.
 
 ---
 
@@ -253,7 +255,7 @@ The system `TabView`, but tinted: `.tint(Theme.ink)` for the selected item and `
 
 ### 4.2 Mac reader
 
-- Replaces the content+detail area (or opens in the detail column with the content collapsed). The header bar is 52 tall: back "‹ Unread" (Inter 13 medium), the centered article title (Inter 13 semibold, muted, one line truncated), then the `Aa`, favorite and share buttons (34×30, radius 8). Under it, the 2pt progress bar.
+- Takes the whole window (no sidebar). The header bar is 52 tall and shares its row with the traffic lights (88pt leading inset): back "‹ <section>" naming the section the article was opened from (Inter 13 medium), the centered article title (Inter 13 semibold, muted, one line truncated), then the `Aa`, favorite and share buttons (34×30, radius 8). Under it, the 2pt progress bar.
 - The article column is max 680 wide and centered, with 56 top padding. H1 is Newsreader 46 semibold with tracking -0.6; the body is Newsreader 21 with line height 1.65. All of this is in CSS (section 5), and the Mac CSS just uses larger values via a `.mac` class on `<html>`.
 
 ---

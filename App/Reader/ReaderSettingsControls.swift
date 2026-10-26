@@ -33,8 +33,8 @@ struct ReaderSettingsControls: View {
             VStack(alignment: .leading, spacing: 10) {
                 Text("Font").kicker()
                 HStack(spacing: 0) {
-                    Button { preferences.sans = false } label: { Text("Serif").font(Typo.serif(16)).frame(maxWidth: .infinity).frame(minHeight: 42).background(preferences.sans ? Theme.chip : Theme.surface, in: RoundedRectangle(cornerRadius: 10)) }
-                    Button { preferences.sans = true } label: { Text("Sans").font(Typo.sans(15)).frame(maxWidth: .infinity).frame(minHeight: 42).background(preferences.sans ? Theme.surface : Theme.chip, in: RoundedRectangle(cornerRadius: 10)) }
+                    Button { preferences.sans = false } label: { Text("Serif").font(Typo.serif(16)).frame(maxWidth: .infinity).frame(minHeight: 42).background(preferences.sans ? Theme.chip : Theme.segmentSelected, in: RoundedRectangle(cornerRadius: 10)) }.accessibilityAddTraits(preferences.sans ? [] : .isSelected)
+                    Button { preferences.sans = true } label: { Text("Sans").font(Typo.sans(15)).frame(maxWidth: .infinity).frame(minHeight: 42).background(preferences.sans ? Theme.segmentSelected : Theme.chip, in: RoundedRectangle(cornerRadius: 10)) }.accessibilityAddTraits(preferences.sans ? .isSelected : [])
                 }.buttonStyle(.plain).padding(4).background(Theme.chip, in: RoundedRectangle(cornerRadius: 14))
             }
         }.foregroundStyle(Theme.ink).padding(20).background(Theme.surface)

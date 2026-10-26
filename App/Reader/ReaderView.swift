@@ -9,11 +9,11 @@ struct ReaderView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Query(sort: \Article.savedAt, order: .reverse) private var articles: [Article]
     let article: Article
+    var backTitle = "Unread"
     var close: (() -> Void)?
     @State private var progress: Double = 0
     @State private var lastSaved = Date.distantPast
     @State private var settings = false
-    @State private var share = false
     private var next: Article? { articles.first { $0.id != article.id && $0.archivedAt == nil } }
     private var fileURL: URL? {
         guard store.processor?.offlineReady.contains(article.id) == true else { return nil }
@@ -21,8 +21,7 @@ struct ReaderView: View {
     }
     private var config: String {
         let config = Configuration(theme: preferences.theme.rawValue, font: preferences.sans ? "sans" : "serif", size: preferences.size,
-                                   progress: progress, favorite: article.isFavorite, archived: article.archivedAt != nil, nextTitle: next?.title,
-                                   mac: isMac)
+                                   progress: progress, favorite: article.isFavorite, archived: article.archivedAt != nil, mac: isMac)
         return (try? JSONEncoder().encode(config)).flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
     }
     private var isMac: Bool {
@@ -62,20 +61,13 @@ struct ReaderView: View {
                         Button("Retry") { store.retry(article) }.font(Typo.button).buttonStyle(.plain)
                     }.padding(14).background(Theme.chip)
                 }
-                ReaderWebView(article: article, fileURL: fileURL, configurationJSON: config, onMessage: message,
+                ReaderWebView(article: article, fileURL: fileURL, configurationJSON: config, next: next, onMessage: message,
                               openLink: { openURL($0) }, saveLink: { _ = store.saveLink($0.absoluteString) })
             }
         }
         .foregroundStyle(preferences.theme.ink).background(preferences.theme.paper)
         .preferredColorScheme(preferences.theme == .dark ? .dark : preferences.theme == .light ? .light : nil)
         .sheet(isPresented: $settings) { ReaderSettingsSheet() }
-        .sheet(isPresented: $share) {
-            VStack(spacing: 20) {
-                Text("Share article").font(Typo.sheetTitle)
-                if let url = URL(string: article.url) { ShareLink(item: url).font(Typo.button).tint(Theme.ink) }
-                Button("Done") { share = false }.buttonStyle(SecondaryButtonStyle())
-            }.padding(24).background(Theme.surface).presentationDetents([.height(220)])
-        }
         .onAppear {
             progress = min(max(article.readingProgress, 0), 1)
             article.lastOpenedAt = .now; store.persist()
@@ -83,6 +75,10 @@ struct ReaderView: View {
         }
         .onDisappear { saveProgress(force: true) }
         .onChange(of: scenePhase) { _, phase in if phase != .active { saveProgress(force: true) } }
+        #if os(macOS)
+        // The window has a hidden title bar; the header shares its row with the traffic lights.
+        .ignoresSafeArea(.container, edges: .top)
+        #endif
         #if os(iOS)
         .toolbar(.hidden, for: .navigationBar, .tabBar)
         .background(NavigationPopEnabler())
@@ -99,11 +95,11 @@ struct ReaderView: View {
             if let url = URL(string: article.url) {
                 ShareLink(item: url) { Image(systemName: "square.and.arrow.up") }.buttonStyle(CircleIconButtonStyle()).accessibilityLabel("Share article")
             }
-        }.padding(.horizontal, 12).frame(height: isMac ? 52 : 44).background(preferences.theme.paper)
+        }.padding(.horizontal, 12).padding(.leading, isMac ? 76 : 0).frame(height: isMac ? 52 : 44).background(preferences.theme.paper)
     }
     @ViewBuilder private var backButton: some View {
         if isMac {
-            Button(action: goBack) { Label("Unread", systemImage: "chevron.left") }
+            Button(action: goBack) { Label(backTitle, systemImage: "chevron.left") }
                 .buttonStyle(.plain).font(Typo.sans(13).weight(.medium)).frame(minHeight: 44)
                 .accessibilityLabel("Back to library")
         } else {
@@ -126,7 +122,7 @@ struct ReaderView: View {
         case "progress": if let value, value.isFinite { progress = min(max(value, 0), 1); saveProgress() }
         case "archive": store.archive(article); goBack()
         case "favorite": store.favorite(article)
-        case "share": share = true
+        case "share": if let url = URL(string: article.url) { SharePresenter.share(url) }
         case "next": if let next { saveProgress(force: true); store.requestedArticleID = next.id }
         case "back": goBack()
         case "smaller": preferences.resize(-1)
@@ -136,7 +132,7 @@ struct ReaderView: View {
     }
     private struct Configuration: Codable {
         let theme: String; let font: String; let size: Double; let progress: Double
-        let favorite: Bool; let archived: Bool; let nextTitle: String?; let mac: Bool
+        let favorite: Bool; let archived: Bool; let mac: Bool
     }
 }
 

@@ -20,8 +20,13 @@ struct EmptyStateView: View {
                     .font(Typo.sans(15)).foregroundStyle(Theme.emptyBody).multilineTextAlignment(.center).lineSpacing(1.5)
             }
             VStack(spacing: 10) {
-                step(1, text: "Tap **Share** in Safari or another app.")
-                step(2, text: "Choose **PocketMe** to save your link.")
+                #if os(macOS)
+                step(1, text: "In Safari or any app, click **Share**, then **PocketMe**")
+                step(2, text: "Or paste a link in the field up top")
+                #else
+                step(1, text: "In Safari or any app, tap **Share**, then **PocketMe**")
+                step(2, text: "Or copy a link and tap **+** up top")
+                #endif
             }
             Button("Paste link from clipboard", action: paste).buttonStyle(PrimaryButtonStyle())
         }.frame(maxWidth: 420).padding(.horizontal, 32).padding(.vertical, 32)

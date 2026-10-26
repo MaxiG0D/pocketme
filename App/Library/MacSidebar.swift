@@ -11,10 +11,10 @@ struct MacSidebar: View {
                     Button { section = choice } label: {
                         HStack(spacing: 10) {
                             Image(systemName: choice.icon).font(.system(size: 17, weight: .regular)).frame(width: 20)
-                            Text(choice.title).font(Typo.sans(14))
+                            Text(choice.title).font(Typo.sans(14).weight(section == choice ? .semibold : .medium))
                             Spacer()
-                            if choice == .unread { Text(String(unread)).font(Typo.sans(14)).foregroundStyle(Theme.muted) }
-                        }.foregroundStyle(Theme.ink).padding(.horizontal, 12).frame(height: 36)
+                            if choice == .unread { Text(String(unread)).font(Typo.sans(14).weight(.medium)).foregroundStyle(Theme.muted) }
+                        }.foregroundStyle(section == choice ? Theme.ink : Theme.body).padding(.horizontal, 12).frame(height: 36)
                             .background(section == choice ? Theme.sidebarSelection : Theme.sidebar.opacity(0), in: RoundedRectangle(cornerRadius: 8))
                     }.buttonStyle(.plain).accessibilityAddTraits(section == choice ? .isSelected : [])
                 }

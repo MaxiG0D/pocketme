@@ -5,6 +5,7 @@ struct ReaderWebView {
     let article: Article
     let fileURL: URL?
     let configurationJSON: String
+    let next: Article?
     let onMessage: @MainActor (String, Double?) -> Void
     let openLink: @MainActor (URL) -> Void
     let saveLink: @MainActor (URL) -> Void
@@ -47,11 +48,18 @@ struct ReaderWebView {
     final class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler, WKUIDelegate {
         var parent: ReaderWebView
         var loadedKey = ""
+        var sentNextKey: String?
         init(_ parent: ReaderWebView) { self.parent = parent }
         func configure(_ web: WKWebView) {
             web.evaluateJavaScript("window.pocketmeConfigure && window.pocketmeConfigure(\(parent.configurationJSON))", completionHandler: nil)
+            // The next article's thumbnail is large, so it is sent only when the next article changes.
+            let nextKey = parent.next.map { "\($0.id):\($0.title):\($0.thumbnailData?.count ?? 0)" } ?? ""
+            guard nextKey != sentNextKey else { return }
+            sentNextKey = nextKey
+            web.evaluateJavaScript("window.pocketmeNext && window.pocketmeNext(\(ReaderDocument.nextJSON(parent.next)))", completionHandler: nil)
         }
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            sentNextKey = nil
             configure(webView)
             #if os(macOS)
             webView.window?.makeFirstResponder(webView)
@@ -59,7 +67,7 @@ struct ReaderWebView {
         }
         func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
             guard message.frameInfo.isMainFrame, let body = message.body as? [String: Any], let action = body["action"] as? String else { return }
-            if action == "ready", let web = message.webView { configure(web) }
+            if action == "ready", let web = message.webView { sentNextKey = nil; configure(web) }
             else { parent.onMessage(action, body["value"] as? Double) }
         }
         func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction) async -> WKNavigationActionPolicy {

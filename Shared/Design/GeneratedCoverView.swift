@@ -15,12 +15,13 @@ struct GeneratedCoverView: View {
             ZStack(alignment: .topLeading) {
                 palette.background
                 Text(String(name.prefix(1)).uppercased())
-                    .font(Typo.serif(geometry.size.height * 0.45))
+                    // Covers are artwork: their lettering keeps its size whatever the Dynamic Type setting.
+                    .font(Font.custom("Newsreader16pt-Regular", fixedSize: geometry.size.height * 0.45).weight(.semibold))
                     .padding(inset)
                 VStack {
                     Spacer(minLength: 0)
                     Text(name.uppercased())
-                        .font(Typo.sans(9, relativeTo: .caption2).weight(.bold))
+                        .font(Font.custom("Inter-Regular", fixedSize: 9).weight(.bold))
                         .tracking(0.5)
                         .lineLimit(1)
                         .padding(inset)

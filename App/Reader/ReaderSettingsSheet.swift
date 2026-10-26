@@ -4,7 +4,7 @@ struct ReaderSettingsSheet: View {
     var body: some View {
         ScrollView { ReaderSettingsControls() }
             .background(Theme.surface)
-            .presentationDetents([.height(360), .large]).presentationCornerRadius(26)
+            .presentationDetents([.height(330), .large]).presentationCornerRadius(26)
             .presentationBackground(Theme.surface).presentationDragIndicator(.visible)
     }
 }

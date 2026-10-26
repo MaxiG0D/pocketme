@@ -8,7 +8,7 @@ struct PreviewPane: View {
         ScrollView {
             if let article {
                 VStack(alignment: .leading, spacing: 18) {
-                    ArticleThumb(article: article, contentMode: .fit, radius: 14).aspectRatio(1.6, contentMode: .fit)
+                    ArticleThumb(article: article, radius: 14).aspectRatio(1.6, contentMode: .fit)
                     Text("\(article.siteName) · \(article.readingMinutes) min").kicker()
                     Text(article.title).font(Typo.serif(28)).foregroundStyle(Theme.ink)
                         .lineLimit(4).fixedSize(horizontal: false, vertical: true)

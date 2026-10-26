@@ -23,6 +23,7 @@ enum Theme {
     static let cardSelection = Color("CardSelection")
     static let previewBody = Color("PreviewBody")
     static let themeBorder = Color("ThemeBorder")
+    static let segmentSelected = Color("SegmentSelected")
     static let sepiaPaper = Color("SepiaPaper")
     static let sepiaInk = Color("SepiaInk")
     static let readerLightPaper = Color("ReaderLightPaper")

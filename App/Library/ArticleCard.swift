@@ -6,7 +6,7 @@ struct ArticleCard: View {
     @State private var hover = false
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            ArticleThumb(article: article, contentMode: .fit).aspectRatio(1.6, contentMode: .fit)
+            ArticleThumb(article: article).aspectRatio(1.6, contentMode: .fit)
             Text(article.title).font(Typo.sans(15).weight(.semibold)).foregroundStyle(Theme.ink).lineLimit(3)
                 .fixedSize(horizontal: false, vertical: true)
             ArticleMetaView(article: article)

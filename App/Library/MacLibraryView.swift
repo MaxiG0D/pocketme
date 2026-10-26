@@ -23,11 +23,8 @@ struct MacLibraryView: View {
     var body: some View {
         Group {
             if let readerID, let article = articles.first(where: { $0.id == readerID }) {
-                NavigationSplitView(columnVisibility: $columns) {
-                    MacSidebar(section: $section, unread: articles.filter { $0.archivedAt == nil }.count)
-                } detail: {
-                    ReaderView(article: article) { self.readerID = nil; columns = .all }
-                }
+                // The reader takes the whole window, like a page lifted out of the library.
+                ReaderView(article: article, backTitle: section.title) { self.readerID = nil; columns = .all }
             } else {
                 NavigationSplitView(columnVisibility: $columns) {
                     MacSidebar(section: $section, unread: articles.filter { $0.archivedAt == nil }.count)
