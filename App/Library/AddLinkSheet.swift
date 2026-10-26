@@ -17,7 +17,7 @@ struct AddLinkSheet: View {
             if let message = store.errorMessage { Text(message).font(Typo.meta).foregroundStyle(Theme.muted) }
             Button("Save", action: save).buttonStyle(PrimaryButtonStyle(fill: Theme.accent, foreground: Theme.onAccent)).disabled(link.isEmpty)
             Button("Cancel") { dismiss() }.buttonStyle(SecondaryButtonStyle())
-        }.padding(22).background(Theme.surface).onAppear { focused = true }
+        }.padding(22).background(Theme.surface).onAppear { if link.isEmpty, let copied = Clipboard.link { link = copied }; focused = true }
         .presentationDetents([.height(320), .large]).presentationDragIndicator(.visible).presentationCornerRadius(26).presentationBackground(Theme.surface)
     }
     private func save() { if store.saveLink(link) != nil { dismiss() } }

@@ -58,7 +58,7 @@ struct MacLibraryView: View {
                     .frame(maxWidth: .infinity, alignment: .leading).padding(.leading, 76).padding(.top, 8) }
                 Group {
                     if articles.isEmpty {
-                        EmptyStateView { addLink() }
+                        EmptyStateView { pasteFromClipboard() }
                     } else {
                         Text("No articles here yet").font(Typo.meta).foregroundStyle(Theme.muted)
                     }
@@ -114,7 +114,9 @@ struct MacLibraryView: View {
         }
     }
 
-    private func addLink() { if let raw = Clipboard.link { _ = store.saveLink(raw) } else { showAdd = true } }
+    /// Opens the sheet, which prefills a copied link; nothing is saved until it is confirmed.
+    private func addLink() { showAdd = true }
+    private func pasteFromClipboard() { if let raw = Clipboard.link { _ = store.saveLink(raw) } else { showAdd = true } }
     /// Keeps the reader on a valid article: the one just read if there is one, else the newest.
     private func ensureSelection() {
         if let readerID, filtered.contains(where: { $0.id == readerID }) { return }

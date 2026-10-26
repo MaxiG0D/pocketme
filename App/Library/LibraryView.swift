@@ -95,7 +95,7 @@ struct LibraryView: View {
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
                 if !articles.isEmpty { Button("Search", systemImage: "magnifyingglass") { showSearch = true } }
-                Button("Save a link", systemImage: "plus", action: pasteOrAdd).tint(Theme.accent)
+                Button("Save a link", systemImage: "plus") { addLink = true }.tint(Theme.accent)
             }
         }
         .refreshable { store.refresh(); await store.drainInbox() }
