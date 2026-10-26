@@ -16,6 +16,7 @@ struct LibraryView: View {
     @State private var selection: UUID?
     @State private var columns = NavigationSplitViewVisibility.doubleColumn
     @State private var toDelete: Article?
+    @State private var compactColumn = NavigationSplitViewColumn.sidebar
 
     private var filtered: [Article] {
         let section: LibrarySection = favoritesOnly ? .favorites : archive ? .archive : .unread
@@ -31,7 +32,7 @@ struct LibraryView: View {
     private let rowInsets = EdgeInsets(top: 0, leading: Theme.gutter, bottom: 0, trailing: Theme.gutter)
 
     var body: some View {
-        NavigationSplitView(columnVisibility: $columns) {
+        NavigationSplitView(columnVisibility: $columns, preferredCompactColumn: $compactColumn) {
             list
                 .navigationTitle(favoritesOnly ? "Favorites" : "Reading")
                 .navigationSplitViewColumnWidth(min: 300, ideal: 360, max: 420)
@@ -115,13 +116,18 @@ struct LibraryView: View {
         if let selection, let article = articles.first(where: { $0.id == selection }) {
             ReaderView(article: article, close: { self.selection = nil }).id(article.id)
         } else {
-            Theme.paper.ignoresSafeArea()
+            ZStack {
+                Theme.paper.ignoresSafeArea()
+                if articles.isEmpty { ScrollView { EmptyStateView(paste: pasteOrAdd).frame(maxWidth: .infinity) } }
+                else { Text("Choose an article to read").font(Typo.meta).foregroundStyle(Theme.muted) }
+            }
         }
     }
 
     /// Side by side, the reader pane never opens blank: it shows the article being read, else the newest.
     private func ensureSelection() {
         guard sizeClass == .regular else { return }
+        columns = .doubleColumn
         if let selection, filtered.contains(where: { $0.id == selection }) { return }
         selection = (current ?? filtered.first)?.id
     }
