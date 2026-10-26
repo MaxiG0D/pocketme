@@ -10,7 +10,9 @@ struct ReaderView: View {
     @Query(sort: \Article.savedAt, order: .reverse) private var articles: [Article]
     let article: Article
     var backTitle = "Unread"
-    var embedded = false
+    /// Set when the reader sits beside the Mac library list: the back button becomes a list toggle.
+    var toggleList: (() -> Void)?
+    var clearsTrafficLights = false
     var close: (() -> Void)?
     @State private var progress: Double = 0
     @State private var lastSaved = Date.distantPast
@@ -96,10 +98,13 @@ struct ReaderView: View {
             if let url = URL(string: article.url) {
                 ShareLink(item: url) { Image(systemName: "square.and.arrow.up") }.buttonStyle(CircleIconButtonStyle()).accessibilityLabel("Share article")
             }
-        }.padding(.horizontal, 12).padding(.leading, isMac && !embedded ? 76 : 0).frame(height: isMac ? 52 : 44).background(preferences.theme.paper)
+        }.padding(.horizontal, 12).padding(.leading, isMac && (toggleList == nil || clearsTrafficLights) ? 76 : 0).frame(height: isMac ? 52 : 44).background(preferences.theme.paper)
     }
     @ViewBuilder private var backButton: some View {
-        if isMac {
+        if let toggleList {
+            Button(action: toggleList) { Image(systemName: "sidebar.left") }
+                .buttonStyle(CircleIconButtonStyle()).accessibilityLabel("Toggle article list")
+        } else if isMac {
             Button(action: goBack) { Label(backTitle, systemImage: "chevron.left") }
                 .buttonStyle(.plain).font(Typo.sans(13).weight(.medium)).frame(minHeight: 44)
                 .accessibilityLabel("Back to library")
@@ -111,7 +116,10 @@ struct ReaderView: View {
     private var originalButton: some View {
         Button("Open original") { if let url = URL(string: article.url) { openURL(url) } }.buttonStyle(PrimaryButtonStyle()).frame(maxWidth: 300)
     }
-    private func goBack() { saveProgress(force: true); if let close { close() } else { dismiss() } }
+    private func goBack() {
+        saveProgress(force: true)
+        if let close { close() } else if toggleList == nil { dismiss() }
+    }
     private func saveProgress(force: Bool = false) {
         guard article.modelContext != nil else { return }
         guard force || Date.now.timeIntervalSince(lastSaved) >= 2 else { return }

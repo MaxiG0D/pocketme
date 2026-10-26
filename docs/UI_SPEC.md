@@ -235,26 +235,27 @@ The system `TabView` (on iOS 26 this is the native floating glass bar, which is 
 
 ### 4.1 Library window
 
-No sidebar and no separate preview pane. The three sections are quiet tabs in the header, and the reader opens beside the list.
+Always list + reader side by side. There is no sidebar, no card grid and no preview pane.
 
 ```
-Closed:  ┌ [Unread 12][Favorites][Archive]      [🔗 Paste…][Save] ┐
-         │ [card][card][card][card]                               │
-         └────────────────────────────────────────────────────────┘
-Open:    ┌ [Unread 12][Fav…][Arch…]┬─ reader (fills the rest) ────┐
-         │ ▢ title · meta (rows)   │ ‹ Unread   title   Aa ☆ ⎙    │
-         └─────────────────────────┴──────────────────────────────┘
+┌ ● ● ●  ─────────────────┬─ reader ──────────────────────────────┐
+│ (+) [Unread 16][Fav][Arch]│ ▣     article title        Aa ☆ ⎙     │
+│ ▢ title · meta           │                                       │
+│ ▢ title · meta           │ article…                              │
+└──────────────────────────┴───────────────────────────────────────┘
 ```
 
-- **Header**: capsule tabs (32 tall, Inter 14, selected = `#E4E4DE` / dark `#2A2A28`), with the unread count in `muted`. They share the row with the traffic lights (84pt leading inset). The paste field (260 wide, 38 tall, radius 10) and **Save** button sit on the right, and are hidden while a reader is open (⌘V still saves a link).
-- **Closed**: full-width `LazyVGrid(columns: [GridItem(.adaptive(minimum: 210), spacing: 22)], spacing: 22)`, padding 32 sides. Single click opens the article.
-- **Open**: the library collapses (animated, 0.25s) to a 360pt column of compact rows (56pt thumbnail radius 10, title Inter 14 semibold 2 lines, meta). The selected row uses `cardSelection`. The reader fills the rest of the window with a hairline between them. Clicking another row swaps the article in place; Esc or "‹ <section>" closes the reader and restores the grid.
-- **ArticleCard**: a VStack with spacing 10: the thumbnail at 16:10 aspect with radius 12, the title (Inter 15 semibold, 3 lines), then the meta (Inter 12.5, muted). Selected: an 8pt-padded background `#EFEFEA` (dark `#242422`), radius 16, drawn **behind** the card without shifting the layout.
+- **List column**: 360 wide, `paper` background, a hairline between it and the reader. Below the traffic lights (44 top padding) is one row: the **+** button, then the section tabs.
+- **+ button**: an accent 28pt circle with a white plus. If the clipboard holds a link it saves it; otherwise it opens the Add link sheet. ⌘N does the same and ⌘V saves a pasted link. There is no paste field.
+- **Tabs**: capsules 28 tall (Inter 13), selected = `#E4E4DE` / dark `#2A2A28`, with the unread count in `muted`.
+- **Rows**: 56pt thumbnail (radius 10), title Inter 14 semibold (2 lines), then the meta. 8pt padding, radius 12. The selected row uses `cardSelection`; hover is the same at 50%. Single click reads the article in place; ↑/↓ move between rows.
+- **Selection**: on launch and when switching sections, the most recently opened article in the section is selected (else the first). When a section is empty the reader area shows the empty state.
+- **Hide list**: the `sidebar.left` button at the left of the reader header collapses the list for focused reading (animated, 0.25s). When hidden, the header leaves 76pt for the traffic lights.
 - Remove the default toolbar background so the window feels like one sheet of paper: `.toolbarBackground(.hidden, for: .windowToolbar)` and a unified compact title bar.
 
 ### 4.2 Mac reader
 
-- Fills the pane to the right of the list (the header has no traffic-light inset when embedded). The header bar is 52 tall: back "‹ <section>" naming the section the article was opened from (Inter 13 medium), the centered article title (Inter 13 semibold, muted, one line truncated), then the `Aa`, favorite and share buttons (34×30, radius 8). Under it, the 2pt progress bar.
+- Fills the pane to the right of the list. The header bar is 52 tall: the hide-list toggle at the left (no back button, since there is nothing to go back to), the centered article title (Inter 13 semibold, muted, one line truncated), then the `Aa`, favorite and share buttons (34×30, radius 8). Under it, the 2pt progress bar.
 - The article column is max 680 wide and centered, with 56 top padding. H1 is Newsreader 46 semibold with tracking -0.6; the body is Newsreader 21 with line height 1.65. All of this is in CSS (section 5), and the Mac CSS just uses larger values via a `.mac` class on `<html>`.
 
 ---

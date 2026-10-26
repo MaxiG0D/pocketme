@@ -6,95 +6,80 @@ struct MacLibraryView: View {
     @Environment(\.openURL) private var openURL
     @Query(sort: \Article.savedAt, order: .reverse) private var articles: [Article]
     @State private var section: LibrarySection = .unread
-    @State private var selectedID: UUID?
     @State private var readerID: UUID?
-    @State private var link = ""
-    @State private var search = ""
+    @State private var listVisible = true
     @State private var toDelete: Article?
     @State private var showAdd = false
-    @FocusState private var pasteFocused: Bool
-    private var selected: Article? { articles.first { $0.id == selectedID } }
     private var filtered: [Article] {
-        articles.filter { section.includes($0) && (search.isEmpty || ($0.title + " " + $0.siteName).localizedCaseInsensitiveContains(search)) }
+        articles.filter { section.includes($0) }
             .sorted { section == .archive ? ($0.archivedAt ?? .distantPast) > ($1.archivedAt ?? .distantPast) : $0.savedAt > $1.savedAt }
     }
-
-    private var readerOpen: Bool { openArticle != nil }
     private var openArticle: Article? { readerID.flatMap { id in articles.first { $0.id == id } } }
-    private var topInset: CGFloat {
-        #if os(macOS)
-        84 // room for the traffic lights, which share the header row
-        #else
-        0
-        #endif
-    }
+    private var unread: Int { articles.filter { $0.archivedAt == nil }.count }
 
     var body: some View {
         HStack(spacing: 0) {
-            library
-                .frame(maxWidth: readerOpen ? 360 : .infinity)
-            if let article = openArticle {
-                // The reader opens beside the list, so moving between articles never leaves the library.
-                ReaderView(article: article, backTitle: section.title, embedded: true) { readerID = nil }
-                    .id(article.id)
-                    .overlay(alignment: .leading) { Rectangle().fill(Theme.hairline).frame(width: 1) }
-                    .transition(.move(edge: .trailing).combined(with: .opacity))
+            if listVisible {
+                list.frame(width: 360).transition(.move(edge: .leading).combined(with: .opacity))
             }
+            reader.frame(maxWidth: .infinity, maxHeight: .infinity)
+                .overlay(alignment: .leading) { if listVisible { Rectangle().fill(Theme.hairline).frame(width: 1) } }
         }
-        .animation(.easeInOut(duration: 0.25), value: readerID)
+        .animation(.easeInOut(duration: 0.25), value: listVisible)
         #if os(macOS)
         .toolbarBackground(.hidden, for: .windowToolbar)
         .frame(minWidth: 900, minHeight: 600)
-        .onExitCommand { readerID = nil }
         #endif
         .background(Theme.paper)
-        .onChange(of: section) { _, _ in selectedID = nil }
-        .onChange(of: store.focusPasteToken) { _, _ in pasteFocused = true }
-        .onChange(of: articles.map(\.id)) { _, ids in
-            if let readerID, !ids.contains(readerID) { self.readerID = nil }
+        .onAppear(perform: ensureSelection)
+        .onChange(of: section) { _, _ in ensureSelection() }
+        .onChange(of: filtered.map(\.id)) { _, _ in ensureSelection() }
+        .onChange(of: store.focusPasteToken) { _, _ in addLink() }
+        .onChange(of: store.requestedArticleID) { _, id in
+            if let id { section = .unread; readerID = id; store.requestedArticleID = nil }
         }
-        .onChange(of: store.requestedArticleID) { _, id in if let id { readerID = id; selectedID = id; store.requestedArticleID = nil } }
         .confirmationDialog("Delete this article?", isPresented: Binding(get: { toDelete != nil }, set: { if !$0 { toDelete = nil } }), titleVisibility: .visible) {
-            Button("Delete article", role: .destructive) { if let article = toDelete { if selectedID == article.id { selectedID = nil }; store.delete(article) }; toDelete = nil }
+            Button("Delete article", role: .destructive) { if let article = toDelete { store.delete(article) }; toDelete = nil }
             Button("Cancel", role: .cancel) { toDelete = nil }
         }
         .sheet(isPresented: $showAdd) { AddLinkSheet().frame(width: 420) }
     }
 
-    private var library: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: readerOpen ? 14 : 28) {
-                ViewThatFits(in: .horizontal) {
-                    HStack(spacing: 20) { tabs; Spacer(minLength: 12); if !readerOpen { pasteField } }
-                    VStack(alignment: .leading, spacing: 18) { tabs; if !readerOpen { pasteField } }
-                }
-                if let message = store.errorMessage { Text(message).font(Typo.meta).foregroundStyle(Theme.muted) }
-                if articles.isEmpty {
-                    EmptyStateView {
-                        if let raw = Clipboard.link { _ = store.saveLink(raw) } else { showAdd = true }
-                    }.frame(maxWidth: .infinity).padding(.top, 30)
-                } else if filtered.isEmpty {
-                    Text("No articles here yet").font(Typo.meta).foregroundStyle(Theme.muted).padding(.top, 40)
-                } else if readerOpen {
-                    LazyVStack(spacing: 2) {
-                        ForEach(filtered) { article in
-                            CompactRow(article: article, selected: readerID == article.id)
-                                .onTapGesture { open(article) }.contextMenu { menu(article) }
-                        }
+    @ViewBuilder private var reader: some View {
+        if let article = openArticle, filtered.contains(where: { $0.id == article.id }) {
+            ReaderView(article: article, toggleList: { listVisible.toggle() }, clearsTrafficLights: !listVisible).id(article.id)
+        } else {
+            VStack(spacing: 0) {
+                if !listVisible { Button { listVisible = true } label: { Image(systemName: "sidebar.left") }
+                    .buttonStyle(CircleIconButtonStyle()).accessibilityLabel("Show list")
+                    .frame(maxWidth: .infinity, alignment: .leading).padding(.leading, 76).padding(.top, 8) }
+                Group {
+                    if articles.isEmpty {
+                        EmptyStateView { addLink() }
+                    } else {
+                        Text("No articles here yet").font(Typo.meta).foregroundStyle(Theme.muted)
                     }
-                } else {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 210), spacing: 22)], alignment: .leading, spacing: 22) {
-                        ForEach(filtered) { article in
-                            ArticleCard(article: article, selected: selectedID == article.id)
-                                .onTapGesture { open(article) }
-                                .contextMenu { menu(article) }
-                        }
+                }.frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+    }
+
+    private var list: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 8) { addButton; tabs }.padding(.horizontal, 12).padding(.top, 44).padding(.bottom, 10)
+            if let message = store.errorMessage { Text(message).font(Typo.meta).foregroundStyle(Theme.muted).padding(.horizontal, 16).padding(.bottom, 8) }
+            ScrollView {
+                LazyVStack(spacing: 2) {
+                    ForEach(filtered) { article in
+                        CompactRow(article: article, selected: readerID == article.id)
+                            .onTapGesture { readerID = article.id }.contextMenu { menu(article) }
                     }
-                }
-            }.padding(.horizontal, readerOpen ? 12 : 32).padding(.top, 14).padding(.bottom, 32)
-        }.background(Theme.paper).scrollIndicators(.hidden)
+                }.padding(.horizontal, 12).padding(.bottom, 24)
+            }.scrollIndicators(.hidden)
+        }.background(Theme.paper)
             .focusable().focusEffectDisabled()
-            .onKeyPress(.return) { guard !pasteFocused else { return .ignored }; if let selected { open(selected); return .handled }; return .ignored }
+            .onKeyPress(.downArrow) { step(1) }
+            .onKeyPress(.upArrow) { step(-1) }
             #if os(macOS)
             .onPasteCommand(of: [.url, .plainText]) { providers in
                 let item = NSExtensionItem(); item.attachments = providers
@@ -102,40 +87,42 @@ struct MacLibraryView: View {
             }
             #endif
     }
-    /// The three sections live in the header as quiet tabs instead of a sidebar.
+    private var addButton: some View {
+        Button(action: addLink) {
+            Image(systemName: "plus").font(.system(size: 13, weight: .bold)).foregroundStyle(Theme.onAccent)
+                .frame(width: 28, height: 28).background(Theme.accent, in: Circle())
+        }.buttonStyle(.plain).accessibilityLabel("Add a link").help("Save a link (⌘N)")
+    }
+    /// The three sections are quiet tabs above the list.
     private var tabs: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 2) {
             ForEach(LibrarySection.allCases) { choice in
                 Button { section = choice } label: {
-                    HStack(spacing: 6) {
-                        Text(choice.title).font(Typo.sans(readerOpen ? 13 : 14).weight(section == choice ? .semibold : .medium))
+                    HStack(spacing: 5) {
+                        Text(choice.title).font(Typo.sans(13).weight(section == choice ? .semibold : .medium))
                         if choice == .unread { Text(String(unread)).font(Typo.sans(12).weight(.medium)).foregroundStyle(Theme.muted) }
                     }.foregroundStyle(section == choice ? Theme.ink : Theme.muted)
-                        .padding(.horizontal, readerOpen ? 10 : 14).frame(height: 32)
+                        .padding(.horizontal, 10).frame(height: 28)
                         .background(section == choice ? Theme.sidebarSelection : .clear, in: Capsule())
                         .contentShape(Capsule())
                 }.buttonStyle(.plain).accessibilityAddTraits(section == choice ? .isSelected : [])
             }
-        }.padding(.leading, topInset).padding(.top, 4)
-    }
-    private var unread: Int { articles.filter { $0.archivedAt == nil }.count }
-    private var pasteField: some View {
-        HStack(spacing: 8) {
-            HStack(spacing: 8) {
-                Image(systemName: "link").foregroundStyle(Theme.muted)
-                TextField("Paste a link to save", text: $link).textFieldStyle(.plain).font(Typo.sans(14)).focused($pasteFocused).onSubmit(save)
-            }.padding(.horizontal, 12).frame(minWidth: 150, idealWidth: 260, maxWidth: 260).frame(height: 38)
-                .background(Theme.surface, in: RoundedRectangle(cornerRadius: 10))
-                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Theme.hairline))
-            Button("Save", action: save).buttonStyle(.plain).font(Typo.sans(14).weight(.semibold))
-                .foregroundStyle(Theme.onAccent).padding(.horizontal, 16).frame(height: 38)
-                .background(Theme.accent, in: RoundedRectangle(cornerRadius: 10)).disabled(link.isEmpty)
         }
     }
-    private func save() { if let article = store.saveLink(link) { selectedID = article.id; link = "" } }
-    private func open(_ article: Article) { selectedID = article.id; readerID = article.id }
+
+    private func addLink() { if let raw = Clipboard.link { _ = store.saveLink(raw) } else { showAdd = true } }
+    /// Keeps the reader on a valid article: the one just read if there is one, else the newest.
+    private func ensureSelection() {
+        if let readerID, filtered.contains(where: { $0.id == readerID }) { return }
+        let recent = filtered.filter { $0.lastOpenedAt != nil }.max { $0.lastOpenedAt! < $1.lastOpenedAt! }
+        readerID = (recent ?? filtered.first)?.id
+    }
+    private func step(_ delta: Int) -> KeyPress.Result {
+        guard let index = filtered.firstIndex(where: { $0.id == readerID }), filtered.indices.contains(index + delta) else { return .ignored }
+        readerID = filtered[index + delta].id
+        return .handled
+    }
     @ViewBuilder private func menu(_ article: Article) -> some View {
-        Button("Open") { open(article) }
         Button("Open original in browser") { if let url = URL(string: article.url) { openURL(url) } }
         Button("Copy link") { Clipboard.copy(article.url) }
         Button(article.isFavorite ? "Remove favorite" : "Favorite") { store.favorite(article) }

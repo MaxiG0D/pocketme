@@ -136,7 +136,7 @@ pocketme/
 │  │  └─ Resources/reader.html, reader.css, reader.js, Readability.js
 │  ├─ Library/
 │  │  ├─ LibraryView.swift (iOS), ArticleRow.swift, ContinueReadingCard.swift
-│  │  ├─ MacLibraryView.swift, ArticleCard.swift, PreviewPane.swift
+│  │  ├─ MacLibraryView.swift
 │  │  └─ EmptyStateView.swift
 │  └─ Settings/SettingsView.swift
 ├─ ShareExtension-iOS/
@@ -277,7 +277,7 @@ Download `leadImageURL`, downsample with ImageIO to max 600 px wide, encode as J
 7. **Settings**: iCloud sync status (account available / not signed in), storage used by offline files with "Clear downloaded images", default reader settings, About/licenses.
 
 ### Mac (mockups "Mac · Library with preview" and "Mac · Reader")
-- `NavigationSplitView`: a **sidebar** (Unread with count, Favorites, Archive), the **content** as a grid of `ArticleCard`s (16:10 thumbnail, title, `Site · N min`; adaptive columns min 210pt), and a **detail** preview pane (large thumbnail, meta, title, excerpt, buttons Open reader / Archive / Favorite).
+- A list + reader layout (see UI_SPEC §4.1): section tabs and a + button above a compact list of rows on the left, the reader beside it, and a toggle that hides the list.
 - Toolbar: "Paste a link to save" field + Save button; ⌘N focuses the field; ⌘V on the grid saves a URL from the clipboard.
 - Double-click a card or press Return to open the **reader**, which replaces the content+detail area with a centered 680pt column (keep the sidebar collapsible). The window title shows the article title.
 - Right-click context menu: Open, Open original in browser, Copy link, Favorite, Archive, Delete.
