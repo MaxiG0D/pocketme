@@ -57,6 +57,7 @@ struct LibraryView: View {
 
     private var list: some View {
         List(selection: $selection) {
+            filters.listRowInsets(EdgeInsets()).listRowSeparator(.hidden).listRowBackground(Theme.paper)
             if let error = store.errorMessage {
                 Text(error).font(Typo.meta).foregroundStyle(Theme.muted)
                     .listRowInsets(rowInsets).listRowSeparator(.hidden).listRowBackground(Theme.paper)
@@ -89,7 +90,6 @@ struct LibraryView: View {
             }
         }
         .listStyle(.plain).scrollContentBackground(.hidden).background(Theme.paper).scrollIndicators(.hidden)
-        .safeAreaInset(edge: .top, spacing: 0) { filters }
         .modifier(LibrarySearch(enabled: !articles.isEmpty, text: $search, isPresented: $showSearch))
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
