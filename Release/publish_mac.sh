@@ -11,7 +11,7 @@ resolve_sparkle() {
   step 'Resolving Sparkle'
   xcodebuild -resolvePackageDependencies -quiet -project "${PROJECT_PATH}" -scheme PocketMe \
     -clonedSourcePackagesDirPath "${CACHE_DIR}/Packages" >/dev/null
-  SPARKLE_BIN="$(dirname "$(find "${CACHE_DIR}/Packages/artifacts" -name sign_update -type f | head -1)")"
+  SPARKLE_BIN="$(dirname "$(find "${CACHE_DIR}/Packages/artifacts" -path '*/Sparkle/bin/sign_update' -type f)")"
   [[ -x "${SPARKLE_BIN}/sign_update" ]] || fail 'Sparkle tools were not found after resolving packages.'
 }
 set_xcconfig() { # key value
