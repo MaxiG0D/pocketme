@@ -235,27 +235,26 @@ The system `TabView` (on iOS 26 this is the native floating glass bar, which is 
 
 ### 4.1 Library window
 
+No sidebar and no separate preview pane. The three sections are quiet tabs in the header, and the reader opens beside the list.
+
 ```
-┌ sidebar 220–260 ┬──────────── grid ─────────────┬─ preview 360–440 ─┐
-│ PocketMe (serif)│ Unread          [🔗 Paste…][Save]│ [16:10 image]     │
-│                 │                                  │ BUILD WEEKLY·9 MIN│
-│ ▣ Unread    12  │ [card][card][card]               │ Why small software│
-│ ☆ Favorites     │ [card][card][card]               │ tends to last…    │
-│ ▢ Archive       │                                  │ excerpt…          │
-│                 │                                  │ (Open reader)(▢)(☆)│
-└─────────────────┴──────────────────────────────────┴───────────────────┘
+Closed:  ┌ [Unread 12][Favorites][Archive]      [🔗 Paste…][Save] ┐
+         │ [card][card][card][card]                               │
+         └────────────────────────────────────────────────────────┘
+Open:    ┌ [Unread 12][Fav…][Arch…]┬─ reader (fills the rest) ────┐
+         │ ▢ title · meta (rows)   │ ‹ Unread   title   Aa ☆ ⎙    │
+         └─────────────────────────┴──────────────────────────────┘
 ```
 
-- `NavigationSplitView(columnVisibility:) { Sidebar } content: { Grid } detail: { PreviewPane }` with `.navigationSplitViewStyle(.balanced)`.
-- **Sidebar**: background `Theme.sidebar`, a `List(selection:)` with `.listStyle(.sidebar)`. The app name is in Newsreader 22 semibold at the top. Rows are 36pt tall: a 17pt icon, the label in Inter 14, and the count in `muted` on the right. The selected row background is `#E4E4DE` (dark `#2A2A28`) with radius 8; override the system blue selection.
-- **Grid**: background `paper`, padding 40 top / 32 sides. Header: "Unread" in Newsreader 30 semibold on the left; on the right, the paste field (280 wide, 38 tall, radius 10, `surface` with a hairline border, a `link` symbol, placeholder "Paste a link to save") and a **Save** button (accent fill, white Inter 14 semibold, 38 tall, radius 10). `LazyVGrid(columns: [GridItem(.adaptive(minimum: 210), spacing: 22)], spacing: 22)`.
-- **ArticleCard**: a VStack with spacing 10: the thumbnail at 16:10 aspect with radius 12, the title (Inter 15 semibold, 3 lines), then the meta (Inter 12.5, muted). Selected: an 8pt-padded background `#EFEFEA` (dark `#242422`), radius 16, drawn **behind** the card without shifting the layout (use `.padding(8).background(...).padding(-8)`). Hover: the same background at 50% opacity. Single click selects; double-click opens the reader.
-- **Preview pane**: background `surface`, a hairline left border, padding 40/32, spacing 18. A thumbnail at 16:10 with radius 14, the kicker, the title (Newsreader 28 semibold), the excerpt (Newsreader 17, line spacing 1.6, `#3A3A38`, max 6 lines), then the buttons: "Open reader" (ink capsule, 42 tall) and two 42pt outline circles (archive, favorite).
+- **Header**: capsule tabs (32 tall, Inter 14, selected = `#E4E4DE` / dark `#2A2A28`), with the unread count in `muted`. They share the row with the traffic lights (84pt leading inset). The paste field (260 wide, 38 tall, radius 10) and **Save** button sit on the right, and are hidden while a reader is open (⌘V still saves a link).
+- **Closed**: full-width `LazyVGrid(columns: [GridItem(.adaptive(minimum: 210), spacing: 22)], spacing: 22)`, padding 32 sides. Single click opens the article.
+- **Open**: the library collapses (animated, 0.25s) to a 360pt column of compact rows (56pt thumbnail radius 10, title Inter 14 semibold 2 lines, meta). The selected row uses `cardSelection`. The reader fills the rest of the window with a hairline between them. Clicking another row swaps the article in place; Esc or "‹ <section>" closes the reader and restores the grid.
+- **ArticleCard**: a VStack with spacing 10: the thumbnail at 16:10 aspect with radius 12, the title (Inter 15 semibold, 3 lines), then the meta (Inter 12.5, muted). Selected: an 8pt-padded background `#EFEFEA` (dark `#242422`), radius 16, drawn **behind** the card without shifting the layout.
 - Remove the default toolbar background so the window feels like one sheet of paper: `.toolbarBackground(.hidden, for: .windowToolbar)` and a unified compact title bar.
 
 ### 4.2 Mac reader
 
-- Takes the whole window (no sidebar). The header bar is 52 tall and shares its row with the traffic lights (88pt leading inset): back "‹ <section>" naming the section the article was opened from (Inter 13 medium), the centered article title (Inter 13 semibold, muted, one line truncated), then the `Aa`, favorite and share buttons (34×30, radius 8). Under it, the 2pt progress bar.
+- Fills the pane to the right of the list (the header has no traffic-light inset when embedded). The header bar is 52 tall: back "‹ <section>" naming the section the article was opened from (Inter 13 medium), the centered article title (Inter 13 semibold, muted, one line truncated), then the `Aa`, favorite and share buttons (34×30, radius 8). Under it, the 2pt progress bar.
 - The article column is max 680 wide and centered, with 56 top padding. H1 is Newsreader 46 semibold with tracking -0.6; the body is Newsreader 21 with line height 1.65. All of this is in CSS (section 5), and the Mac CSS just uses larger values via a `.mac` class on `<html>`.
 
 ---

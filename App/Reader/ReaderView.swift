@@ -10,6 +10,7 @@ struct ReaderView: View {
     @Query(sort: \Article.savedAt, order: .reverse) private var articles: [Article]
     let article: Article
     var backTitle = "Unread"
+    var embedded = false
     var close: (() -> Void)?
     @State private var progress: Double = 0
     @State private var lastSaved = Date.distantPast
@@ -95,7 +96,7 @@ struct ReaderView: View {
             if let url = URL(string: article.url) {
                 ShareLink(item: url) { Image(systemName: "square.and.arrow.up") }.buttonStyle(CircleIconButtonStyle()).accessibilityLabel("Share article")
             }
-        }.padding(.horizontal, 12).padding(.leading, isMac ? 76 : 0).frame(height: isMac ? 52 : 44).background(preferences.theme.paper)
+        }.padding(.horizontal, 12).padding(.leading, isMac && !embedded ? 76 : 0).frame(height: isMac ? 52 : 44).background(preferences.theme.paper)
     }
     @ViewBuilder private var backButton: some View {
         if isMac {
