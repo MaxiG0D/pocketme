@@ -1,7 +1,7 @@
 #!/bin/zsh
 set -euo pipefail
 source "$(dirname "$0")/common.sh"
-APP="${ROOT_DIR}/PocketMe.app"
+APP="/Applications/PocketMe.app"
 PREFIX="$(config_value BUNDLE_ID_PREFIX)"
 install_devices() {
   [[ -n "$(config_value DEVELOPMENT_TEAM)" ]] || fail 'Set DEVELOPMENT_TEAM in Config/Local.xcconfig before device installation.'
@@ -54,13 +54,13 @@ case "${1:-}" in
     fi
     if [[ -e "${APP}" ]]; then
       existing_id="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "${APP}/Contents/Info.plist")"
-      [[ "${existing_id}" == "${PREFIX}" ]] || fail 'Unexpected app at the build path.'
+      [[ "${existing_id}" == "${PREFIX}" ]] || fail 'Another app is already at /Applications/PocketMe.app.'
       # Restart only this built copy so Open cannot reuse the previous binary.
       /usr/bin/pkill -TERM -f "^${APP}/Contents/MacOS/PocketMe$" 2>/dev/null || true
       rm -rf "${APP}"
     fi
     ditto --noextattr --noqtn "${staged}" "${APP}"
-    step 'Mac app built'
+    step 'Mac app installed in Applications'
     if [[ "$1" == open ]]; then open "${APP}"; fi
     if [[ " $* " == *' --devices '* ]]; then install_devices "$@"; fi
     ;;

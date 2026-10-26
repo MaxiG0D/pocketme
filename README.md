@@ -65,7 +65,7 @@ Readability 0.6.0 is vendored from Mozilla under Apache 2.0; both Mozilla’s no
 
 Run `Release/build_release_app.sh`, then open **PocketMe Release.app** at the project root. This reuses the existing Carnet de Recettes release applet layout, with Build, TestFlight and Publish tabs, and uses PocketMe's approved taupe pocket icon. Its source and provenance are in `Release/PocketMeRelease` and `Release/TEMPLATE.md`.
 
-- **Build:** build and open the Mac app (`PocketMe.app` at the project root), run tests, or install on paired iPhones/iPads after setting your signing team. There is one PocketMe: builds use the same bundle ID, App Group and iCloud library as the installed app.
+- **Build:** build the Mac app and install it in `/Applications` (replacing the old copy), then open it, run tests, or install on paired iPhones/iPads after setting your signing team. There is one PocketMe: builds use the same bundle ID, App Group and iCloud library as the installed app.
 - **TestFlight:** with Upload unchecked, create an unsigned local iOS archive.
 - **Publish:** with Publish unchecked, run tests and create unsigned local Mac and iOS archives.
 

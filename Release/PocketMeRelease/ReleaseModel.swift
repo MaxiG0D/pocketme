@@ -226,7 +226,7 @@ final class ReleaseModel {
         reloadDevApp()
     }
 
-    var devAppURL: URL { devRootURL.appending(path: "PocketMe.app") }
+    var devAppURL: URL { URL(fileURLWithPath: "/Applications/PocketMe.app") }
     var devAppBuiltAt: Date?
 
     func reloadDevApp() {
