@@ -1,0 +1,73 @@
+import Foundation
+import LinkPresentation
+import Observation
+import UniformTypeIdentifiers
+
+@MainActor @Observable
+final class ShareFlow {
+    private(set) var title = "Saving your link…"
+    private(set) var site = ""
+    private(set) var thumbnail: Data?
+    private(set) var saved = false
+    private(set) var errorMessage: String?
+    private(set) var url: URL?
+    @ObservationIgnored private var dismissal: Task<Void, Never>?
+    @ObservationIgnored private var provider: LPMetadataProvider?
+    @ObservationIgnored private var context: NSExtensionContext?
+
+    func start(context: NSExtensionContext?) async {
+        self.context = context
+        do {
+            let link = try await ShareInput.link(from: context?.inputItems as? [NSExtensionItem] ?? [])
+            url = link
+            site = link.host()?.replacingOccurrences(of: "www.", with: "") ?? "Website"
+            title = site
+            let queue = try SaveQueue()
+            try await queue.append(url: link.absoluteString)
+            saved = true
+            dismissal = Task { [weak self] in
+                try? await Task.sleep(for: .seconds(4))
+                guard !Task.isCancelled else { return }
+                self?.finish()
+            }
+            fetchMetadata(link)
+        } catch {
+            errorMessage = "This link couldn’t be saved. Open PocketMe and paste it there."
+            title = "Couldn’t save this link"
+        }
+    }
+
+    private func fetchMetadata(_ url: URL) {
+        let provider = LPMetadataProvider()
+        self.provider = provider
+        provider.timeout = 2
+        provider.startFetchingMetadata(for: url) { [weak self] metadata, _ in
+            let title = metadata?.title
+            let imageProvider = metadata?.imageProvider
+            if let imageProvider {
+                imageProvider.loadDataRepresentation(forTypeIdentifier: UTType.image.identifier) { data, _ in
+                    Task { @MainActor in self?.thumbnail = data }
+                }
+            }
+            Task { @MainActor in if let title, !title.isEmpty { self?.title = title } }
+        }
+    }
+
+    func keepOpen() { dismissal?.cancel() }
+
+    func finish() {
+        dismissal?.cancel()
+        provider?.cancel()
+        context?.completeRequest(returningItems: nil)
+    }
+
+    func readNow() {
+        dismissal?.cancel()
+        guard saved, let url else { finish(); return }
+        var deepLink = URLComponents()
+        deepLink.scheme = "pocketme"; deepLink.host = "open"
+        deepLink.queryItems = [URLQueryItem(name: "url", value: url.absoluteString)]
+        guard let link = deepLink.url else { finish(); return }
+        context?.open(link) { [weak self] _ in Task { @MainActor in self?.finish() } }
+    }
+}

@@ -10,3 +10,5 @@ Hard rules:
 - Do not add features that are not in the plan (no highlights, tags, TTS, accounts, analytics).
 - No default-styled `List`/`Form` on content screens, no system colors, only the Newsreader and Inter fonts, and the background is `paper` (#FAFAF8), not white.
 - Every PR must build for iOS and macOS in CI and keep tests green.
+
+Release applet exception: Max explicitly requires the existing Carnet de Recettes release applet template. `Release/PocketMeRelease` retains that separate developer tool’s UI; do not restyle it to match the product or invent a new UI. See `Release/TEMPLATE.md`.

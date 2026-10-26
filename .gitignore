@@ -1,0 +1,16 @@
+*.xcodeproj/
+.build/
+build/
+DerivedData/
+*.xcuserstate
+.DS_Store
+Config/Local.xcconfig
+*.app/
+Release Archive/
+release.local.env
+xcuserdata/
+*.xcuserdatad/
+.swiftpm/
+*.csv
+.env
+.env.*

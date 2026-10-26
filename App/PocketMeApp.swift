@@ -1,0 +1,68 @@
+import SwiftUI
+
+@main
+struct PocketMeApp: App {
+    @State private var store = LibraryStore()
+    @Environment(\.scenePhase) private var scenePhase
+    init() {
+        Fonts.register()
+        let store = LibraryStore()
+        _store = State(initialValue: store)
+        BackgroundRefresh.register(store: store)
+        #if os(iOS)
+        configureTabBar()
+        #endif
+    }
+
+    var body: some Scene {
+        WindowGroup {
+            LibraryHostView(store: store)
+                .environment(store)
+                .environment(store.readerPreferences)
+                .font(Typo.meta)
+                .foregroundStyle(Theme.ink)
+                .tint(Theme.accent)
+                .task { await store.open() }
+                .onOpenURL { url in Task { await store.openLink(url) } }
+                .onChange(of: scenePhase) { _, phase in
+                    if phase == .active {
+                        store.refresh()
+                        Task { await store.drainInbox() }
+                    } else if phase == .background { BackgroundRefresh.schedule() }
+                }
+        }
+        #if os(macOS)
+        .defaultSize(width: 1100, height: 760)
+        .windowStyle(.hiddenTitleBar)
+        .commands {
+            CommandGroup(replacing: .newItem) {
+                Button("Save a link") { store.focusPasteToken += 1 }.keyboardShortcut("n")
+            }
+        }
+        #endif
+        #if os(macOS)
+        Settings {
+            SettingsView().environment(store).environment(store.readerPreferences).frame(width: 560, height: 720)
+        }
+        #endif
+    }
+    #if os(iOS)
+    private func configureTabBar() {
+        let appearance = UITabBarAppearance()
+        appearance.configureWithOpaqueBackground()
+        appearance.backgroundColor = UIColor(named: "Paper")?.withAlphaComponent(0.96)
+        appearance.shadowColor = UIColor(named: "Hairline")
+        for layout in [appearance.stackedLayoutAppearance, appearance.inlineLayoutAppearance, appearance.compactInlineLayoutAppearance] {
+            layout.normal.iconColor = UIColor(named: "Muted")
+            layout.selected.iconColor = UIColor(named: "Ink")
+            var normal: [NSAttributedString.Key: Any] = [:]
+            var selected: [NSAttributedString.Key: Any] = [:]
+            if let font = UIFont(name: "Inter-Regular_SemiBold", size: 11) { normal[.font] = font; selected[.font] = font }
+            normal[.foregroundColor] = UIColor(named: "Muted"); selected[.foregroundColor] = UIColor(named: "Ink")
+            layout.normal.titleTextAttributes = normal; layout.selected.titleTextAttributes = selected
+        }
+        UITabBar.appearance().standardAppearance = appearance
+        UITabBar.appearance().scrollEdgeAppearance = appearance
+    }
+    #endif
+}

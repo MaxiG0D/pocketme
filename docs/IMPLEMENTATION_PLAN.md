@@ -40,6 +40,12 @@ Highlights, tags, folders, search across full text (title search only is fine), 
 
 ---
 
+### Owner-authorized one-off migration (2026-10-26)
+
+Max requested an Instapaper migration performed here, with no in-app import flow. A macOS Debug-only developer launch argument may import prepared link metadata through the signed app’s normal SwiftData container. For this migration, import only the 14 unread links; exclude all archived links. Keep the personal export and payload out of the repository. This does not add an Instapaper account integration to v1.
+
+---
+
 ## 2. Tech stack and decisions
 
 | Area | Decision | Why |
