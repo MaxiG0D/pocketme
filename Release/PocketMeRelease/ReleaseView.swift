@@ -32,7 +32,7 @@ struct ReleaseView: View {
             }
             Spacer()
             Picker("Section", selection: Binding(get: { model.tab }, set: { model.tab = $0 })) {
-                Text("Dev").tag(ReleaseModel.Tab.dev)
+                Text("Build").tag(ReleaseModel.Tab.dev)
                 Text("TestFlight").tag(ReleaseModel.Tab.testflight)
                 Text("Publish").tag(ReleaseModel.Tab.publish)
             }

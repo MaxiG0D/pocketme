@@ -31,7 +31,7 @@ struct ProgressPanel: View {
                         Button("Show Release Archive") { NSWorkspace.shared.activateFileViewerSelecting([archive]) }
                     }
                     if model.phase == .succeeded && model.job == .devApp {
-                        Button("Open Dev App Again") { model.openDevApp() }
+                        Button("Open PocketMe Again") { model.openDevApp() }
                     }
                     if model.phase == .succeeded && model.job == .release && model.isPublishing {
                         Button("Show Drive Folder") { NSWorkspace.shared.open(model.driveFolderURL) }
@@ -72,8 +72,8 @@ struct ProgressPanel: View {
         switch model.job {
         case .release: model.isPublishing ? "Building and publishing \(model.effectiveVersion)…" : "Building…"
         case .testflight: model.testflightUpload ? (model.testflightMac ? "Uploading to TestFlight and publishing the Mac update…" : "Archiving and uploading to TestFlight…") : "Archiving (dry run)…"
-        case .devApp: model.installOnDevices ? "Building the dev app and installing it…" : "Building the dev app…"
-        case .devices: model.installNormalApp ? "Installing both apps on your iPhone and iPad…" : "Installing on your iPhone and iPad…"
+        case .devApp: model.installOnDevices ? "Building PocketMe and installing it…" : "Building PocketMe…"
+        case .devices: "Installing on your iPhone and iPad…"
         case .tests: "Running the tests…"
         }
     }
@@ -88,7 +88,7 @@ struct ProgressPanel: View {
             model.testflightUpload
                 ? "Build \(model.currentBuild) is on TestFlight" + (model.testflightMac ? " and Mac \(model.currentVersion) is published. " : ". ") + (model.testflightOutcome ?? "")
                 : "Archive finished. Nothing was uploaded."
-        case .devApp: "The dev app is open." + devicesSummary
+        case .devApp: "PocketMe is open." + devicesSummary
         case .devices: devicesSummary.trimmingCharacters(in: .whitespaces)
         case .tests: "All tests passed."
         }
@@ -98,8 +98,7 @@ struct ProgressPanel: View {
     private var devicesSummary: String {
         var summary = ""
         if !model.installedDevices.isEmpty {
-            let apps = model.installNormalApp ? "PocketMe Dev and PocketMe" : "PocketMe Dev"
-            summary += " \(apps) installed on \(model.installedDevices.formatted(.list(type: .and)))."
+            summary += " PocketMe installed on \(model.installedDevices.formatted(.list(type: .and)))."
         }
         for partial in model.partialDevices {
             summary += " \(partial)"

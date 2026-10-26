@@ -1,5 +1,5 @@
 // PocketMe Release: a small front end for Release/release.sh (Publish tab),
-// Release/testflight.sh (TestFlight tab) and Release/dev.sh (Dev tab).
+// Release/testflight.sh (TestFlight tab) and Release/dev.sh (Build tab).
 // Built by Release/build_release_app.sh into "PocketMe Release.app" at the project root.
 
 import AppKit

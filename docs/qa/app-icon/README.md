@@ -9,7 +9,7 @@ No product views or release applet window layout were changed.
 - [x] iOS Simulator app and share extension build successfully.
 - [x] Native macOS app and share extension build successfully.
 - [x] Existing Mac tests pass: 2 tests, 0 failures.
-- [x] `Release/dev.sh build` succeeds and refreshes `PocketMe - Dev.app`.
+- [x] `Release/dev.sh build` succeeds and refreshes `PocketMe.app`.
       Its embedded AppIcon.icns matches the verified Mac build byte for byte.
 - [x] With Max's explicit approval, rebuilt `PocketMe Release.app` with the same
       pocket artwork; verified the new icon in Finder and opened the applet.

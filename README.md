@@ -63,12 +63,12 @@ Readability 0.6.0 is vendored from Mozilla under Apache 2.0; both Mozilla’s no
 
 ## Release applet
 
-Run `Release/build_release_app.sh`, then open **PocketMe Release.app** at the project root. This reuses the existing Carnet de Recettes release applet layout, with Dev, TestFlight and Publish tabs, and uses PocketMe's approved taupe pocket icon. Its source and provenance are in `Release/PocketMeRelease` and `Release/TEMPLATE.md`.
+Run `Release/build_release_app.sh`, then open **PocketMe Release.app** at the project root. This reuses the existing Carnet de Recettes release applet layout, with Build, TestFlight and Publish tabs, and uses PocketMe's approved taupe pocket icon. Its source and provenance are in `Release/PocketMeRelease` and `Release/TEMPLATE.md`.
 
-- **Dev:** build/open an isolated Mac dev app, run tests, or install on paired iPhones/iPads after setting your signing team. The dev prefix ends in `.dev`, including its App Group and iCloud container.
+- **Build:** build and open the Mac app (`PocketMe.app` at the project root), run tests, or install on paired iPhones/iPads after setting your signing team. There is one PocketMe: builds use the same bundle ID, App Group and iCloud library as the installed app.
 - **TestFlight:** with Upload unchecked, create an unsigned local iOS archive.
 - **Publish:** with Publish unchecked, run tests and create unsigned local Mac and iOS archives.
 
 Uploads and publishing are unavailable until M7 configures PocketMe’s own distribution. Local archives are for inspection, cannot be installed as distribution builds, and leave the source version/build counter unchanged. No Carnet credentials or release destinations are copied. The applet never commits or tags.
 
-Commands: `Release/dev.sh build` (build without opening), `Release/dev.sh open`, `Release/dev.sh test`, `Release/dev.sh devices [--normal]`, `Release/release.sh --no-publish --ios`, `Release/testflight.sh --no-upload`. Scripted project generation and build products stay under `~/Library/Caches/PocketMe` to avoid iCloud Drive placeholders and duplicate generated projects in Documents; archives appear in ignored `Release Archive/`.
+Commands: `Release/dev.sh build` (build without opening), `Release/dev.sh open`, `Release/dev.sh test`, `Release/dev.sh devices`, `Release/release.sh --no-publish --ios`, `Release/testflight.sh --no-upload`. Scripted project generation and build products stay under `~/Library/Caches/PocketMe` to avoid iCloud Drive placeholders and duplicate generated projects in Documents; archives appear in ignored `Release Archive/`.

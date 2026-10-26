@@ -29,7 +29,7 @@ struct DevPanel: View {
                             .resizable()
                             .frame(width: 40, height: 40)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("PocketMe - Dev")
+                            Text("PocketMe")
                             // Refreshed every minute so "Built 2 minutes ago" stays true.
                             TimelineView(.periodic(from: .now, by: 60)) { _ in
                                 Text(builtLabel).font(.callout).foregroundStyle(.secondary)
@@ -40,18 +40,14 @@ struct DevPanel: View {
                             .disabled(model.devAppBuiltAt == nil)
                     }
                 } header: {
-                    Text("Dev app")
+                    Text("Mac app")
                 } footer: {
-                    Text("A Debug build with its own bundle ID, App Group, iCloud container and settings.")
+                    Text("A Debug build of PocketMe. It uses your real library and settings.")
                         .foregroundStyle(.secondary)
                 }
 
                 Section {
                     Toggle("Also install on my iPhone and iPad", isOn: $model.installOnDevices)
-                    Toggle(isOn: $model.installNormalApp) {
-                        Text("Also install the normal app")
-                        Text("\u{201C}PocketMe\u{201D}, built from this code, replaces the one on the devices. Its libraries and settings are kept.")
-                    }
                     HStack {
                         Text("Install without rebuilding the Mac app")
                             .foregroundStyle(.secondary)
@@ -61,7 +57,7 @@ struct DevPanel: View {
                 } header: {
                     Text("iPhone and iPad")
                 } footer: {
-                    Text("Installs \u{201C}PocketMe Dev\u{201D} on every iPhone and iPad paired with this Mac. They need to be unlocked, and on the same Wi-Fi or plugged in.")
+                    Text("Installs \u{201C}PocketMe\u{201D} on every iPhone and iPad paired with this Mac. They need to be unlocked, and on the same Wi-Fi or plugged in.")
                         .foregroundStyle(.secondary)
                 }
             }

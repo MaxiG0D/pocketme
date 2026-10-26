@@ -226,30 +226,21 @@ final class ReleaseModel {
         reloadDevApp()
     }
 
-    var devAppURL: URL { devRootURL.appending(path: "PocketMe - Dev.app") }
+    var devAppURL: URL { devRootURL.appending(path: "PocketMe.app") }
     var devAppBuiltAt: Date?
 
     func reloadDevApp() {
         devAppBuiltAt = (try? devAppURL.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
     }
 
-    /// Also install the dev app on the paired iPhones and iPads after building it.
+    /// Also install the app on the paired iPhones and iPads after building it.
     var installOnDevices = UserDefaults.standard.bool(forKey: "installOnDevices") {
         didSet { UserDefaults.standard.set(installOnDevices, forKey: "installOnDevices") }
     }
 
-    /// Also install the normal app (Release, “PocketMe”) on the devices, built from the
-    /// same code, over the one already there. Only on iPhone and iPad: on Mac it updates itself.
-    var installNormalApp = UserDefaults.standard.bool(forKey: "installNormalApp") {
-        didSet { UserDefaults.standard.set(installNormalApp, forKey: "installNormalApp") }
-    }
-
     func buildAndOpenDevApp() {
         var arguments = [devRootURL.appending(path: "Release/dev.sh").path, "open"]
-        if installOnDevices {
-            arguments.append("--devices")
-            if installNormalApp { arguments.append("--normal") }
-        }
+        if installOnDevices { arguments.append("--devices") }
         run(.devApp, arguments: arguments, in: devRootURL)
     }
 
@@ -259,7 +250,7 @@ final class ReleaseModel {
         devices(after: "warning: Couldn't reach ").map { $0.components(separatedBy: ". Is it").first ?? $0 }
     }
 
-    /// “Only PocketMe Dev could be installed on iPad.”
+    /// “Only PocketMe could be installed on iPad.”
     var partialDevices: [String] {
         log.split(separator: "\n").filter { $0.hasPrefix("warning: Only ") }.map { String($0.dropFirst("warning: ".count)) }
     }
@@ -270,9 +261,7 @@ final class ReleaseModel {
 
     /// Only the iPhone and iPad apps, without rebuilding the Mac one.
     func installDevAppOnDevices() {
-        var arguments = [devRootURL.appending(path: "Release/dev.sh").path, "devices"]
-        if installNormalApp { arguments.append("--normal") }
-        run(.devices, arguments: arguments, in: devRootURL)
+        run(.devices, arguments: [devRootURL.appending(path: "Release/dev.sh").path, "devices"], in: devRootURL)
     }
 
     func runDevTests() {
