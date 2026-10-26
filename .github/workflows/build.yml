@@ -1,0 +1,21 @@
+name: Build and test
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate project
+        run: brew install xcodegen && xcodegen generate
+      - name: Build iOS and its share extension
+        run: xcodebuild build -project PocketMe.xcodeproj -scheme PocketMe -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO
+      - name: Build macOS and its share extension
+        run: xcodebuild build -project PocketMe.xcodeproj -scheme PocketMe -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO
+      - name: Test on macOS
+        run: xcodebuild test -project PocketMe.xcodeproj -scheme PocketMe -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO
+      - name: Build release applet (existing Carnet template)
+        run: Release/build_release_app.sh
