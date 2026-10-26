@@ -10,6 +10,7 @@ struct MacLibraryView: View {
     @State private var listVisible = true
     @State private var toDelete: Article?
     @State private var showAdd = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private var filtered: [Article] {
         articles.filter { section.includes($0) }
             .sorted { section == .archive ? ($0.archivedAt ?? .distantPast) > ($1.archivedAt ?? .distantPast) : $0.savedAt > $1.savedAt }
@@ -20,12 +21,12 @@ struct MacLibraryView: View {
     var body: some View {
         HStack(spacing: 0) {
             if listVisible {
-                list.frame(width: 360).transition(.move(edge: .leading).combined(with: .opacity))
+                list.frame(width: 360).transition(reduceMotion ? AnyTransition.opacity : AnyTransition.move(edge: .leading).combined(with: .opacity))
             }
             reader.frame(maxWidth: .infinity, maxHeight: .infinity)
                 .overlay(alignment: .leading) { if listVisible { Rectangle().fill(Theme.hairline).frame(width: 1) } }
         }
-        .animation(.easeInOut(duration: 0.25), value: listVisible)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: listVisible)
         #if os(macOS)
         .toolbarBackground(.hidden, for: .windowToolbar)
         .frame(minWidth: 900, minHeight: 600)
@@ -35,6 +36,7 @@ struct MacLibraryView: View {
         .onChange(of: section) { _, _ in ensureSelection() }
         .onChange(of: filtered.map(\.id)) { _, _ in ensureSelection() }
         .onChange(of: store.focusPasteToken) { _, _ in addLink() }
+        .onChange(of: store.toggleListToken) { _, _ in listVisible.toggle() }
         .onChange(of: store.requestedArticleID) { _, id in
             if let id { section = .unread; readerID = id; store.requestedArticleID = nil }
         }
@@ -66,13 +68,14 @@ struct MacLibraryView: View {
 
     private var list: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 8) { addButton; tabs }.padding(.horizontal, 12).padding(.top, 44).padding(.bottom, 10)
+            HStack(spacing: 8) { addButton; tabs }.padding(.horizontal, 12).padding(.top, listTopInset).padding(.bottom, 10)
             if let message = store.errorMessage { Text(message).font(Typo.meta).foregroundStyle(Theme.muted).padding(.horizontal, 16).padding(.bottom, 8) }
             ScrollView {
                 LazyVStack(spacing: 2) {
                     ForEach(filtered) { article in
                         CompactRow(article: article, selected: readerID == article.id)
                             .onTapGesture { readerID = article.id }.contextMenu { menu(article) }
+                            .accessibilityAddTraits(readerID == article.id ? [.isButton, .isSelected] : .isButton)
                     }
                 }.padding(.horizontal, 12).padding(.bottom, 24)
             }.scrollIndicators(.hidden)
@@ -86,6 +89,14 @@ struct MacLibraryView: View {
                 Task { if let url = try? await ShareInput.link(from: [item]) { _ = store.saveLink(url.absoluteString) } }
             }
             #endif
+    }
+    /// On the Mac the hidden title bar leaves room for the traffic lights; elsewhere the safe area already does.
+    private var listTopInset: CGFloat {
+        #if os(macOS)
+        44
+        #else
+        8
+        #endif
     }
     private var addButton: some View {
         Button(action: addLink) {

@@ -19,12 +19,10 @@ struct SettingsView: View {
                     Text(ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file) + " stored on this device")
                         .font(Typo.meta).foregroundStyle(Theme.muted)
                     Button("Clear downloaded images") { clear = true }.buttonStyle(SecondaryButtonStyle())
-                    Text("Saved text and your library stay here.").font(Typo.meta).foregroundStyle(Theme.muted)
                 }
                 section("Reader defaults") { ReaderSettingsControls() }
                 section("About") {
                     Text("PocketMe").font(Typo.cardTitleSerif).foregroundStyle(Theme.ink)
-                    Text("A little space for a good read.").font(Typo.meta).foregroundStyle(Theme.muted)
                     Text("Newsreader and Inter · SIL Open Font License\nReadability 0.6.0 · Apache License 2.0").font(Typo.meta).foregroundStyle(Theme.muted)
                     ForEach(["Newsreader-OFL", "Inter-OFL", "Readability-Apache-2.0"], id: \.self) { name in
                         if let text = license(name) {

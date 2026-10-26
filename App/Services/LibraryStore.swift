@@ -9,6 +9,7 @@ final class LibraryStore {
     var errorMessage: String?
     var readerPreferences = ReaderPreferences()
     var focusPasteToken = 0
+    var toggleListToken = 0
     var processor: ProcessingCoordinator?
     var requestedArticleID: UUID?
     var savedToken = 0

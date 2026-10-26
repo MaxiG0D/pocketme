@@ -10,7 +10,8 @@ struct PocketMeApp: App {
         _store = State(initialValue: store)
         BackgroundRefresh.register(store: store)
         #if os(iOS)
-        configureTabBar()
+        // iOS 26 and later draw the system glass bar; the opaque look only applies before it.
+        if #unavailable(iOS 26) { configureTabBar() }
         #endif
     }
 
@@ -37,6 +38,12 @@ struct PocketMeApp: App {
         .commands {
             CommandGroup(replacing: .newItem) {
                 Button("Save a link") { store.focusPasteToken += 1 }.keyboardShortcut("n")
+            }
+            CommandGroup(after: .toolbar) {
+                Button("Show or Hide List") { store.toggleListToken += 1 }.keyboardShortcut("s", modifiers: [.command, .control])
+                Divider()
+                Button("Bigger Text") { store.readerPreferences.resize(1) }.keyboardShortcut("+")
+                Button("Smaller Text") { store.readerPreferences.resize(-1) }.keyboardShortcut("-")
             }
         }
         #endif

@@ -11,7 +11,15 @@ struct ReaderSettingsControls: View {
                 GeometryReader { geometry in
                     Capsule().fill(Theme.chip)
                     Capsule().fill(Theme.ink).frame(width: geometry.size.width * (preferences.size - 15) / 10)
-                }.frame(height: 4).accessibilityLabel("Font size \(Int(preferences.size))")
+                }.frame(height: 4)
+                    .accessibilityElement().accessibilityLabel("Font size").accessibilityValue("\(Int(preferences.size))")
+                    .accessibilityAdjustableAction { direction in
+                        switch direction {
+                        case .increment: preferences.resize(1)
+                        case .decrement: preferences.resize(-1)
+                        @unknown default: break
+                        }
+                    }
                 Button { preferences.resize(1) } label: { Text("A").font(Typo.sans(21).weight(.semibold)).frame(width: 44, height: 44).background(Theme.chip, in: Circle()) }
                     .accessibilityLabel("Increase font size").disabled(preferences.size >= 25)
             }.buttonStyle(.plain)

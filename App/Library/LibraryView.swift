@@ -14,6 +14,8 @@ struct LibraryView: View {
     @State private var toDelete: Article?
     @State private var saved = false
     @State private var toast: Task<Void, Never>?
+    @FocusState private var searchFocused: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var filtered: [Article] {
         let section: LibrarySection = favoritesOnly ? .favorites : archive ? .archive : .unread
@@ -45,7 +47,7 @@ struct LibraryView: View {
                                     ArticleRow(article: article)
                                 }
                                 .contextMenu { articleMenu(article) }
-                                .transition(.move(edge: .trailing).combined(with: .opacity))
+                                .transition(reduceMotion ? AnyTransition.opacity : AnyTransition.move(edge: .trailing).combined(with: .opacity))
                             }
                         }
                     }
@@ -72,8 +74,8 @@ struct LibraryView: View {
             .onChange(of: articles.map(\.id)) { _, ids in path.removeAll { !ids.contains($0) } }
             .onChange(of: store.requestedArticleID) { _, id in if let id { path = [id]; store.requestedArticleID = nil } }
             .sensoryFeedback(.success, trigger: store.savedToken).sensoryFeedback(.success, trigger: store.actionToken)
-            .animation(.snappy(duration: 0.25), value: archive)
-            .animation(.snappy(duration: 0.25), value: filtered.map(\.id))
+            .animation(reduceMotion ? nil : .snappy(duration: 0.25), value: archive)
+            .animation(reduceMotion ? nil : .snappy(duration: 0.25), value: filtered.map(\.id))
         }.tint(Theme.ink)
     }
 
@@ -83,7 +85,7 @@ struct LibraryView: View {
                 Text(favoritesOnly ? "Favorites" : "Reading").font(Typo.largeTitle).tracking(-0.5).foregroundStyle(Theme.ink).accessibilityAddTraits(.isHeader)
                 Spacer(minLength: 8)
                 if !articles.isEmpty {
-                    Button { showSearch.toggle() } label: { Image(systemName: "magnifyingglass") }.buttonStyle(CircleIconButtonStyle()).accessibilityLabel("Search articles")
+                    Button { showSearch.toggle(); searchFocused = showSearch } label: { Image(systemName: "magnifyingglass") }.buttonStyle(CircleIconButtonStyle()).accessibilityLabel("Search articles")
                 }
                 Button(action: pasteOrAdd) { Image(systemName: "plus").fontWeight(.semibold) }.buttonStyle(CircleIconButtonStyle(kind: .accent)).accessibilityLabel("Save a link")
             }
@@ -97,6 +99,7 @@ struct LibraryView: View {
             if showSearch && !articles.isEmpty {
                 TextField("Search title or site", text: $search).font(Typo.meta).padding(14)
                     .background(Theme.chip, in: RoundedRectangle(cornerRadius: 12)).autocorrectionDisabled()
+                    .focused($searchFocused).submitLabel(.search)
             }
         }
     }

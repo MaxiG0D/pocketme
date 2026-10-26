@@ -21,6 +21,7 @@ struct ContinueReadingCard: View {
                 }.frame(height: 4)
             }
         }.buttonStyle(.plain).accessibilityLabel("Continue reading \(article.title)")
+            .accessibilityValue("\(Int((min(max(article.readingProgress, 0), 1) * 100).rounded())) percent read")
     }
 }
 

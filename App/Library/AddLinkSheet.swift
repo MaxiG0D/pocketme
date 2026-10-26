@@ -18,7 +18,7 @@ struct AddLinkSheet: View {
             Button("Save", action: save).buttonStyle(PrimaryButtonStyle(fill: Theme.accent, foreground: Theme.onAccent)).disabled(link.isEmpty)
             Button("Cancel") { dismiss() }.buttonStyle(SecondaryButtonStyle())
         }.padding(22).background(Theme.surface).onAppear { focused = true }
-        .presentationDetents([.height(320)]).presentationCornerRadius(26).presentationBackground(Theme.surface)
+        .presentationDetents([.height(320), .large]).presentationDragIndicator(.visible).presentationCornerRadius(26).presentationBackground(Theme.surface)
     }
     private func save() { if store.saveLink(link) != nil { dismiss() } }
 }
