@@ -13,10 +13,8 @@ struct PocketMeApp: App {
         _store = State(initialValue: store)
         BackgroundRefresh.register(store: store)
         #if os(iOS)
-        // iOS 26 and later draw the system glass bar; the opaque look only applies before it.
+        // iOS 26 and later draw the system glass bar, which ignores per-item glyph colors; only the selected tint applies there.
         if #unavailable(iOS 26) { configureTabBar() }
-        // Soft warm glyphs for the tabs that aren't selected, on the glass bar too.
-        UITabBar.appearance().unselectedItemTintColor = UIColor(named: "Icon")
         #endif
     }
 
