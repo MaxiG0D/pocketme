@@ -106,7 +106,7 @@ private struct SwipeReveal: ViewModifier {
             // Above the row, so the button can cover its empty side padding and sit `gap` from the content.
             .overlay { GeometryReader { geo in button(in: geo.size) } }
             #if os(iOS)
-            .gesture(HorizontalPan(changed: drag, ended: release))
+            .gesture(HorizontalPan(changed: drag, ended: { release(velocity: $0) }))
             .sensoryFeedback(.impact(weight: .light), trigger: armed) { _, now in now && live != nil }
             #else
             .onHover { hover = $0 }
@@ -151,9 +151,12 @@ private struct SwipeReveal: ViewModifier {
         }
     }
 
-    private func release() {
+    /// A quick flick opens or closes on where it was heading, not only where the finger lifted,
+    /// the way the system swipe does.
+    private func release(velocity: CGFloat = 0) {
         horizontal = nil
-        settle(SwipeGeometry.rest(for: offset, actions: actions, inset: inset, gap: gap, edge: edge))
+        let projected = SwipeGeometry.clamp(offset + velocity * 0.2, actions: actions, inset: inset, gap: gap, edge: edge)
+        settle(SwipeGeometry.rest(for: projected, actions: actions, inset: inset, gap: gap, edge: edge))
     }
 
     private func move(by delta: CGFloat) {
@@ -189,7 +192,7 @@ private struct SwipeReveal: ViewModifier {
 /// claims the touch first and swallows the tap that should open the article.
 private struct HorizontalPan: UIGestureRecognizerRepresentable {
     let changed: (CGFloat) -> Void
-    let ended: () -> Void
+    let ended: (CGFloat) -> Void
 
     func makeCoordinator(converter: CoordinateSpaceConverter) -> Coordinator { Coordinator() }
 
@@ -202,7 +205,7 @@ private struct HorizontalPan: UIGestureRecognizerRepresentable {
     func handleUIGestureRecognizerAction(_ recognizer: UIPanGestureRecognizer, context: Context) {
         switch recognizer.state {
         case .changed: changed(recognizer.translation(in: recognizer.view).x)
-        case .ended, .cancelled: ended()
+        case .ended, .cancelled: ended(recognizer.velocity(in: recognizer.view).x)
         default: break
         }
     }
@@ -211,7 +214,7 @@ private struct HorizontalPan: UIGestureRecognizerRepresentable {
         func gestureRecognizerShouldBegin(_ recognizer: UIGestureRecognizer) -> Bool {
             guard let pan = recognizer as? UIPanGestureRecognizer else { return false }
             let velocity = pan.velocity(in: pan.view)
-            return abs(velocity.x) > abs(velocity.y) * 1.5
+            return abs(velocity.x) > abs(velocity.y)
         }
     }
 }

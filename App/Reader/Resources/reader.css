@@ -6,10 +6,10 @@ html.dark{--paper:#141414;--ink:#EDEDE8;--body:#D6D6D0;--muted:#9C9C95;--hair:rg
 @media(prefers-color-scheme:dark){html.auto{--paper:#141414;--ink:#EDEDE8;--body:#D6D6D0;--muted:#9C9C95;--hair:rgba(255,255,255,.08)}}
 html.sans{--font-body:Inter,sans-serif}html.mac{--measure:40rem}
 body{margin:0;background:var(--paper);color:var(--body);font:400 var(--size)/1.6 var(--font-body);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;overflow-wrap:break-word}
-main{max-width:var(--measure);margin:0 auto;padding:22px 26px 48px}html.mac main{padding-top:56px}html.mac body{line-height:1.65}
+main{max-width:var(--measure);margin:0 auto;padding:22px 26px 48px}html.mac main{padding-top:28px}html.mac body{line-height:1.65}
 .kicker{font:600 12px/1.4 var(--font-ui);letter-spacing:.4px;text-transform:uppercase;color:var(--muted);margin-bottom:16px}
 h1{font:600 31px/1.15 Newsreader,Georgia,serif;letter-spacing:-.3px;color:var(--ink);margin:0 0 16px}
-html.mac h1{font-size:46px;line-height:1.1;letter-spacing:-.6px}
+html.mac h1{font-size:34px;line-height:1.15;letter-spacing:-.4px}html.mac img{max-height:46vh}html.mac figure{margin:1em 0}
 .lead{width:100%;aspect-ratio:2/1;object-fit:cover;border-radius:14px;margin:0 0 20px}
 p{margin:0 0 1em}h2,h3{font-family:Newsreader,Georgia,serif;color:var(--ink);line-height:1.25;margin:1.6em 0 .5em}
 img{max-width:100%;max-height:58vh;width:auto;height:auto;border-radius:10px;-webkit-user-select:none;user-select:none;-webkit-user-drag:none;-webkit-tap-highlight-color:transparent}a:focus,a:focus-visible,img:focus{outline:none}img::selection,figure::selection{background:transparent}figure{margin:1.4em 0}figcaption{font:13px/1.4 var(--font-ui);color:var(--muted);margin-top:8px}

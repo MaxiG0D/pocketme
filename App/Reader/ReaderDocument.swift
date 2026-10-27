@@ -2,7 +2,7 @@ import Foundation
 
 enum ReaderDocument {
     // Bump when changing the on-disk HTML/CSS template.
-    static let version = "5"
+    static let version = "6"
     static func escape(_ text: String) -> String {
         text.replacingOccurrences(of: "&", with: "&amp;").replacingOccurrences(of: "<", with: "&lt;")
             .replacingOccurrences(of: ">", with: "&gt;").replacingOccurrences(of: "\"", with: "&quot;")
