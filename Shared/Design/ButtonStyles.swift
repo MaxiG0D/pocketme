@@ -47,7 +47,7 @@ struct CircleIconButtonStyle: ButtonStyle {
         configuration.label.font(.system(size: 20, weight: .regular))
             .frame(width: 44, height: 44)
             .background(kind == .accent ? Theme.accent : Theme.accent.opacity(0), in: Circle())
-            .foregroundStyle(kind == .accent ? Theme.onAccent : Theme.ink)
+            .foregroundStyle(kind == .accent ? Theme.onAccent : Theme.icon)
             .opacity(configuration.isPressed ? 0.8 : 1)
     }
 }

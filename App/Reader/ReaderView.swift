@@ -98,7 +98,8 @@ struct ReaderView: View {
         .toolbarBackground(preferences.theme.paper, for: .navigationBar)
         .toolbarBackgroundVisibility(.visible, for: .navigationBar)
         .toolbarColorScheme(barScheme, for: .navigationBar)
-        .tint(preferences.theme.ink)
+        // Softened so the bar glyphs sit gently on every reader paper.
+        .tint(preferences.theme.ink.opacity(0.6))
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
                 if video == nil { Button("Reader settings", systemImage: "textformat.size") { settings = true } }

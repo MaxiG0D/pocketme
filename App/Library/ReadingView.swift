@@ -9,7 +9,7 @@ struct ReadingView: View {
             LibraryView().tabItem { Label("Library", systemImage: "book") }
             LibraryView(favoritesOnly: true).tabItem { Label("Favorites", systemImage: "bookmark") }
             SettingsView().tabItem { Label("Settings", systemImage: "gearshape") }
-        }.tint(Theme.ink)
+        }.tint(Theme.iconSelected)
         #endif
     }
 }

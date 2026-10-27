@@ -35,8 +35,8 @@ struct LibraryView: View {
     private let rowInsets = EdgeInsets(top: 0, leading: Theme.gutter, bottom: 0, trailing: Theme.gutter)
     @State private var openSwipe: SwipeOpen?
     private func swipeActions(for article: Article) -> [SwipeAction] {[
-        SwipeAction(side: .leading, symbol: "bookmark", color: Theme.ink, label: article.isFavorite ? "Remove favorite" : "Favorite") { store.favorite(article) },
-        SwipeAction(side: .trailing, symbol: "archivebox", color: Theme.success, label: article.archivedAt == nil ? "Archive" : "Unarchive") { store.archive(article) },
+        SwipeAction(side: .leading, symbol: "bookmark", color: Theme.swipeFavorite, label: article.isFavorite ? "Remove favorite" : "Favorite") { store.favorite(article) },
+        SwipeAction(side: .trailing, symbol: "archivebox", color: Theme.swipeArchive, label: article.archivedAt == nil ? "Archive" : "Unarchive") { store.archive(article) },
     ]}
 
     var body: some View {
@@ -47,7 +47,7 @@ struct LibraryView: View {
         } detail: {
             detail
         }
-        .tint(Theme.ink)
+        .tint(Theme.icon)
         .sheet(isPresented: $addLink) { AddLinkSheet() }
         .confirmationDialog("Delete this article?", isPresented: Binding(get: { toDelete != nil }, set: { if !$0 { toDelete = nil } }), titleVisibility: .visible) {
             Button("Delete article", role: .destructive) { if let article = toDelete { store.delete(article) }; toDelete = nil }

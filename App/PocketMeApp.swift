@@ -15,6 +15,8 @@ struct PocketMeApp: App {
         #if os(iOS)
         // iOS 26 and later draw the system glass bar; the opaque look only applies before it.
         if #unavailable(iOS 26) { configureTabBar() }
+        // Soft warm glyphs for the tabs that aren't selected, on the glass bar too.
+        UITabBar.appearance().unselectedItemTintColor = UIColor(named: "Icon")
         #endif
     }
 
@@ -67,12 +69,12 @@ struct PocketMeApp: App {
         appearance.backgroundColor = UIColor(named: "Paper")?.withAlphaComponent(0.96)
         appearance.shadowColor = UIColor(named: "Hairline")
         for layout in [appearance.stackedLayoutAppearance, appearance.inlineLayoutAppearance, appearance.compactInlineLayoutAppearance] {
-            layout.normal.iconColor = UIColor(named: "Muted")
-            layout.selected.iconColor = UIColor(named: "Ink")
+            layout.normal.iconColor = UIColor(named: "Icon")
+            layout.selected.iconColor = UIColor(named: "IconSelected")
             var normal: [NSAttributedString.Key: Any] = [:]
             var selected: [NSAttributedString.Key: Any] = [:]
             if let font = UIFont(name: "Inter-Regular_SemiBold", size: 11) { normal[.font] = font; selected[.font] = font }
-            normal[.foregroundColor] = UIColor(named: "Muted"); selected[.foregroundColor] = UIColor(named: "Ink")
+            normal[.foregroundColor] = UIColor(named: "Icon"); selected[.foregroundColor] = UIColor(named: "IconSelected")
             layout.normal.titleTextAttributes = normal; layout.selected.titleTextAttributes = selected
         }
         UITabBar.appearance().standardAppearance = appearance

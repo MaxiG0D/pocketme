@@ -11,6 +11,11 @@ enum Theme {
     static let chip = Color("Chip")
     static let accent = Color("Accent")
     static let success = Color("Success")
+    /// Toolbar and tab glyphs: warm and soft, never stark black or white.
+    static let icon = Color("Icon")
+    static let iconSelected = Color("IconSelected")
+    static let swipeFavorite = Color("SwipeFavorite")
+    static let swipeArchive = Color("SwipeArchive")
     static let pending = Color("Pending")
     static let pendingDot = Color("PendingDot")
     static let pillInactiveText = Color("PillInactiveText")

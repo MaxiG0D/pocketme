@@ -176,8 +176,8 @@ struct MacLibraryView: View {
         return .handled
     }
     private func swipeActions(for article: Article) -> [SwipeAction] {[
-        SwipeAction(side: .leading, symbol: "bookmark", color: Theme.ink, label: article.isFavorite ? "Remove favorite" : "Favorite") { store.favorite(article) },
-        SwipeAction(side: .trailing, symbol: "archivebox", color: Theme.success, label: article.archivedAt == nil ? "Archive" : "Unarchive") { store.archive(article) },
+        SwipeAction(side: .leading, symbol: "bookmark", color: Theme.swipeFavorite, label: article.isFavorite ? "Remove favorite" : "Favorite") { store.favorite(article) },
+        SwipeAction(side: .trailing, symbol: "archivebox", color: Theme.swipeArchive, label: article.archivedAt == nil ? "Archive" : "Unarchive") { store.archive(article) },
     ]}
     @ViewBuilder private func menu(_ article: Article) -> some View {
         Button("Open original in browser") { if let url = URL(string: article.url) { openURL(url) } }
