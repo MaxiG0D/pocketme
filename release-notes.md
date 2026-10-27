@@ -1,3 +1,7 @@
+# 0.1.7
+
+- The Safari button now uses the PocketMe icon.
+
 # 0.1.6
 
 - A Safari toolbar button saves the page you're on. Turn it on in Safari > Settings > Extensions.
