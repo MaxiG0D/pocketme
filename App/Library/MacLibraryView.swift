@@ -185,7 +185,7 @@ private struct CompactRow: View {
     @State private var hover = false
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            ArticleThumb(article: article, height: 172, radius: Theme.radiusThumb)
+            ArticleThumb(article: article, height: 148, radius: Theme.radiusThumb)
                 .overlay { RoundedRectangle(cornerRadius: Theme.radiusThumb, style: .continuous).strokeBorder(Theme.hairline.opacity(0.6), lineWidth: 0.5) }
             VStack(alignment: .leading, spacing: 5) {
                 // A link without a real title is named after its site; say it once, not twice.
