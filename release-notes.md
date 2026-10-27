@@ -1,3 +1,9 @@
+# 0.1.6
+
+- A Safari toolbar button saves the page you're on. Turn it on in Safari > Settings > Extensions.
+- The Mac library now has a large "Pocket Me" title, and the + button sits at the left of the bar.
+- Swiping a row on the Mac opens the Archive/Favorite button instead of acting right away.
+
 # 0.1.5
 
 - Swipe a row with two fingers on the trackpad to archive or favorite it.
