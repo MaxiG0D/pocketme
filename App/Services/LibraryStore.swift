@@ -19,6 +19,9 @@ final class LibraryStore {
     private(set) var toast: Toast?
     @ObservationIgnored private var toastTask: Task<Void, Never>?
     @ObservationIgnored private var inboxObserver: InboxObserver?
+    #if os(macOS)
+    @ObservationIgnored private let localSaveServer = LocalSaveServer()
+    #endif
     private var opening = false
     @ObservationIgnored private var remoteChanges: Task<Void, Never>?
 
@@ -39,6 +42,9 @@ final class LibraryStore {
                 processor = ProcessingCoordinator(context: opened.container.mainContext, root: root)
             }
             errorMessage = nil
+            #if os(macOS)
+            localSaveServer.start()
+            #endif
             inboxObserver = InboxObserver { [weak self] in Task { await self?.drainInbox() } }
             await drainInbox()
             remoteChanges = Task { [weak self] in

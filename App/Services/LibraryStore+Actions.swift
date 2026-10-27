@@ -40,8 +40,11 @@ extension LibraryStore {
     }
 
     func openLink(_ url: URL) async {
-        guard url.scheme == "pocketme", url.host == "open",
+        guard url.scheme == "pocketme", url.host == "open" || url.host == "save",
               let raw = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first(where: { $0.name == "url" })?.value else { return }
+        if url.host == "save", let queue = try? SaveQueue(directory: AppIdentity.inboxURL) {
+            try? await queue.append(url: raw)
+        }
         await drainInbox()
         if let normalized = try? URLNormalizer.normalize(raw), let context = persistence?.container.mainContext,
            let article = try? context.fetch(FetchDescriptor<Article>(predicate: #Predicate { $0.normalizedURL == normalized })).first {

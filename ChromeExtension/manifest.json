@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "PocketMe",
+  "description": "Save the current page to PocketMe.",
+  "version": "1.0",
+  "icons": {"48": "icon-48.png", "96": "icon-96.png", "128": "icon-128.png"},
+  "permissions": ["activeTab"],
+  "host_permissions": ["http://127.0.0.1:47321/*"],
+  "action": {
+    "default_title": "Save to PocketMe",
+    "default_popup": "popup.html",
+    "default_icon": {"48": "icon-48.png", "96": "icon-96.png"}
+  }
+}
