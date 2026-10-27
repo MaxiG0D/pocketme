@@ -1,3 +1,7 @@
+# 0.1.8
+
+- Fixed the Safari button doing nothing when clicked.
+
 # 0.1.7
 
 - The Safari button now uses the PocketMe icon.
