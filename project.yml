@@ -46,6 +46,9 @@ targets:
       - target: ShareExtension-macOS
         embed: true
         destinationFilters: [macOS]
+      - target: SafariExtension-macOS
+        embed: true
+        destinationFilters: [macOS]
   ShareExtension-iOS:
     type: app-extension
     platform: iOS
@@ -81,6 +84,22 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: $(BUNDLE_ID_PREFIX).share.macos
         INFOPLIST_FILE: Config/Share-macOS-Info.plist
         CODE_SIGN_ENTITLEMENTS: Config/Share-macOS.entitlements
+        APPLICATION_EXTENSION_API_ONLY: YES
+        ENABLE_HARDENED_RUNTIME: YES
+        SKIP_INSTALL: YES
+  SafariExtension-macOS:
+    type: app-extension
+    platform: macOS
+    sources:
+      - SafariExtension-macOS
+      - {path: Shared/Services/SaveQueue.swift}
+      - {path: Shared/Model/AppIdentity.swift}
+      - {path: Shared/Util/URLNormalizer.swift}
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(BUNDLE_ID_PREFIX).safari
+        INFOPLIST_FILE: Config/Safari-macOS-Info.plist
+        CODE_SIGN_ENTITLEMENTS: Config/Safari-macOS.entitlements
         APPLICATION_EXTENSION_API_ONLY: YES
         ENABLE_HARDENED_RUNTIME: YES
         SKIP_INSTALL: YES

@@ -11,7 +11,7 @@ from pathlib import Path
 import subprocess, sys
 root = Path(sys.argv[1])
 files = [root / 'project.yml']
-for name in ['App', 'Shared', 'Tests', 'Config', 'Release', 'ShareExtension-iOS', 'ShareExtension-macOS']:
+for name in ['App', 'Shared', 'Tests', 'Config', 'Release', 'ShareExtension-iOS', 'ShareExtension-macOS', 'SafariExtension-macOS']:
     files.extend((root / name).rglob('*'))
 requested = [p for p in files if p.is_file() and p.stat().st_flags & 0x40000000]
 if requested:
@@ -22,7 +22,7 @@ MATERIALIZE
 fail() { echo "error: $*" >&2; exit 1; }
 step() { echo "==> $*"; }
 # iCloud Drive leaves conflict copies like "ShareViewController 2.swift"; XcodeGen would compile both.
-duplicates=("${(@f)$(cd "${ROOT_DIR}" && find project.yml App Shared Tests Config ShareExtension-iOS ShareExtension-macOS \
+duplicates=("${(@f)$(cd "${ROOT_DIR}" && find project.yml App Shared Tests Config ShareExtension-iOS ShareExtension-macOS SafariExtension-macOS \
   -name '* [0-9].*' -not -path '*/.git/*' 2>/dev/null || true)}")
 duplicates=(${duplicates:#})
 if (( ${#duplicates} )); then
