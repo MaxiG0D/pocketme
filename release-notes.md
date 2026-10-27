@@ -1,3 +1,7 @@
+# 0.1.10
+
+- The Safari button now pops a small “Saved!” confirmation under the icon.
+
 # 0.1.9
 
 - The Safari button now shows a brief check on its icon when a page is saved.
