@@ -30,33 +30,73 @@ final class ExtractionService: NSObject, WKNavigationDelegate {
         webView = WKWebView(frame: .zero, configuration: configuration)
         super.init()
         webView.navigationDelegate = self
-        webView.customUserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Version/18.0 Safari/605.1.15"
+        webView.customUserAgent = Self.userAgent
     }
 
+    private static let userAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Version/18.0 Safari/605.1.15"
+    private var quickMode = false
+
     func extract(url: URL) async throws -> ExtractedArticle {
-        await installLightweightRules()
+        // Most articles are plain server-rendered HTML: fetch it directly and parse it without loading any subresources.
+        if !url.isFileURL, let (html, base) = await fetchHTML(url) {
+            try Task.checkCancellation()
+            quickMode = true
+            let quick = try? await run { $0.loadHTMLString(html, baseURL: base) }
+            if let quick, quick.isExternal != true, quick.wordCount >= 120 { return quick }
+        }
+        try Task.checkCancellation()
+        quickMode = false
+        return try await run { webView in
+            if url.isFileURL { webView.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent()) }
+            else { webView.load(URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 20)) }
+        }
+    }
+
+    private func fetchHTML(_ url: URL) async -> (String, URL)? {
+        guard ["http", "https"].contains(url.scheme?.lowercased() ?? "") else { return nil }
+        var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 10)
+        request.setValue(Self.userAgent, forHTTPHeaderField: "User-Agent")
+        request.setValue("text/html,application/xhtml+xml", forHTTPHeaderField: "Accept")
+        guard let (data, response) = try? await URLSession.shared.data(for: request),
+              let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode),
+              ["text/html", "application/xhtml+xml"].contains(http.mimeType ?? ""), data.count < 5_000_000 else { return nil }
+        var encoding = String.Encoding.utf8
+        if let name = http.textEncodingName {
+            let cf = CFStringConvertIANACharSetNameToEncoding(name as CFString)
+            if cf != kCFStringEncodingInvalidId { encoding = String.Encoding(rawValue: CFStringConvertEncodingToNSStringEncoding(cf)) }
+        }
+        guard let html = String(data: data, encoding: encoding) else { return nil }
+        return (html, http.url ?? url)
+    }
+
+    private func run(_ start: @escaping (WKWebView) -> Void) async throws -> ExtractedArticle {
+        await installRules()
         return try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { continuation in
                 self.continuation = continuation
                 let id = UUID(); requestID = id
                 timeout = Task { [weak self] in
-                    try? await Task.sleep(for: .seconds(20))
+                    try? await Task.sleep(for: .seconds(self?.quickMode == true ? 8 : 20))
                     guard !Task.isCancelled, self?.requestID == id else { return }
                     self?.finish(.failure(ExtractionError.timedOut))
                 }
-                if url.isFileURL { webView.loadFileURL(url, allowingReadAccessTo: url.deletingLastPathComponent()) }
-                else { webView.load(URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 20)) }
+                start(webView)
             }
         } onCancel: {
             Task { @MainActor [weak self] in self?.finish(.failure(CancellationError())) }
         }
     }
 
+    func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, preferences: WKWebpagePreferences) async -> (WKNavigationActionPolicy, WKWebpagePreferences) {
+        preferences.allowsContentJavaScript = !quickMode
+        return (.allow, preferences)
+    }
+
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         let id = requestID
         Task { [weak self] in
             do {
-                try await Task.sleep(for: .milliseconds(150))
+                if self?.quickMode != true { try await Task.sleep(for: .milliseconds(150)) }
                 guard let self, self.requestID == id, self.continuation != nil else { return }
                 for name in ["Readability", "extract"] {
                     let source = try Self.script(name)
@@ -80,19 +120,24 @@ final class ExtractionService: NSObject, WKNavigationDelegate {
         return source
     }
 
-    /// Extraction only needs the markup; skipping images, media and fonts makes the page finish loading sooner.
-    private static var lightweightRules: WKContentRuleList?
-    private func installLightweightRules() async {
-        if Self.lightweightRules == nil {
-            let rules = #"[{"trigger":{"url-filter":".*","resource-type":["image","media","font"]},"action":{"type":"block"}}]"#
-            Self.lightweightRules = try? await WKContentRuleListStore.default().compileContentRuleList(forIdentifier: "PocketMeExtraction", encodedContentRuleList: rules)
+    /// Extraction only needs the markup. The quick pass loads nothing but the document; the full pass still skips images, media and fonts.
+    private static var fullRules: WKContentRuleList?
+    private static var quickRules: WKContentRuleList?
+    private var installedMode: Bool?
+    private func installRules() async {
+        let store = WKContentRuleListStore.default()
+        if Self.fullRules == nil {
+            Self.fullRules = try? await store.compileContentRuleList(forIdentifier: "PocketMeExtraction", encodedContentRuleList: #"[{"trigger":{"url-filter":".*","resource-type":["image","media","font"]},"action":{"type":"block"}}]"#)
         }
-        if !rulesInstalled, let list = Self.lightweightRules {
-            webView.configuration.userContentController.add(list)
-            rulesInstalled = true
+        if Self.quickRules == nil {
+            Self.quickRules = try? await store.compileContentRuleList(forIdentifier: "PocketMeQuickExtraction", encodedContentRuleList: #"[{"trigger":{"url-filter":".*","resource-type":["image","media","font","script","style-sheet","raw","svg-document"]},"action":{"type":"block"}}]"#)
         }
+        guard installedMode != quickMode else { return }
+        let controller = webView.configuration.userContentController
+        controller.removeAllContentRuleLists()
+        if let list = quickMode ? Self.quickRules : Self.fullRules { controller.add(list) }
+        installedMode = quickMode
     }
-    private var rulesInstalled = false
 
     private func evaluate(_ script: String) async throws -> String? {
         try await withCheckedThrowingContinuation { continuation in

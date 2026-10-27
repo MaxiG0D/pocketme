@@ -64,6 +64,7 @@ final class ProcessingCoordinator {
             guard article.modelContext != nil else { continue }
             if Task.isCancelled { return }
             guard article.status == .ready, article.contentHTML != nil else { continue }
+            if article.thumbnailData == nil { await fillThumbnail(article) }
             let snapshot = ArticleContent(article)
             if await assets.isReady(snapshot) { offlineReady.insert(article.id); continue }
             guard (assetRetry[article.id] ?? .distantPast) <= .now else { continue }

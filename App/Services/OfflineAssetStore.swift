@@ -26,7 +26,7 @@ actor OfflineAssetStore {
         try await withThrowingTaskGroup(of: (String, Data, String)?.self) { group in
             var iterator = wanted.makeIterator(), active = 0
             func next(_ group: inout ThrowingTaskGroup<(String, Data, String)?, Error>) {
-                while active < 8, let item = iterator.next() {
+                while active < 12, let item = iterator.next() {
                     if cached.contains(where: { $0.deletingPathExtension().lastPathComponent == item.hash }) { continue }
                     active += 1
                     group.addTask {
