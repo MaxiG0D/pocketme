@@ -40,6 +40,7 @@ struct MacLibraryView: View {
         .overlay(alignment: .bottom) { ToastView(store: store) }
         .animation(reduceMotion ? nil : .snappy(duration: 0.25), value: store.toast?.id)
         .onAppear(perform: ensureSelection)
+        .onChange(of: readerID) { _, _ in openSwipe = nil }
         .onChange(of: section) { _, _ in ensureSelection() }
         .onChange(of: filtered.map(\.id)) { _, _ in ensureSelection() }
         .onChange(of: store.focusPasteToken) { _, _ in addLink() }

@@ -55,6 +55,7 @@ struct LibraryView: View {
         }
         .onChange(of: articles.map(\.id)) { _, ids in if let selection, !ids.contains(selection) { self.selection = nil } }
         .onAppear(perform: ensureSelection)
+        .onChange(of: selection) { _, _ in openSwipe = nil }
         .onChange(of: filtered.map(\.id)) { _, _ in ensureSelection() }
         .onChange(of: sizeClass) { _, _ in ensureSelection() }
         .onChange(of: store.requestedArticleID) { _, id in if let id { selection = id; store.requestedArticleID = nil } }
