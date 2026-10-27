@@ -41,7 +41,9 @@ enum SwipeGeometry {
     }
 
     /// Where a released drag comes to rest: open on a side that has an action once pulled past half, else closed.
-    static func rest(for offset: CGFloat, actions: [SwipeAction], inset: CGFloat, gap: CGFloat, edge: CGFloat = 0) -> SwipeSide? {
+    /// A flick counts where its momentum would carry the row, so a quick short swipe still opens.
+    static func rest(for offset: CGFloat, velocity: CGFloat = 0, actions: [SwipeAction], inset: CGFloat, gap: CGFloat, edge: CGFloat = 0) -> SwipeSide? {
+        let offset = offset + velocity * 0.1
         let half = abs(openOffset(.trailing, inset: inset, gap: gap, edge: edge)) / 2
         if offset <= -half, actions.contains(where: { $0.side == .trailing }) { return .trailing }
         if offset >= half, actions.contains(where: { $0.side == .leading }) { return .leading }
@@ -99,7 +101,6 @@ private struct SwipeReveal: ViewModifier {
     private var progress: CGFloat { SwipeGeometry.progress(offset, inset: inset, gap: gap, edge: edge) }
     /// Past halfway a release snaps open, so that is where the haptic tick lands, like the system swipe.
     private var armed: Bool { SwipeGeometry.rest(for: offset, actions: actions, inset: inset, gap: gap, edge: edge) != nil }
-    private var spring: Animation? { reduceMotion ? nil : .spring(duration: 0.4, bounce: 0.28) }
 
     func body(content: Content) -> some View {
         ZStack { content.offset(x: offset) }
@@ -131,9 +132,11 @@ private struct SwipeReveal: ViewModifier {
                 RoundedRectangle(cornerRadius: cornerRadius * (0.4 + 0.6 * progress), style: .continuous).fill(action.color)
                     .opacity(0.35 + 0.65 * progress)
                     .overlay {
+                        // The icon pops on its own spring once the button is half out, so even a quick flick bounces.
                         Image(systemName: action.symbol).font(.system(size: 18, weight: .semibold)).foregroundStyle(.white)
-                            .scaleEffect(0.4 + 0.6 * progress).opacity(Double(progress * progress))
-                            .rotationEffect(.degrees(reduceMotion ? 0 : (1 - progress) * (side == .trailing ? 25 : -25)))
+                            .scaleEffect(armed ? 1 : 0.3).opacity(armed ? 1 : 0)
+                            .rotationEffect(.degrees(armed || reduceMotion ? 0 : (side == .trailing ? 30 : -30)))
+                            .animation(reduceMotion ? nil : .spring(duration: 0.35, bounce: 0.5), value: armed)
                     }
             }
             .buttonStyle(.plain).accessibilityLabel(action.label)
@@ -144,19 +147,20 @@ private struct SwipeReveal: ViewModifier {
 
     private func close() { settle(nil) }
 
-    private func settle(_ side: SwipeSide?) {
-        withAnimation(spring) {
+    /// `velocity` is the finger's speed at release, so the row keeps the flick's momentum into the spring.
+    private func settle(_ side: SwipeSide?, velocity: CGFloat = 0) {
+        let target = side.map { SwipeGeometry.openOffset($0, inset: inset, gap: gap, edge: edge) } ?? 0
+        let distance = target - offset
+        let carried = abs(distance) > 1 ? min(30, max(-5, velocity / distance)) : 0
+        withAnimation(reduceMotion ? nil : .interpolatingSpring(duration: 0.45, bounce: 0.3, initialVelocity: carried)) {
             live = nil
             open = side.map { SwipeOpen(id: id, side: $0) }
         }
     }
 
-    /// A quick flick opens or closes on where it was heading, not only where the finger lifted,
-    /// the way the system swipe does.
     private func release(velocity: CGFloat = 0) {
         horizontal = nil
-        let projected = SwipeGeometry.clamp(offset + velocity * 0.2, actions: actions, inset: inset, gap: gap, edge: edge)
-        settle(SwipeGeometry.rest(for: projected, actions: actions, inset: inset, gap: gap, edge: edge))
+        settle(SwipeGeometry.rest(for: offset, velocity: velocity, actions: actions, inset: inset, gap: gap, edge: edge), velocity: velocity)
     }
 
     private func move(by delta: CGFloat) {
