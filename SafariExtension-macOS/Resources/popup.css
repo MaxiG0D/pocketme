@@ -1,0 +1,16 @@
+:root { --paper: #FAFAF8; --ink: #2B2622; --muted: #8A8680; --coral: #E2562B; }
+@media (prefers-color-scheme: dark) { :root { --paper: #1F1D1B; --ink: #F3EFE9; --muted: #A59E94; } }
+html, body { margin: 0; background: var(--paper); }
+body { width: 168px; height: 52px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+#card { display: flex; align-items: center; gap: 10px; color: var(--ink);
+  font: 600 17px/1 ui-serif, "New York", Georgia, serif; animation: pop .22s cubic-bezier(.2, .9, .3, 1.2); }
+#mark { width: 22px; height: 22px; border-radius: 50%; background: var(--coral); display: grid; place-items: center; flex: none; }
+#mark::after { content: ""; width: 9px; height: 5px; margin-top: -2px; border-left: 2.5px solid #fff; border-bottom: 2.5px solid #fff; transform: rotate(-45deg); }
+.saving #mark { background: transparent; border: 2.5px solid var(--muted); border-top-color: transparent; box-sizing: border-box; animation: spin .8s linear infinite; }
+.saving #mark::after, .failed #mark::after { content: none; }
+.saving #label { color: var(--muted); }
+.failed #mark { background: var(--muted); }
+.failed #mark::before { content: "!"; color: var(--paper); font: 700 14px/1 -apple-system, sans-serif; }
+@keyframes pop { from { transform: scale(.88); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { #card, .saving #mark { animation: none; } }
