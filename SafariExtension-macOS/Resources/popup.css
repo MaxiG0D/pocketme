@@ -1,8 +1,8 @@
 :root { --paper: #FAFAF8; --ink: #2B2622; --muted: #8A8680; --coral: #E2562B; }
 @media (prefers-color-scheme: dark) { :root { --paper: #1F1D1B; --ink: #F3EFE9; --muted: #A59E94; } }
 html, body { margin: 0; background: var(--paper); }
-body { width: 124px; height: 38px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
-#card { display: flex; align-items: center; gap: 8px; color: var(--ink);
+body { display: inline-flex; overflow: hidden; }
+#card { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 16px; white-space: nowrap; color: var(--ink);
   font: 600 14.5px/1 ui-serif, "New York", Georgia, serif; animation: pop .22s cubic-bezier(.2, .9, .3, 1.2); }
 #mark { width: 17px; height: 17px; border-radius: 50%; background: var(--coral); display: grid; place-items: center; flex: none; }
 #mark::after { content: ""; width: 7px; height: 4px; margin-top: -1.5px; border-left: 2px solid #fff; border-bottom: 2px solid #fff; transform: rotate(-45deg); }
