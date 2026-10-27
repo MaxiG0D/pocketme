@@ -33,6 +33,8 @@ struct LibraryView: View {
     }
     private var rows: [Article] { filtered.filter { $0.id != current?.id } }
     private let rowInsets = EdgeInsets(top: 0, leading: Theme.gutter, bottom: 0, trailing: Theme.gutter)
+    // Tighter trailing inset so a swiped row sits close to its action button.
+    private let articleRowInsets = EdgeInsets(top: 0, leading: Theme.gutter, bottom: 0, trailing: 12)
 
     var body: some View {
         NavigationSplitView(columnVisibility: $columns, preferredCompactColumn: $compactColumn) {
@@ -78,7 +80,7 @@ struct LibraryView: View {
                 }
                 ForEach(rows, id: \.id) { article in
                     ArticleRow(article: article)
-                        .listRowInsets(rowInsets).listRowSeparatorTint(Theme.hairline)
+                        .listRowInsets(articleRowInsets).listRowSeparatorTint(Theme.hairline)
                         .listRowBackground(selection == article.id ? Theme.cardSelection : Theme.paper)
                         .swipeActions(edge: .leading, allowsFullSwipe: true) {
                             Button { store.favorite(article) } label: { Label(article.isFavorite ? "Remove favorite" : "Favorite", systemImage: "bookmark") }
