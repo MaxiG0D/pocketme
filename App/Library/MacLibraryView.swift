@@ -84,10 +84,13 @@ struct MacLibraryView: View {
             ScrollView {
                 LazyVStack(spacing: 10) {
                     ForEach(filtered) { article in
-                        CompactRow(article: article, selected: readerID == article.id)
+                        // A real button takes the click itself; stacked tap gestures on the card were swallowing it.
+                        Button { Diag.log("row tap \(article.title.prefix(30))"); readerID = article.id } label: {
+                            CompactRow(article: article, selected: readerID == article.id)
+                        }.buttonStyle(.plain)
                             .swipeToArchive(archived: article.archivedAt != nil, favorite: article.isFavorite,
                                             onArchive: { store.archive(article) }, onFavorite: { store.favorite(article) })
-                            .onTapGesture { Diag.log("row tap \(article.title.prefix(30))"); readerID = article.id }.contextMenu { menu(article) }
+                            .contextMenu { menu(article) }
                             .accessibilityAddTraits(readerID == article.id ? [.isButton, .isSelected] : .isButton)
                     }
                 }.padding(.horizontal, 12).padding(.bottom, 24)
@@ -225,7 +228,6 @@ private struct SwipeToArchive: ViewModifier {
             .onHover { hover = $0 }
             .onAppear { monitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { handle($0) } }
             .onDisappear { if let monitor { NSEvent.removeMonitor(monitor) }; monitor = nil }
-            .simultaneousGesture(TapGesture().onEnded { if offset != 0 { settle(0) } })
             .accessibilityAction(named: archived ? "Unarchive" : "Archive", onArchive)
     }
 
