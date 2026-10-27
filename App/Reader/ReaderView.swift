@@ -147,8 +147,6 @@ struct ReaderView: View {
             VideoPlayerView(article: article, video: video).id(article.id)
             Text(article.title).font(isMac ? Typo.serif(26) : Typo.cardTitleSerif).multilineTextAlignment(.center)
                 .lineLimit(3).fixedSize(horizontal: false, vertical: true)
-            Button(article.archivedAt == nil ? "Archive" : "Unarchive") { store.archive(article); goBack() }
-                .buttonStyle(PrimaryButtonStyle(fill: preferences.theme.ink, foreground: preferences.theme.paper)).frame(maxWidth: 220)
         }
         .frame(maxWidth: isMac ? 860 : 640).padding(.horizontal, isMac ? 40 : 16)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
