@@ -23,33 +23,33 @@ enum SwipeGeometry {
 
     /// How far the row moves when it rests open. `inset` is the row's own side padding and `gap`
     /// the space left between its visible content and the button, so the button is `reveal` wide.
-    static func openOffset(_ side: SwipeSide, inset: CGFloat, gap: CGFloat) -> CGFloat {
-        let travel = reveal - max(0, inset - gap)
+    static func openOffset(_ side: SwipeSide, inset: CGFloat, gap: CGFloat, edge: CGFloat = 0) -> CGFloat {
+        let travel = reveal + edge - max(0, inset - gap)
         return side == .trailing ? -travel : travel
     }
 
     /// The button's frame in the row's coordinates: flush with the edge the row moved away from,
-    /// starting exactly `gap` past the row's visible content.
-    static func buttonFrame(rowWidth: CGFloat, rowHeight: CGFloat, offset: CGFloat, inset: CGFloat, gap: CGFloat) -> CGRect {
+    /// starting exactly `gap` past the row's visible content and ending `edge` short of the screen side.
+    static func buttonFrame(rowWidth: CGFloat, rowHeight: CGFloat, offset: CGFloat, inset: CGFloat, gap: CGFloat, edge: CGFloat = 0) -> CGRect {
         let overlap = max(0, inset - gap)
         if offset < 0 {
             let x = rowWidth + offset - overlap
-            return CGRect(x: x, y: 0, width: rowWidth - x, height: rowHeight)
+            return CGRect(x: x, y: 0, width: rowWidth - edge - x, height: rowHeight)
         }
-        if offset > 0 { return CGRect(x: 0, y: 0, width: offset + overlap, height: rowHeight) }
+        if offset > 0 { return CGRect(x: edge, y: 0, width: offset + overlap - edge, height: rowHeight) }
         return .zero
     }
 
     /// Where a released drag comes to rest: open on a side that has an action once pulled past half, else closed.
-    static func rest(for offset: CGFloat, actions: [SwipeAction], inset: CGFloat, gap: CGFloat) -> SwipeSide? {
-        let half = abs(openOffset(.trailing, inset: inset, gap: gap)) / 2
+    static func rest(for offset: CGFloat, actions: [SwipeAction], inset: CGFloat, gap: CGFloat, edge: CGFloat = 0) -> SwipeSide? {
+        let half = abs(openOffset(.trailing, inset: inset, gap: gap, edge: edge)) / 2
         if offset <= -half, actions.contains(where: { $0.side == .trailing }) { return .trailing }
         if offset >= half, actions.contains(where: { $0.side == .leading }) { return .leading }
         return nil
     }
 
-    static func clamp(_ offset: CGFloat, actions: [SwipeAction], inset: CGFloat, gap: CGFloat) -> CGFloat {
-        let limit = abs(openOffset(.trailing, inset: inset, gap: gap)) * 1.25
+    static func clamp(_ offset: CGFloat, actions: [SwipeAction], inset: CGFloat, gap: CGFloat, edge: CGFloat = 0) -> CGFloat {
+        let limit = abs(openOffset(.trailing, inset: inset, gap: gap, edge: edge)) * 1.25
         let lower = actions.contains { $0.side == .trailing } ? -limit : 0
         let upper = actions.contains { $0.side == .leading } ? limit : 0
         return min(upper, max(lower, offset))
@@ -59,8 +59,8 @@ enum SwipeGeometry {
 extension View {
     /// Swipe-to-reveal actions for a row, the same on iPhone, iPad, Duo and Mac. Give the row its own
     /// side padding (and zero list insets) and pass it as `inset`.
-    func swipeReveal(id: UUID, open: Binding<SwipeOpen?>, actions: [SwipeAction], inset: CGFloat = 0, gap: CGFloat = 0, cornerRadius: CGFloat = 0, verticalInset: CGFloat = 0) -> some View {
-        modifier(SwipeReveal(id: id, open: open, actions: actions, inset: inset, gap: gap, cornerRadius: cornerRadius, verticalInset: verticalInset))
+    func swipeReveal(id: UUID, open: Binding<SwipeOpen?>, actions: [SwipeAction], inset: CGFloat = 0, gap: CGFloat = 0, cornerRadius: CGFloat = 0, verticalInset: CGFloat = 0, edge: CGFloat = 0) -> some View {
+        modifier(SwipeReveal(id: id, open: open, actions: actions, inset: inset, gap: gap, cornerRadius: cornerRadius, verticalInset: verticalInset, edge: edge))
     }
 }
 
@@ -72,6 +72,7 @@ private struct SwipeReveal: ViewModifier {
     let gap: CGFloat
     let cornerRadius: CGFloat
     let verticalInset: CGFloat
+    let edge: CGFloat
     @State private var live: CGFloat?
     @State private var horizontal: Bool?
     @State private var hover = false
@@ -80,7 +81,7 @@ private struct SwipeReveal: ViewModifier {
 
     private var resting: CGFloat {
         guard let open, open.id == id else { return 0 }
-        return SwipeGeometry.openOffset(open.side, inset: inset, gap: gap)
+        return SwipeGeometry.openOffset(open.side, inset: inset, gap: gap, edge: edge)
     }
     private var offset: CGFloat { live ?? resting }
 
@@ -105,7 +106,7 @@ private struct SwipeReveal: ViewModifier {
     @ViewBuilder private func button(in size: CGSize) -> some View {
         let side: SwipeSide = offset < 0 ? .trailing : .leading
         if offset != 0, let action = actions.first(where: { $0.side == side }) {
-            let frame = SwipeGeometry.buttonFrame(rowWidth: size.width, rowHeight: size.height, offset: offset, inset: inset, gap: gap)
+            let frame = SwipeGeometry.buttonFrame(rowWidth: size.width, rowHeight: size.height, offset: offset, inset: inset, gap: gap, edge: edge)
             Button {
                 close()
                 action.perform()
@@ -130,11 +131,11 @@ private struct SwipeReveal: ViewModifier {
 
     private func release() {
         horizontal = nil
-        settle(SwipeGeometry.rest(for: offset, actions: actions, inset: inset, gap: gap))
+        settle(SwipeGeometry.rest(for: offset, actions: actions, inset: inset, gap: gap, edge: edge))
     }
 
     private func move(by delta: CGFloat) {
-        live = SwipeGeometry.clamp((live ?? resting) + delta, actions: actions, inset: inset, gap: gap)
+        live = SwipeGeometry.clamp((live ?? resting) + delta, actions: actions, inset: inset, gap: gap, edge: edge)
     }
 
     #if os(iOS)
@@ -143,7 +144,7 @@ private struct SwipeReveal: ViewModifier {
             .onChanged { value in
                 if horizontal == nil { horizontal = abs(value.translation.width) > abs(value.translation.height) * 1.5 }
                 guard horizontal == true else { return }
-                live = SwipeGeometry.clamp(resting + value.translation.width, actions: actions, inset: inset, gap: gap)
+                live = SwipeGeometry.clamp(resting + value.translation.width, actions: actions, inset: inset, gap: gap, edge: edge)
             }
             .onEnded { _ in if horizontal == true { release() } else { horizontal = nil } }
     }

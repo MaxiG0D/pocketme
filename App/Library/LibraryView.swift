@@ -85,7 +85,7 @@ struct LibraryView: View {
                     ArticleRow(article: article)
                         .padding(.horizontal, Theme.gutter)
                         .background(selection == article.id ? Theme.cardSelection : Theme.paper)
-                        .swipeReveal(id: article.id, open: $openSwipe, actions: swipeActions(for: article), inset: Theme.gutter, gap: 12, cornerRadius: 18, verticalInset: 8)
+                        .swipeReveal(id: article.id, open: $openSwipe, actions: swipeActions(for: article), inset: Theme.gutter, gap: 12, cornerRadius: 18, verticalInset: 8, edge: 12)
                         .listRowInsets(EdgeInsets()).listRowBackground(Theme.paper)
                         .listRowSeparatorTint(Theme.hairline)
                         .alignmentGuide(.listRowSeparatorLeading) { _ in Theme.gutter }
