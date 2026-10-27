@@ -1,3 +1,7 @@
+# 0.1.3
+
+- The Mac share window now confirms the save and closes right away.
+
 # 0.1.2
 
 - Fixed saving from Safari's Share menu on the Mac.
