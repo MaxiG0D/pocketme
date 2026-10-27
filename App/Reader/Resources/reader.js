@@ -7,6 +7,15 @@
     const height = document.documentElement.scrollHeight - innerHeight;
     post('progress', {value: height > 0 ? Math.max(0,Math.min(1,scrollY / height)) : 0});
   }
+  let frame = 0;
+  function live() {
+    if (!restored || frame) return;
+    frame = requestAnimationFrame(() => {
+      frame = 0;
+      const height = document.documentElement.scrollHeight - innerHeight;
+      post('scroll', {value: height > 0 ? Math.max(0,Math.min(1,scrollY / height)) : 0});
+    });
+  }
   window.pocketmeConfigure = config => {
     const anchor = restored ? scrollY / Math.max(1,document.documentElement.scrollHeight - innerHeight) : config.progress;
     const key = [config.theme, config.font, config.size, config.mac].join(':');
@@ -36,7 +45,7 @@
     const button = event.target.closest('[data-action]');
     if (button) { event.preventDefault(); progress(true); post(button.dataset.action); }
   });
-  document.addEventListener('scroll', () => progress(), {passive:true});
+  document.addEventListener('scroll', () => { live(); progress(); }, {passive:true});
   window.addEventListener('pagehide', () => progress(true));
   document.addEventListener('keydown', event => {
     if (['INPUT','TEXTAREA'].includes(event.target.tagName)) return;

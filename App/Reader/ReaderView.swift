@@ -46,10 +46,14 @@ struct ReaderView: View {
             header
             #endif
             if video == nil {
-                GeometryReader { geometry in
-                    Rectangle().fill(preferences.theme.ink.opacity(0.06))
-                    Rectangle().fill(Theme.accent).frame(width: geometry.size.width * progress)
-                }.frame(height: 2)
+                Rectangle().fill(preferences.theme.ink.opacity(0.06))
+                    .overlay(alignment: .leading) {
+                        Rectangle().fill(Theme.accent)
+                            .scaleEffect(x: max(progress, 0.0001), y: 1, anchor: .leading)
+                            .animation(.interpolatingSpring(stiffness: 170, damping: 20), value: progress)
+                    }
+                    .frame(height: 2)
+                    .clipped()
             }
             if article.status == .pending {
                 VStack(spacing: 20) {
@@ -174,6 +178,7 @@ struct ReaderView: View {
     private func message(_ action: String, _ value: Double?) {
         switch action {
         case "progress": if let value, value.isFinite { progress = min(max(value, 0), 1); saveProgress() }
+        case "scroll": if let value, value.isFinite { progress = min(max(value, 0), 1) }
         case "archive": store.archive(article); goBack()
         case "favorite": store.favorite(article)
         case "share": if let url = URL(string: article.url) { SharePresenter.share(url) }
