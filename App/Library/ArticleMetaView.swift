@@ -3,10 +3,12 @@ import SwiftUI
 struct ArticleMetaView: View {
     @Environment(LibraryStore.self) private var store
     let article: Article
+    /// Promotes the site to a title when the article has no title of its own.
+    var emphasizeSite = false
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
             Text(article.readingMinutes > 0 ? "\(article.siteName) · \(article.readingMinutes) min" : article.siteName)
-                .font(Typo.meta).foregroundStyle(Theme.muted)
+                .font(emphasizeSite ? Typo.sans(15).weight(.semibold) : Typo.meta).foregroundStyle(emphasizeSite ? Theme.ink : Theme.muted)
             if article.status == .failed {
                 HStack(spacing: 0) {
                     Text("Couldn’t load · ").foregroundStyle(Theme.muted)

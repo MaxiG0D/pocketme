@@ -80,7 +80,7 @@ struct MacLibraryView: View {
             if let message = store.errorMessage { Text(message).font(Typo.meta).foregroundStyle(Theme.muted).padding(.horizontal, 16).padding(.bottom, 8) }
             ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(spacing: 2) {
+                LazyVStack(spacing: 10) {
                     ForEach(filtered) { article in
                         CompactRow(article: article, selected: readerID == article.id)
                             .onTapGesture { readerID = article.id }.contextMenu { menu(article) }
@@ -178,20 +178,25 @@ struct MacLibraryView: View {
     }
 }
 
+/// Thumbnail-led card, matching the Mac mockup: a wide cover with the title and source underneath.
 private struct CompactRow: View {
     let article: Article
     let selected: Bool
     @State private var hover = false
     var body: some View {
-        HStack(spacing: 12) {
-            ArticleThumb(article: article, width: 56, height: 56, radius: 10)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(article.title).font(Typo.sans(14).weight(.semibold)).foregroundStyle(Theme.ink)
-                    .lineLimit(2).multilineTextAlignment(.leading)
-                ArticleMetaView(article: article)
-            }.frame(maxWidth: .infinity, alignment: .leading)
+        VStack(alignment: .leading, spacing: 10) {
+            ArticleThumb(article: article, height: 172, radius: Theme.radiusThumb)
+                .overlay { RoundedRectangle(cornerRadius: Theme.radiusThumb, style: .continuous).strokeBorder(Theme.hairline.opacity(0.6), lineWidth: 0.5) }
+            VStack(alignment: .leading, spacing: 5) {
+                // A link without a real title is named after its site; say it once, not twice.
+                if article.title != article.siteName {
+                    Text(article.title).font(Typo.sans(15).weight(.semibold)).foregroundStyle(Theme.ink)
+                        .lineLimit(2).multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
+                }
+                ArticleMetaView(article: article, emphasizeSite: article.title == article.siteName)
+            }.padding(.horizontal, 2)
         }.padding(8)
-            .background(selected ? Theme.cardSelection : hover ? Theme.cardSelection.opacity(0.5) : .clear, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .background(selected ? Theme.cardSelection : hover ? Theme.cardSelection.opacity(0.5) : .clear, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             .contentShape(Rectangle()).onHover { hover = $0 }
     }
 }
