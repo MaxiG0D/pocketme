@@ -2,6 +2,9 @@
 DEVELOPMENT_TEAM =
 BUNDLE_ID_PREFIX = com.maxigariepy.pocketme
 APP_GROUP_IDENTIFIER = group.$(BUNDLE_ID_PREFIX)
+// macOS: a team-prefixed group needs no provisioning-profile authorization, so the sandboxed share extension can reach the inbox.
+INBOX_GROUP_IDENTIFIER = $(APP_GROUP_IDENTIFIER)
+INBOX_GROUP_IDENTIFIER[sdk=macosx*] = $(TeamIdentifierPrefix)$(APP_GROUP_IDENTIFIER)
 ICLOUD_CONTAINER_IDENTIFIER = iCloud.$(BUNDLE_ID_PREFIX)
 SWIFT_VERSION = 6.0
 SWIFT_STRICT_CONCURRENCY = complete

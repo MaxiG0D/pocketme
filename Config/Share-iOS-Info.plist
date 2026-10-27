@@ -37,6 +37,8 @@
 			</dict>
 		</dict>
 	</dict>
+	<key>PocketMeInboxGroup</key>
+	<string>$(INBOX_GROUP_IDENTIFIER)</string>
 	<key>PocketMeAppGroup</key>
 	<string>$(APP_GROUP_IDENTIFIER)</string>
 	<key>UIAppFonts</key>

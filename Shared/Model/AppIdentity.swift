@@ -5,6 +5,7 @@ import Security
 
 enum AppIdentity {
     static var groupIdentifier: String? { value("PocketMeAppGroup") }
+    static var inboxIdentifier: String? { value("PocketMeInboxGroup") ?? groupIdentifier }
     static var cloudIdentifier: String? { value("PocketMeCloudContainer") }
 
     private static func value(_ key: String) -> String? {
@@ -28,8 +29,11 @@ enum AppIdentity {
         #endif
     }
 
-    static var groupURL: URL? {
-        guard let identifier = groupIdentifier else { return nil }
+    static var groupURL: URL? { container(groupIdentifier) }
+    static var inboxURL: URL? { container(inboxIdentifier) }
+
+    private static func container(_ identifier: String?) -> URL? {
+        guard let identifier else { return nil }
         #if os(macOS)
         guard let task = SecTaskCreateFromSelf(nil),
               let groups = SecTaskCopyValueForEntitlement(task, "com.apple.security.application-groups" as CFString, nil) as? [String],

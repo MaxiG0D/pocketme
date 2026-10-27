@@ -12,7 +12,7 @@ actor SaveQueue {
     static let notification = "com.pocketme.save-inbox-changed"
     private let url: URL
 
-    init(directory: URL? = AppIdentity.groupURL) throws {
+    init(directory: URL? = AppIdentity.inboxURL) throws {
         guard let directory else { throw QueueError.groupUnavailable }
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         url = directory.appending(path: "SaveInbox.jsonl")

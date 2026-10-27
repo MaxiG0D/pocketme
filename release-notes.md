@@ -1,3 +1,9 @@
+# 0.1.2
+
+- Fixed saving from Safari's Share menu on the Mac.
+- Articles fade into each other instead of popping.
+- Slightly smaller Mac sidebar thumbnails.
+
 # 0.1.1
 
 - A redesigned Mac sidebar that leads with thumbnails.

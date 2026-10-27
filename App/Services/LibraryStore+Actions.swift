@@ -24,7 +24,7 @@ extension LibraryStore {
         defer { draining = false }
         do {
             let root = persistence.container.configurations.first?.url.deletingLastPathComponent()
-            let queue = try SaveQueue(directory: AppIdentity.groupURL ?? root)
+            let queue = try SaveQueue(directory: AppIdentity.inboxURL ?? root)
             while true {
               let entries = try await queue.entries()
               if entries.isEmpty { break }

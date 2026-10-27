@@ -62,6 +62,8 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>PocketMeInboxGroup</key>
+	<string>$(INBOX_GROUP_IDENTIFIER)</string>
 	<key>PocketMeAppGroup</key>
 	<string>$(APP_GROUP_IDENTIFIER)</string>
 	<key>PocketMeCloudContainer</key>
