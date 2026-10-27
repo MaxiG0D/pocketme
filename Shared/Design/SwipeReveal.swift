@@ -90,7 +90,7 @@ private struct SwipeReveal: ViewModifier {
             // Above the row, so the button can cover its empty side padding and sit `gap` from the content.
             .overlay { GeometryReader { geo in button(in: geo.size) } }
             #if os(iOS)
-            .simultaneousGesture(drag)
+            .gesture(HorizontalPan(changed: drag, ended: release))
             #else
             .onHover { hover = $0 }
             .onAppear { monitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { scroll($0) } }
@@ -138,14 +138,8 @@ private struct SwipeReveal: ViewModifier {
     }
 
     #if os(iOS)
-    private var drag: some Gesture {
-        DragGesture(minimumDistance: 12)
-            .onChanged { value in
-                if horizontal == nil { horizontal = abs(value.translation.width) > abs(value.translation.height) * 1.5 }
-                guard horizontal == true else { return }
-                live = SwipeGeometry.clamp(resting + value.translation.width, actions: actions, inset: inset, gap: gap, edge: edge)
-            }
-            .onEnded { _ in if horizontal == true { release() } else { horizontal = nil } }
+    private func drag(_ translation: CGFloat) {
+        live = SwipeGeometry.clamp(resting + translation, actions: actions, inset: inset, gap: gap, edge: edge)
     }
     #else
     /// Two-finger trackpad swipes arrive as scroll events, not drags.
@@ -162,3 +156,37 @@ private struct SwipeReveal: ViewModifier {
     }
     #endif
 }
+
+#if os(iOS)
+/// A UIKit pan that only begins on a sideways drag. Taps never start it, so the list still selects the
+/// row, and vertical drags fail it, so the list still scrolls. A SwiftUI DragGesture on a List row
+/// claims the touch first and swallows the tap that should open the article.
+private struct HorizontalPan: UIGestureRecognizerRepresentable {
+    let changed: (CGFloat) -> Void
+    let ended: () -> Void
+
+    func makeCoordinator(converter: CoordinateSpaceConverter) -> Coordinator { Coordinator() }
+
+    func makeUIGestureRecognizer(context: Context) -> UIPanGestureRecognizer {
+        let pan = UIPanGestureRecognizer()
+        pan.delegate = context.coordinator
+        return pan
+    }
+
+    func handleUIGestureRecognizerAction(_ recognizer: UIPanGestureRecognizer, context: Context) {
+        switch recognizer.state {
+        case .changed: changed(recognizer.translation(in: recognizer.view).x)
+        case .ended, .cancelled: ended()
+        default: break
+        }
+    }
+
+    @MainActor final class Coordinator: NSObject, UIGestureRecognizerDelegate {
+        func gestureRecognizerShouldBegin(_ recognizer: UIGestureRecognizer) -> Bool {
+            guard let pan = recognizer as? UIPanGestureRecognizer else { return false }
+            let velocity = pan.velocity(in: pan.view)
+            return abs(velocity.x) > abs(velocity.y) * 1.5
+        }
+    }
+}
+#endif

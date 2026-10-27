@@ -115,10 +115,23 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
     dependencies:
       - target: PocketMe
+  PocketMeUITests:
+    type: bundle.ui-testing
+    platform: auto
+    supportedDestinations: [iOS, macOS]
+    sources: [Tests/PocketMeUITests]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(BUNDLE_ID_PREFIX).uitests
+        TEST_TARGET_NAME: PocketMe
+        GENERATE_INFOPLIST_FILE: YES
+        TARGETED_DEVICE_FAMILY: "1,2"
+    dependencies:
+      - target: PocketMe
 schemes:
   PocketMe:
     build:
       targets:
         PocketMe: all
     test:
-      targets: [PocketMeTests]
+      targets: [PocketMeTests, PocketMeUITests]

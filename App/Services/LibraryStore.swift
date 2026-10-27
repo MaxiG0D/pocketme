@@ -32,6 +32,13 @@ final class LibraryStore {
         opening = true
         defer { opening = false }
         do {
+            #if DEBUG
+            // UI tests run against the sample library so they never touch the real one.
+            if ProcessInfo.processInfo.arguments.contains("-PocketMeUITest") {
+                persistence = AppPersistence(container: try SampleData.container(), mode: .local)
+                return
+            }
+            #endif
             let opened = try await AppPersistence.open()
             try ArticleRepository(context: opened.container.mainContext).deduplicate()
             #if DEBUG && os(macOS)
