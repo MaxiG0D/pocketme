@@ -45,10 +45,12 @@ struct ReaderView: View {
             #if os(macOS)
             header
             #endif
-            GeometryReader { geometry in
-                Rectangle().fill(preferences.theme.ink.opacity(0.06))
-                Rectangle().fill(Theme.accent).frame(width: geometry.size.width * progress)
-            }.frame(height: 2)
+            if video == nil {
+                GeometryReader { geometry in
+                    Rectangle().fill(preferences.theme.ink.opacity(0.06))
+                    Rectangle().fill(Theme.accent).frame(width: geometry.size.width * progress)
+                }.frame(height: 2)
+            }
             if article.status == .pending {
                 VStack(spacing: 20) {
                     Text(article.title).font(Typo.sheetTitle)
@@ -63,7 +65,7 @@ struct ReaderView: View {
                     Button(article.archivedAt == nil ? "Archive" : "Unarchive") { store.archive(article); goBack() }.buttonStyle(SecondaryButtonStyle()).frame(maxWidth: 300)
                 }.padding(32).frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                if article.status == .failed {
+                if article.status == .failed && video == nil {
                     HStack(spacing: 12) {
                         Text("The clean article isn’t available yet.").font(Typo.meta).foregroundStyle(Theme.muted)
                         Spacer()
@@ -71,14 +73,10 @@ struct ReaderView: View {
                         Button("Retry") { store.retry(article) }.font(Typo.button).buttonStyle(.plain)
                     }.padding(14).background(Theme.chip)
                 }
-                if let video {
-                    VideoPlayerView(article: article, video: video).id(article.id)
-                        .frame(maxWidth: isMac ? 760 : 600).padding(.horizontal, isMac ? 26 : 16).padding(.top, isMac ? 8 : 12)
-                }
-                if video == nil || article.contentHTML != nil {
+                if let video { videoPage(video) } else {
                     ReaderWebView(article: article, fileURL: fileURL, configurationJSON: config, next: next, onMessage: message,
                                   openLink: { openURL($0) }, saveLink: { _ = store.saveLink($0.absoluteString) }, reduceMotion: reduceMotion)
-                } else { Spacer() }
+                }
             }
         }
         .foregroundStyle(preferences.theme.ink).background(preferences.theme.paper)
@@ -103,7 +101,7 @@ struct ReaderView: View {
         .tint(preferences.theme.ink)
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
-                Button("Reader settings", systemImage: "textformat.size") { settings = true }
+                if video == nil { Button("Reader settings", systemImage: "textformat.size") { settings = true } }
                 if let url = URL(string: article.url) {
                     ShareLink(item: url) { Label("Share", systemImage: "square.and.arrow.up") }
                 }
@@ -123,7 +121,7 @@ struct ReaderView: View {
             backButton
             Spacer()
             if isMac { Text(article.title).font(Typo.sans(13).weight(.semibold)).foregroundStyle(Theme.muted).lineLimit(1); Spacer() }
-            Button { settings = true } label: { Text("Aa").font(Typo.serif(17)) }.buttonStyle(CircleIconButtonStyle()).accessibilityLabel("Reader settings")
+            if video == nil { Button { settings = true } label: { Text("Aa").font(Typo.serif(17)) }.buttonStyle(CircleIconButtonStyle()).accessibilityLabel("Reader settings") }
             if isMac { Button { store.favorite(article) } label: { Image(systemName: article.isFavorite ? "bookmark.fill" : "bookmark") }.buttonStyle(CircleIconButtonStyle()).accessibilityLabel("Toggle favorite") }
             if let url = URL(string: article.url) {
                 ShareLink(item: url) { Image(systemName: "square.and.arrow.up") }.buttonStyle(CircleIconButtonStyle()).accessibilityLabel("Share article")
@@ -142,6 +140,18 @@ struct ReaderView: View {
             Button(action: goBack) { Image(systemName: "chevron.left") }
                 .buttonStyle(CircleIconButtonStyle()).accessibilityLabel("Back to library")
         }
+    }
+    /// Videos get only the player and their title, centered; there is nothing to read or scroll.
+    private func videoPage(_ video: VideoLink) -> some View {
+        VStack(spacing: 20) {
+            VideoPlayerView(article: article, video: video).id(article.id)
+            Text(article.title).font(isMac ? Typo.serif(26) : Typo.cardTitleSerif).multilineTextAlignment(.center)
+                .lineLimit(3).fixedSize(horizontal: false, vertical: true)
+            Button(article.archivedAt == nil ? "Archive" : "Unarchive") { store.archive(article); goBack() }
+                .buttonStyle(PrimaryButtonStyle(fill: preferences.theme.ink, foreground: preferences.theme.paper)).frame(maxWidth: 220)
+        }
+        .frame(maxWidth: isMac ? 860 : 640).padding(.horizontal, isMac ? 40 : 16)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
     private var originalButton: some View {
         Button("Open original") { if let url = URL(string: article.url) { openURL(url) } }.buttonStyle(PrimaryButtonStyle()).frame(maxWidth: 300)
