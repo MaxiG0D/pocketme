@@ -12,7 +12,7 @@ h1{font:600 31px/1.15 Newsreader,Georgia,serif;letter-spacing:-.3px;color:var(--
 html.mac h1{font-size:46px;line-height:1.1;letter-spacing:-.6px}
 .lead{width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:14px;margin:0 0 20px}
 p{margin:0 0 1em}h2,h3{font-family:Newsreader,Georgia,serif;color:var(--ink);line-height:1.25;margin:1.6em 0 .5em}
-img{max-width:100%;height:auto;border-radius:10px}figure{margin:1.4em 0}figcaption{font:13px/1.4 var(--font-ui);color:var(--muted);margin-top:8px}
+img{max-width:100%;height:auto;border-radius:10px;-webkit-user-select:none;user-select:none;-webkit-user-drag:none;-webkit-tap-highlight-color:transparent}a:focus,a:focus-visible,img:focus{outline:none}img::selection,figure::selection{background:transparent}figure{margin:1.4em 0}figcaption{font:13px/1.4 var(--font-ui);color:var(--muted);margin-top:8px}
 blockquote{margin:1.4em 0;padding-left:1em;border-left:2px solid var(--hair);font-style:italic;color:var(--ink)}
 a{color:var(--ink);text-decoration-thickness:1px;text-underline-offset:3px}
 pre,code{font-family:ui-monospace,Menlo,monospace;font-size:.85em}pre{overflow-x:auto;background:var(--hair);padding:12px 14px;border-radius:10px}
