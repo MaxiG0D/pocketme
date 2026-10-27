@@ -204,8 +204,8 @@ private struct CompactRow: View {
             }.padding(.horizontal, 2)
         }.padding(8)
             .background(selected ? Theme.cardSelection : hover ? Theme.cardSelection.opacity(0.5) : .clear, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-            // The open article carries a coral ring so it reads at a glance, not just a tint.
-            .overlay { if selected { RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(Theme.accent, lineWidth: 2) } }
+            // A faint ink ring makes the open article read at a glance without shouting.
+            .overlay { if selected { RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(Theme.ink.opacity(0.14), lineWidth: 1) } }
             .contentShape(Rectangle()).onHover { hover = $0 }
     }
 }
