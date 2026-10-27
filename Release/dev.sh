@@ -60,6 +60,11 @@ case "${1:-}" in
       rm -rf "${APP}"
     fi
     ditto --noextattr --noqtn "${staged}" "${APP}"
+    # The build-products copy registers its extensions too, which shows duplicates in Safari.
+    lsregister=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
+    for appex in "${staged}"/Contents/PlugIns/*.appex(N); do pluginkit -r "${appex}" 2>/dev/null || true; done
+    "${lsregister}" -u "${staged}" 2>/dev/null || true
+    for appex in "${APP}"/Contents/PlugIns/*.appex(N); do pluginkit -a "${appex}" 2>/dev/null || true; done
     step 'Mac app installed in Applications'
     if [[ "$1" == open ]]; then open "${APP}"; fi
     if [[ " $* " == *' --devices '* ]]; then install_devices "$@"; fi
