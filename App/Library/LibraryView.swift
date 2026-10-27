@@ -39,7 +39,7 @@ struct LibraryView: View {
     var body: some View {
         NavigationSplitView(columnVisibility: $columns, preferredCompactColumn: $compactColumn) {
             list
-                .navigationTitle("").navigationBarTitleDisplayMode(.inline)
+                .navigationTitle(favoritesOnly ? "Favorites" : "Pocket Me")
                 .navigationSplitViewColumnWidth(min: 300, ideal: 360, max: 420)
         } detail: {
             detail
