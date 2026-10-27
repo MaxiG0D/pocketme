@@ -1,3 +1,7 @@
+# 0.1.9
+
+- The Safari button now shows a brief check on its icon when a page is saved.
+
 # 0.1.8
 
 - Fixed the Safari button doing nothing when clicked.
