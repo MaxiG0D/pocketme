@@ -12,3 +12,5 @@ Hard rules:
 - Every PR must build for iOS and macOS in CI and keep tests green.
 
 Release applet exception: Max explicitly requires the existing Carnet de Recettes release applet template. `Release/PocketMeRelease` retains that separate developer tool’s UI; do not restyle it to match the product or invent a new UI. See `Release/TEMPLATE.md`.
+
+CI parity: before every push to main, run `Scripts/ci.sh --ui` on the Mac (it is the same command GitHub Actions runs, on a pinned Xcode 16.4). Fix any failure before pushing. Mac UI tests are excluded because the unsigned runner is blocked by Gatekeeper; the iPhone simulator runs them.

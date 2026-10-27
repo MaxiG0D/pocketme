@@ -9,13 +9,11 @@ jobs:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
-      - name: Generate project
-        run: brew install xcodegen && xcodegen generate
-      - name: Build iOS and its share extension
-        run: xcodebuild build -project PocketMe.xcodeproj -scheme PocketMe -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO
-      - name: Build macOS and its share extension
-        run: xcodebuild build -project PocketMe.xcodeproj -scheme PocketMe -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO
-      - name: Test on macOS
-        run: xcodebuild test -project PocketMe.xcodeproj -scheme PocketMe -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Pin Xcode
+        run: sudo xcode-select -s /Applications/Xcode_16.4.app
+      - name: Build and test (Scripts/ci.sh)
+        run: Scripts/ci.sh --ui
       - name: Build release applet (existing Carnet template)
         run: Release/build_release_app.sh
