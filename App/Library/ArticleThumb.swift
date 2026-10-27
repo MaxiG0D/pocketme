@@ -12,6 +12,8 @@ struct ArticleThumb: View {
         Theme.chip.overlay { image }
             .frame(width: width, height: height)
             .clipped().clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
+            // Clipping hides a filled image's overflow but not its hit area, which would swallow clicks meant for the next row.
+            .contentShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
             .animation(.easeInOut(duration: 0.2), value: article.thumbnailData)
             .accessibilityHidden(true)
     }
