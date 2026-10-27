@@ -59,8 +59,8 @@ enum SwipeGeometry {
 extension View {
     /// Swipe-to-reveal actions for a row, the same on iPhone, iPad, Duo and Mac. Give the row its own
     /// side padding (and zero list insets) and pass it as `inset`.
-    func swipeReveal(id: UUID, open: Binding<SwipeOpen?>, actions: [SwipeAction], inset: CGFloat = 0, gap: CGFloat = 0, cornerRadius: CGFloat = 0) -> some View {
-        modifier(SwipeReveal(id: id, open: open, actions: actions, inset: inset, gap: gap, cornerRadius: cornerRadius))
+    func swipeReveal(id: UUID, open: Binding<SwipeOpen?>, actions: [SwipeAction], inset: CGFloat = 0, gap: CGFloat = 0, cornerRadius: CGFloat = 0, verticalInset: CGFloat = 0) -> some View {
+        modifier(SwipeReveal(id: id, open: open, actions: actions, inset: inset, gap: gap, cornerRadius: cornerRadius, verticalInset: verticalInset))
     }
 }
 
@@ -71,6 +71,7 @@ private struct SwipeReveal: ViewModifier {
     let inset: CGFloat
     let gap: CGFloat
     let cornerRadius: CGFloat
+    let verticalInset: CGFloat
     @State private var live: CGFloat?
     @State private var horizontal: Bool?
     @State private var hover = false
@@ -113,7 +114,7 @@ private struct SwipeReveal: ViewModifier {
                     .overlay { Image(systemName: action.symbol).font(.system(size: 18, weight: .semibold)).foregroundStyle(.white) }
             }
             .buttonStyle(.plain).accessibilityLabel(action.label)
-            .frame(width: max(0, frame.width), height: frame.height)
+            .frame(width: max(0, frame.width), height: max(0, frame.height - verticalInset * 2))
             .position(x: frame.midX, y: frame.midY)
         }
     }
