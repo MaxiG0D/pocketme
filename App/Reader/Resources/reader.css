@@ -30,3 +30,4 @@ hr{border:0;border-top:1px solid var(--hair);margin:2em 0}table{display:block;ma
 .cover0{background:#1F3A5F;color:#FAFAF8}.cover1{background:#EDE4CF;color:#1A1A1A}.cover2{background:#E9D6BF;color:#1A1A1A}.cover3{background:#D6E4E1;color:#1A1A1A}
 .cover4{background:#E6DEEA;color:#1A1A1A}.cover5{background:#3B4A3F;color:#FAFAF8}.cover6{background:#5A3A2E;color:#FAFAF8}.cover7{background:#DCE3EC;color:#1A1A1A}
 button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:4px}
+body.video main,html.mac body.video main{padding-top:20px}body.video article{font-size:.9em;color:var(--muted)}body.video article a{color:var(--muted)}

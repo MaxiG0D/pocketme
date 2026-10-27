@@ -20,6 +20,7 @@ struct ReaderView: View {
     @State private var progress: Double = 0
     @State private var lastSaved = Date.distantPast
     @State private var settings = false
+    private var video: VideoLink? { VideoLink(article.url) }
     private var next: Article? { articles.first { $0.id != article.id && $0.archivedAt == nil } }
     private var fileURL: URL? {
         guard store.processor?.offlineReady.contains(article.id) == true else { return nil }
@@ -69,8 +70,14 @@ struct ReaderView: View {
                         Button("Retry") { store.retry(article) }.font(Typo.button).buttonStyle(.plain)
                     }.padding(14).background(Theme.chip)
                 }
-                ReaderWebView(article: article, fileURL: fileURL, configurationJSON: config, next: next, onMessage: message,
-                              openLink: { openURL($0) }, saveLink: { _ = store.saveLink($0.absoluteString) })
+                if let video {
+                    VideoPlayerView(article: article, video: video).id(article.id)
+                        .frame(maxWidth: isMac ? 760 : 600).padding(.horizontal, isMac ? 26 : 16).padding(.top, isMac ? 8 : 12)
+                }
+                if video == nil || article.contentHTML != nil {
+                    ReaderWebView(article: article, fileURL: fileURL, configurationJSON: config, next: next, onMessage: message,
+                                  openLink: { openURL($0) }, saveLink: { _ = store.saveLink($0.absoluteString) })
+                } else { Spacer() }
             }
         }
         .foregroundStyle(preferences.theme.ink).background(preferences.theme.paper)

@@ -15,6 +15,7 @@ final class ProcessingCoordinator {
     private var rerun = false
     private var imageCandidates: [UUID: [String]] = [:]
     private var assetRetry: [UUID: Date] = [:]
+    private var revisitedVideos = false
 
     init(context: ModelContext, root: URL) {
         self.context = context
@@ -41,6 +42,13 @@ final class ProcessingCoordinator {
 
     private func process() async {
         guard let articles = try? context.fetch(FetchDescriptor<Article>(sortBy: [SortDescriptor(\.savedAt)])) else { return }
+        if !revisitedVideos {
+            // Videos saved before oEmbed support failed as web pages; give them a fresh start once per launch.
+            revisitedVideos = true
+            for article in articles where article.status == .failed && VideoLink(article.url) != nil {
+                article.status = .pending; article.extractionAttempts = 0
+            }
+        }
         for article in articles {
             guard article.modelContext != nil else { continue }
             if Task.isCancelled { return }
@@ -85,8 +93,12 @@ final class ProcessingCoordinator {
         article.extractionAttempts += 1
         try? context.save()
         do {
-            let result = try await extractor.extract(url: url)
+            let video = VideoLink(article.url)
+            let result: ExtractedArticle
+            if let video { result = try await VideoMetadata.fetch(video) } else { result = try await extractor.extract(url: url) }
             guard article.modelContext != nil else { return }
+            // The page preview grabbed before oEmbed support is replaced by the video's own thumbnail.
+            if video != nil, result.leadImageURL != article.leadImageURL { article.thumbnailData = nil }
             article.title = result.title
             article.siteName = result.siteName.isEmpty ? (url.host() ?? "Website") : result.siteName
             article.author = result.author; article.excerpt = result.excerpt

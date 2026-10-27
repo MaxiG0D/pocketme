@@ -13,14 +13,16 @@ enum ReaderDocument {
         guard let cssURL = Bundle.main.url(forResource: "reader", withExtension: "css") else { throw CocoaError(.fileReadNoSuchFile) }
         let css = try String(contentsOf: cssURL, encoding: .utf8)
         let images = offline ? "'self' data:" : "'self' data: https: http:"
-        let lead = leadImage.map { "<img class=\"lead\" alt=\"\" src=\"\(escape($0))\">" } ?? ""
+        // A video's player sits natively above the page, so the page carries only its details.
+        let lead = article.isVideo ? "" : leadImage.map { "<img class=\"lead\" alt=\"\" src=\"\(escape($0))\">" } ?? ""
+        let done = article.isVideo ? "" : "<div class=\"done\">You finished this article</div>"
         return """
         <!doctype html><html class="auto"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
         <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src \(images); font-src 'self'; base-uri 'none'; form-action 'none'">
-        <title>\(escape(article.title))</title><style>\(css)</style></head><body><main>
+        <title>\(escape(article.title))</title><style>\(css)</style></head><body\(article.isVideo ? " class=\"video\"" : "")><main>
         <div class="kicker">\(escape(article.site)) · \(article.minutes) min</div><h1>\(escape(article.title))</h1>\(lead)
         <article>\(content)</article>
-        <section class="end"><div class="done">You finished this article</div>
+        <section class="end">\(done)
         <button class="btn primary" data-action="archive">\(icon(archive))<span>Archive</span></button><div class="row2">
         <button class="btn outline" data-action="favorite">\(icon(bookmark))<span>Favorite</span></button><button class="btn outline" data-action="share">\(icon(share))<span>Share</span></button></div>
         <div class="upnext" hidden><div class="kicker">Up next</div><button data-action="next"><span class="thumb"></span><span class="info"><span class="title"></span><span class="meta"></span></span></button></div></section>

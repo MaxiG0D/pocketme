@@ -11,7 +11,9 @@ struct ExtractedArticle: Codable, Sendable {
     var content: String?
     var wordCount: Int
     var isExternal: Bool? = false
-    var readingMinutes: Int { max(1, Int((Double(wordCount) / 230).rounded())) }
+    /// A video's length; articles estimate from their word count.
+    var minutes: Int?
+    var readingMinutes: Int { minutes ?? max(1, Int((Double(wordCount) / 230).rounded())) }
 }
 
 @MainActor
