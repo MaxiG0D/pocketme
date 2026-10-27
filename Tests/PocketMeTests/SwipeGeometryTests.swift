@@ -34,10 +34,12 @@ struct SwipeGeometryTests {
     }
 
     @Test func gapHoldsWhileDragging() {
-        for offset in stride(from: CGFloat(-80), through: -1, by: 7) {
+        // Closer to closed than the screen-edge margin plus the gap, the button has no width left to show.
+        for offset in stride(from: CGFloat(-80), through: -8, by: 7) {
             let frame = SwipeGeometry.buttonFrame(rowWidth: 390, rowHeight: 100, offset: offset, inset: 20, gap: 12, edge: 12)
-            #expect(frame.maxX == 390 - 12)
-            #expect(frame.minX - (390 - 20 + offset) == 12)
+            let contentEdge: CGFloat = 390 - 20 + offset
+            #expect(frame.maxX == CGFloat(378))
+            #expect(frame.minX - contentEdge == CGFloat(12))
         }
     }
 
