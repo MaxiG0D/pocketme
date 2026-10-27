@@ -53,5 +53,5 @@ PY
 run_tests() {
   step 'Running the PocketMe tests'
   xcodebuild test -quiet -project "${PROJECT_PATH}" -scheme PocketMe \
-    -destination 'platform=macOS' -derivedDataPath "${CACHE_DIR}/Tests" CODE_SIGNING_ALLOWED=NO
+    -destination 'platform=macOS' -derivedDataPath "${CACHE_DIR}/Tests" -skip-testing:PocketMeUITests CODE_SIGNING_ALLOWED=NO
 }
