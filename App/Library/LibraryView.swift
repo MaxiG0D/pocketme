@@ -97,9 +97,13 @@ struct LibraryView: View {
         .listStyle(.plain).scrollContentBackground(.hidden).background(Theme.paper).scrollIndicators(.hidden)
         .modifier(LibrarySearch(enabled: !articles.isEmpty, text: $search, isPresented: $showSearch))
         .toolbar {
-            ToolbarItemGroup(placement: .topBarTrailing) {
+            ToolbarItem(placement: .topBarLeading) {
+                Button { addLink = true } label: { Image(systemName: "plus").fontWeight(.bold) }
+                    .buttonStyle(.borderedProminent).buttonBorderShape(.circle).tint(Theme.accent)
+                    .accessibilityLabel("Save a link")
+            }
+            ToolbarItem(placement: .topBarTrailing) {
                 if !articles.isEmpty { Button("Search", systemImage: "magnifyingglass") { showSearch = true } }
-                Button("Save a link", systemImage: "plus") { addLink = true }.tint(Theme.accent)
             }
         }
         .refreshable { store.refresh(); await store.drainInbox() }

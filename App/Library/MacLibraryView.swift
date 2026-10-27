@@ -75,7 +75,7 @@ struct MacLibraryView: View {
 
     private var list: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 8) { addButton; tabs; Spacer(minLength: 0); searchButton }.padding(.horizontal, 12).padding(.top, 44).padding(.bottom, searching ? 6 : 10)
+            HStack(spacing: 8) { addButton; Divider().frame(height: 16).padding(.horizontal, 4); tabs; Spacer(minLength: 0); searchButton }.padding(.horizontal, 12).padding(.top, 44).padding(.bottom, searching ? 6 : 10)
             if searching { searchField }
             if let message = store.errorMessage { Text(message).font(Typo.meta).foregroundStyle(Theme.muted).padding(.horizontal, 16).padding(.bottom, 8) }
             ScrollViewReader { proxy in
