@@ -87,7 +87,7 @@ struct MacLibraryView: View {
                         CompactRow(article: article, selected: readerID == article.id)
                             .swipeToArchive(archived: article.archivedAt != nil, favorite: article.isFavorite,
                                             onArchive: { store.archive(article) }, onFavorite: { store.favorite(article) })
-                            .onTapGesture { readerID = article.id }.contextMenu { menu(article) }
+                            .onTapGesture { Diag.log("row tap \(article.title.prefix(30))"); readerID = article.id }.contextMenu { menu(article) }
                             .accessibilityAddTraits(readerID == article.id ? [.isButton, .isSelected] : .isButton)
                     }
                 }.padding(.horizontal, 12).padding(.bottom, 24)

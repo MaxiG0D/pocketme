@@ -84,7 +84,7 @@ struct ReaderView: View {
         .sheet(isPresented: $settings) { ReaderSettingsSheet() }
         .onAppear { open(article) }
         // The reader stays put when another article is picked beside it, so the page can fade across.
-        .onChange(of: article) { old, new in saveProgress(old, force: true); open(new) }
+        .onChange(of: article) { old, new in Diag.log("reader article changed to \(new.title.prefix(30))"); saveProgress(old, force: true); open(new) }
         .onDisappear { saveProgress(force: true) }
         .onChange(of: scenePhase) { _, phase in if phase != .active { saveProgress(force: true) } }
         #if os(macOS)
