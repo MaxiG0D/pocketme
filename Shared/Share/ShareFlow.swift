@@ -26,7 +26,11 @@ final class ShareFlow {
             try await queue.append(url: link.absoluteString)
             saved = true
             dismissal = Task { [weak self] in
+                #if os(macOS)
+                try? await Task.sleep(for: .seconds(1.2))
+                #else
                 try? await Task.sleep(for: .seconds(4))
+                #endif
                 guard !Task.isCancelled else { return }
                 self?.finish()
             }

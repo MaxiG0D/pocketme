@@ -6,7 +6,8 @@ final class ShareViewController: NSViewController {
     private let flow = ShareFlow()
     override func loadView() {
         Fonts.register()
-        view = NSHostingView(rootView: SavedSheetView(flow: flow).frame(width: 440, height: 360))
+        view = NSHostingView(rootView: MacShareView(flow: flow))
+        preferredContentSize = NSSize(width: 400, height: 100)
     }
     override func viewDidAppear() {
         super.viewDidAppear()
