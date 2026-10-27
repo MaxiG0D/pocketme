@@ -1,0 +1,79 @@
+{
+  "fill-specializations" : [
+    {
+      "value" : {
+        "solid" : "srgb:0.99216,0.98824,0.98039,1.00000"
+      }
+    },
+    {
+      "appearance" : "dark",
+      "value" : {
+        "solid" : "srgb:0.07843,0.07843,0.07843,1.00000"
+      }
+    }
+  ],
+  "groups" : [
+    {
+      "layers" : [
+        {
+          "image-name" : "Bookmark.svg",
+          "name" : "Bookmark"
+        }
+      ],
+      "name" : "Bookmark",
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.5
+      },
+      "translucency" : {
+        "enabled" : false,
+        "value" : 0.5
+      }
+    },
+    {
+      "layers" : [
+        {
+          "image-name" : "Pocket.svg",
+          "name" : "Pocket"
+        }
+      ],
+      "name" : "Pocket",
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.5
+      },
+      "translucency" : {
+        "enabled" : false,
+        "value" : 0.5
+      }
+    },
+    {
+      "layers" : [
+        {
+          "fill-specializations" : [
+            {
+              "appearance" : "dark",
+              "value" : {
+                "solid" : "srgb:0.92941,0.92941,0.90980,1.00000"
+              }
+            }
+          ],
+          "image-name" : "Article.svg",
+          "name" : "Article"
+        }
+      ],
+      "name" : "Article",
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.5
+      },
+      "translucency" : {
+        "enabled" : false,
+        "value" : 0.5
+      }
+    }
+  ],
+  "supported-platforms" : {
+    "squares" : "shared"
+  }
+}

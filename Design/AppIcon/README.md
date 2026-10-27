@@ -31,8 +31,15 @@ The release applet also uses this artwork. Its source PNG is
 The exporter refreshes that copy automatically; rebuild the applet with
 `Release/build_release_app.sh` afterward.
 
-These use the asset catalog workflow to retain compatibility with the app's
-iOS 18 / macOS 15 minimum versions. They do not add custom Liquid Glass layers.
+## Icon Composer (iOS 26 / macOS 26)
+
+`App/Resources/AppIcon.icon` is the Icon Composer version of the same design,
+redrawn as three vector layers (Article, Pocket, Bookmark) over a paper fill.
+It gives the icon Liquid Glass and real light, dark and tinted/clear
+appearances on Mac as well as iPhone and iPad: dark swaps the paper for
+`#141414` and the charcoal article strokes for `#EDEDE8`; the system derives
+tinted and clear from the layers. Open it in Icon Composer to edit. The asset
+catalog above still serves iOS 18 / macOS 15.
 
 ## Final generation prompt set
 

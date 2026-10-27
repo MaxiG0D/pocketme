@@ -1,3 +1,7 @@
+# 0.1.4
+
+- The app icon now has dark and tinted versions that follow your Mac and iPhone appearance.
+
 # 0.1.3
 
 - The Mac share window now confirms the save and closes right away.
