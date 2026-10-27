@@ -87,7 +87,7 @@ struct MacLibraryView: View {
                         // A real button takes the click itself; stacked tap gestures on the card were swallowing it.
                         Button { readerID = article.id } label: {
                             CompactRow(article: article, selected: readerID == article.id)
-                        }.buttonStyle(.plain)
+                        }.buttonStyle(CardButtonStyle()).frame(maxWidth: .infinity)
                             .swipeToArchive(archived: article.archivedAt != nil, favorite: article.isFavorite,
                                             onArchive: { store.archive(article) }, onFavorite: { store.favorite(article) })
                             .contextMenu { menu(article) }
@@ -183,6 +183,11 @@ struct MacLibraryView: View {
         if article.status == .failed { Button("Retry") { store.retry(article) } }
         Button("Delete", role: .destructive) { toDelete = article }
     }
+}
+
+/// Passes the card through untouched, so the button keeps the card's full width and look.
+private struct CardButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View { configuration.label }
 }
 
 /// Thumbnail-led card, matching the Mac mockup: a wide cover with the title and source underneath.
