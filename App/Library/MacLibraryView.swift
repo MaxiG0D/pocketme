@@ -202,7 +202,7 @@ private struct CompactRow: View {
                 }
                 ArticleMetaView(article: article, emphasizeSite: article.title == article.siteName)
             }.padding(.horizontal, 2)
-        }.padding(8)
+        }.frame(maxWidth: .infinity, alignment: .leading).padding(8)
             .background(selected ? Theme.cardSelection : hover ? Theme.cardSelection.opacity(0.5) : .clear, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             // A faint ink ring makes the open article read at a glance without shouting.
             .overlay { if selected { RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(Theme.ink.opacity(0.14), lineWidth: 1) } }
