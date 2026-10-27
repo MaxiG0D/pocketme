@@ -130,12 +130,11 @@ private struct SwipeReveal: ViewModifier {
                 // Let the row spring shut before the action moves or removes it.
                 Task { try? await Task.sleep(for: .milliseconds(reduceMotion ? 0 : 180)); action.perform() }
             } label: {
-                // A soft tint of the action's color on the row's own surface, with the glyph in full color.
-                RoundedRectangle(cornerRadius: cornerRadius * (0.4 + 0.6 * progress), style: .continuous).fill(action.color.opacity(0.16))
+                RoundedRectangle(cornerRadius: cornerRadius * (0.4 + 0.6 * progress), style: .continuous).fill(action.color)
                     .opacity(0.35 + 0.65 * progress)
                     .overlay {
                         // The icon pops on its own spring once the button is half out, so even a quick flick bounces.
-                        Image(systemName: action.symbol).font(.system(size: 18, weight: .semibold)).foregroundStyle(action.color)
+                        Image(systemName: action.symbol).font(.system(size: 18, weight: .semibold)).foregroundStyle(.white)
                             .scaleEffect(armed ? 1 : 0.3).opacity(armed ? 1 : 0)
                             .rotationEffect(.degrees(armed || reduceMotion ? 0 : (side == .trailing ? 30 : -30)))
                             .animation(reduceMotion ? nil : .spring(duration: 0.35, bounce: 0.5), value: armed)
