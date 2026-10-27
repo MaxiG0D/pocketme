@@ -85,7 +85,7 @@ struct MacLibraryView: View {
                 LazyVStack(spacing: 10) {
                     ForEach(filtered) { article in
                         // A real button takes the click itself; stacked tap gestures on the card were swallowing it.
-                        Button { Diag.log("row tap \(article.title.prefix(30))"); readerID = article.id } label: {
+                        Button { readerID = article.id } label: {
                             CompactRow(article: article, selected: readerID == article.id)
                         }.buttonStyle(.plain)
                             .swipeToArchive(archived: article.archivedAt != nil, favorite: article.isFavorite,

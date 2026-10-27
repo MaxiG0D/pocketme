@@ -67,7 +67,6 @@ struct ReaderWebView {
         /// Switching articles keeps the old page in place and fades the new one in once it is styled and scrolled,
         /// so the reader never flashes blank or shows the page restyling itself.
         func load(into container: PlatformView) {
-            Diag.log("web load \(parent.article.title.prefix(30)) bounds \(container.bounds.size.debugDescription)")
             if let incoming { discard(incoming) }
             let web = parent.makeWebView(coordinator: self)
             web.frame = container.bounds
@@ -83,7 +82,6 @@ struct ReaderWebView {
         }
         private func reveal(_ web: WKWebView) {
             guard web === incoming else { return }
-            Diag.log("web reveal")
             incoming = nil
             let old = current
             current = web
