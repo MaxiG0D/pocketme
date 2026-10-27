@@ -83,6 +83,8 @@ struct MacLibraryView: View {
                 LazyVStack(spacing: 10) {
                     ForEach(filtered) { article in
                         CompactRow(article: article, selected: readerID == article.id)
+                            .swipeToArchive(archived: article.archivedAt != nil, favorite: article.isFavorite,
+                                            onArchive: { store.archive(article) }, onFavorite: { store.favorite(article) })
                             .onTapGesture { readerID = article.id }.contextMenu { menu(article) }
                             .accessibilityAddTraits(readerID == article.id ? [.isButton, .isSelected] : .isButton)
                     }
@@ -198,6 +200,67 @@ private struct CompactRow: View {
         }.padding(8)
             .background(selected ? Theme.cardSelection : hover ? Theme.cardSelection.opacity(0.5) : .clear, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             .contentShape(Rectangle()).onHover { hover = $0 }
+    }
+}
+
+/// Two-finger trackpad swipe on a card: left archives, right favorites, like the iPhone list.
+private struct SwipeToArchive: ViewModifier {
+    let archived: Bool
+    let favorite: Bool
+    let onArchive: () -> Void
+    let onFavorite: () -> Void
+    @State private var offset: CGFloat = 0
+    @State private var hover = false
+    @State private var monitor: Any?
+    @State private var horizontal = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    private let threshold: CGFloat = 110
+    private let maxPull: CGFloat = 160
+
+    func body(content: Content) -> some View {
+        content
+            .offset(x: offset)
+            .background(alignment: offset < 0 ? .trailing : .leading) { action }
+            .onHover { hover = $0 }
+            .onAppear { monitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { handle($0) } }
+            .onDisappear { if let monitor { NSEvent.removeMonitor(monitor) }; monitor = nil }
+            .accessibilityAction(named: archived ? "Unarchive" : "Archive", onArchive)
+    }
+
+    @ViewBuilder private var action: some View {
+        if offset != 0 {
+            let leftward = offset < 0
+            let ready = abs(offset) >= threshold
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(leftward ? Theme.success : Theme.ink)
+                .overlay(alignment: leftward ? .trailing : .leading) {
+                    Image(systemName: leftward ? "archivebox" : "bookmark")
+                        .font(.system(size: 17, weight: .semibold)).foregroundStyle(.white)
+                        .scaleEffect(ready ? 1.15 : 1).padding(.horizontal, 22)
+                }
+        }
+    }
+
+    private func handle(_ event: NSEvent) -> NSEvent? {
+        guard event.hasPreciseScrollingDeltas else { return event }
+        if event.phase == .began || event.phase == .mayBegin { horizontal = hover && abs(event.scrollingDeltaX) > abs(event.scrollingDeltaY) }
+        guard horizontal else { return event }
+        if event.phase == .ended || event.phase == .cancelled {
+            horizontal = false
+            let pulled = offset
+            let animation: Animation? = reduceMotion ? nil : .snappy(duration: 0.25)
+            withAnimation(animation) { offset = 0 }
+            if pulled <= -threshold { onArchive() } else if pulled >= threshold { onFavorite() }
+            return nil
+        }
+        offset = min(maxPull, max(-maxPull, offset + event.scrollingDeltaX))
+        return nil
+    }
+}
+
+private extension View {
+    func swipeToArchive(archived: Bool, favorite: Bool, onArchive: @escaping () -> Void, onFavorite: @escaping () -> Void) -> some View {
+        modifier(SwipeToArchive(archived: archived, favorite: favorite, onArchive: onArchive, onFavorite: onFavorite))
     }
 }
 
