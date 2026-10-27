@@ -125,7 +125,7 @@ final class ExtractionService: NSObject, WKNavigationDelegate {
     private static var quickRules: WKContentRuleList?
     private var installedMode: Bool?
     private func installRules() async {
-        let store = WKContentRuleListStore.default()
+        guard let store = WKContentRuleListStore.default() else { return }
         if Self.fullRules == nil {
             Self.fullRules = try? await store.compileContentRuleList(forIdentifier: "PocketMeExtraction", encodedContentRuleList: #"[{"trigger":{"url-filter":".*","resource-type":["image","media","font"]},"action":{"type":"block"}}]"#)
         }
