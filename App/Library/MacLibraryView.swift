@@ -203,7 +203,7 @@ private struct CompactRow: View {
     }
 }
 
-/// Two-finger trackpad swipe on a card: left archives, right favorites, like the iPhone list.
+/// Two-finger trackpad swipe on a card, like the iPhone list: left opens Archive, right opens Favorite; clicking the button acts.
 private struct SwipeToArchive: ViewModifier {
     let archived: Bool
     let favorite: Bool
@@ -214,46 +214,58 @@ private struct SwipeToArchive: ViewModifier {
     @State private var monitor: Any?
     @State private var horizontal = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    private let threshold: CGFloat = 110
-    private let maxPull: CGFloat = 160
+    private let reveal: CGFloat = 84
 
     func body(content: Content) -> some View {
         content
             .offset(x: offset)
-            .background(alignment: offset < 0 ? .trailing : .leading) { action }
+            .background(alignment: offset < 0 ? .trailing : .leading) { actionButton }
             .onHover { hover = $0 }
             .onAppear { monitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { handle($0) } }
             .onDisappear { if let monitor { NSEvent.removeMonitor(monitor) }; monitor = nil }
+            .simultaneousGesture(TapGesture().onEnded { if offset != 0 { settle(0) } })
             .accessibilityAction(named: archived ? "Unarchive" : "Archive", onArchive)
     }
 
-    @ViewBuilder private var action: some View {
+    @ViewBuilder private var actionButton: some View {
         if offset != 0 {
             let leftward = offset < 0
-            let ready = abs(offset) >= threshold
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(leftward ? Theme.success : Theme.ink)
-                .overlay(alignment: leftward ? .trailing : .leading) {
-                    Image(systemName: leftward ? "archivebox" : "bookmark")
-                        .font(.system(size: 17, weight: .semibold)).foregroundStyle(.white)
-                        .scaleEffect(ready ? 1.15 : 1).padding(.horizontal, 22)
-                }
+            Button {
+                settle(0)
+                if leftward { onArchive() } else { onFavorite() }
+            } label: {
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(leftward ? Theme.success : Theme.ink)
+                    .overlay {
+                        Image(systemName: leftward ? "archivebox" : "bookmark")
+                            .font(.system(size: 18, weight: .semibold)).foregroundStyle(.white)
+                    }
+            }.buttonStyle(.plain).frame(width: min(abs(offset), reveal))
+                .accessibilityLabel(leftward ? (archived ? "Unarchive" : "Archive") : (favorite ? "Remove favorite" : "Favorite"))
         }
+    }
+
+    private func settle(_ target: CGFloat) {
+        withAnimation(reduceMotion ? nil : .snappy(duration: 0.25)) { offset = target }
     }
 
     private func handle(_ event: NSEvent) -> NSEvent? {
         guard event.hasPreciseScrollingDeltas else { return event }
-        if event.phase == .began || event.phase == .mayBegin { horizontal = hover && abs(event.scrollingDeltaX) > abs(event.scrollingDeltaY) }
-        guard horizontal else { return event }
+        if event.phase == .began || event.phase == .mayBegin {
+            horizontal = hover && abs(event.scrollingDeltaX) > abs(event.scrollingDeltaY)
+            if !horizontal && offset != 0 { settle(0) }
+        }
+        guard horizontal else {
+            // Scrolling the list vertically closes an open card.
+            if offset != 0, abs(event.scrollingDeltaY) > abs(event.scrollingDeltaX) { settle(0) }
+            return event
+        }
         if event.phase == .ended || event.phase == .cancelled {
             horizontal = false
-            let pulled = offset
-            let animation: Animation? = reduceMotion ? nil : .snappy(duration: 0.25)
-            withAnimation(animation) { offset = 0 }
-            if pulled <= -threshold { onArchive() } else if pulled >= threshold { onFavorite() }
+            settle(abs(offset) > reveal / 2 ? (offset < 0 ? -reveal : reveal) : 0)
             return nil
         }
-        offset = min(maxPull, max(-maxPull, offset + event.scrollingDeltaX))
+        offset = min(reveal * 1.4, max(-reveal * 1.4, offset + event.scrollingDeltaX))
         return nil
     }
 }
