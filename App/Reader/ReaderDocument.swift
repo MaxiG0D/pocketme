@@ -35,7 +35,7 @@ enum ReaderDocument {
     /// Same photo at another crop: URLs that differ only by query, size segment (`924x615`) or size suffix (`-1020x680`).
     static func imageKey(_ raw: String) -> String? {
         guard let url = URL(string: raw.trimmingCharacters(in: .whitespaces)), url.path.count > 1 else { return nil }
-        let size = try! Regex(#"^\d+x\d+$"#)
+        let size = try! Regex(#"^(\d+x\d*|x\d+)$"#)
         var parts = url.path.lowercased().split(separator: "/").filter { $0.wholeMatch(of: size) == nil }.map(String.init)
         guard var name = parts.popLast() else { return nil }
         name = name.replacingOccurrences(of: #"[-_@]\d+x\d+(@\d+x)?(?=\.|$)"#, with: "", options: .regularExpression)
