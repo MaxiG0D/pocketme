@@ -85,7 +85,8 @@ private struct SwipeReveal: ViewModifier {
 
     func body(content: Content) -> some View {
         ZStack { content.offset(x: offset) }
-            .background { GeometryReader { geo in button(in: geo.size) } }
+            // Above the row, so the button can cover its empty side padding and sit `gap` from the content.
+            .overlay { GeometryReader { geo in button(in: geo.size) } }
             .simultaneousGesture(TapGesture().onEnded { if open?.id == id { close() } })
             #if os(iOS)
             .simultaneousGesture(drag)
