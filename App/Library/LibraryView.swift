@@ -23,7 +23,10 @@ struct LibraryView: View {
         return articles.filter { section.includes($0) && (search.isEmpty || ($0.title + " " + $0.siteName).localizedCaseInsensitiveContains(search)) }
             .sorted { archive && !favoritesOnly ? ($0.archivedAt ?? .distantPast) > ($1.archivedAt ?? .distantPast) : $0.savedAt > $1.savedAt }
     }
-    private var current: Article? {
+    /// Side by side, the article being read is already open next to the list; promoting it to a hero card
+    /// would make its row jump in and out as reading progress changes.
+    private var current: Article? { sizeClass == .regular ? nil : inProgress }
+    private var inProgress: Article? {
         guard !favoritesOnly, !archive, search.isEmpty else { return nil }
         return filtered.filter { $0.lastOpenedAt != nil && $0.readingProgress > 0.02 && $0.readingProgress < 0.95 }
             .max { ($0.lastOpenedAt ?? .distantPast) < ($1.lastOpenedAt ?? .distantPast) }
@@ -124,7 +127,7 @@ struct LibraryView: View {
     private func ensureSelection() {
         guard sizeClass == .regular else { return }
         if let selection, filtered.contains(where: { $0.id == selection }) { return }
-        selection = (current ?? filtered.first)?.id
+        selection = (inProgress ?? filtered.first)?.id
     }
     private func pasteOrAdd() { if let link = Clipboard.link { _ = store.saveLink(link) } else { addLink = true } }
     @ViewBuilder private func articleMenu(_ article: Article) -> some View {
