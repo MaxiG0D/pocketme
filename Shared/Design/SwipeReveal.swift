@@ -72,8 +72,8 @@ enum SwipeGeometry {
 extension View {
     /// Swipe-to-reveal actions for a row, the same on iPhone, iPad, Duo and Mac. Give the row its own
     /// side padding (and zero list insets) and pass it as `inset`.
-    func swipeReveal(id: UUID, open: Binding<SwipeOpen?>, actions: [SwipeAction], inset: CGFloat = 0, gap: CGFloat = 0, cornerRadius: CGFloat = 0, verticalInset: CGFloat = 0, edge: CGFloat = 0) -> some View {
-        modifier(SwipeReveal(id: id, open: open, actions: actions, inset: inset, gap: gap, cornerRadius: cornerRadius, verticalInset: verticalInset, edge: edge))
+    func swipeReveal(id: UUID, open: Binding<SwipeOpen?>, actions: [SwipeAction], inset: CGFloat = 0, gap: CGFloat = 0, cornerRadius: CGFloat = 0, verticalInset: CGFloat = 0, maxHeight: CGFloat = .infinity, edge: CGFloat = 0) -> some View {
+        modifier(SwipeReveal(id: id, open: open, actions: actions, inset: inset, gap: gap, cornerRadius: cornerRadius, verticalInset: verticalInset, maxHeight: maxHeight, edge: edge))
     }
 }
 
@@ -85,6 +85,7 @@ private struct SwipeReveal: ViewModifier {
     let gap: CGFloat
     let cornerRadius: CGFloat
     let verticalInset: CGFloat
+    let maxHeight: CGFloat
     let edge: CGFloat
     @State private var live: CGFloat?
     @State private var horizontal: Bool?
@@ -129,18 +130,19 @@ private struct SwipeReveal: ViewModifier {
                 // Let the row spring shut before the action moves or removes it.
                 Task { try? await Task.sleep(for: .milliseconds(reduceMotion ? 0 : 180)); action.perform() }
             } label: {
-                RoundedRectangle(cornerRadius: cornerRadius * (0.4 + 0.6 * progress), style: .continuous).fill(action.color)
+                // A soft tint of the action's color on the row's own surface, with the glyph in full color.
+                RoundedRectangle(cornerRadius: cornerRadius * (0.4 + 0.6 * progress), style: .continuous).fill(action.color.opacity(0.16))
                     .opacity(0.35 + 0.65 * progress)
                     .overlay {
                         // The icon pops on its own spring once the button is half out, so even a quick flick bounces.
-                        Image(systemName: action.symbol).font(.system(size: 18, weight: .semibold)).foregroundStyle(.white)
+                        Image(systemName: action.symbol).font(.system(size: 18, weight: .semibold)).foregroundStyle(action.color)
                             .scaleEffect(armed ? 1 : 0.3).opacity(armed ? 1 : 0)
                             .rotationEffect(.degrees(armed || reduceMotion ? 0 : (side == .trailing ? 30 : -30)))
                             .animation(reduceMotion ? nil : .spring(duration: 0.35, bounce: 0.5), value: armed)
                     }
             }
             .buttonStyle(.plain).accessibilityLabel(action.label)
-            .frame(width: max(0, frame.width), height: max(0, frame.height - verticalInset * 2))
+            .frame(width: max(0, frame.width), height: max(0, min(maxHeight, frame.height - verticalInset * 2)))
             .position(x: frame.midX, y: frame.midY)
         }
     }

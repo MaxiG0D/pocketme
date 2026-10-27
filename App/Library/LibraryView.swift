@@ -85,8 +85,9 @@ struct LibraryView: View {
                 ForEach(rows, id: \.id) { article in
                     ArticleRow(article: article)
                         .padding(.horizontal, Theme.gutter)
+                        // Behind the swipe, so the row slides over one still surface instead of dragging a slab along.
+                        .swipeReveal(id: article.id, open: $openSwipe, actions: swipeActions(for: article), inset: Theme.gutter, gap: 12, cornerRadius: Theme.radiusThumb, maxHeight: Theme.rowThumb, edge: 12)
                         .background(selection == article.id ? Theme.cardSelection : Theme.paper)
-                        .swipeReveal(id: article.id, open: $openSwipe, actions: swipeActions(for: article), inset: Theme.gutter, gap: 12, cornerRadius: 18, verticalInset: 8, edge: 12)
                         .listRowInsets(EdgeInsets()).listRowBackground(Theme.paper)
                         .listRowSeparatorTint(Theme.hairline)
                         .alignmentGuide(.listRowSeparatorLeading) { _ in Theme.gutter }
