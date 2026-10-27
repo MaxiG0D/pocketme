@@ -48,11 +48,22 @@ enum SwipeGeometry {
         return nil
     }
 
+    /// The raw drag mapped onto the row: free up to the open position, then rubber-banding toward
+    /// half again as far, and pinned at zero on a side with no action.
     static func clamp(_ offset: CGFloat, actions: [SwipeAction], inset: CGFloat, gap: CGFloat, edge: CGFloat = 0) -> CGFloat {
-        let limit = abs(openOffset(.trailing, inset: inset, gap: gap, edge: edge)) * 1.25
-        let lower = actions.contains { $0.side == .trailing } ? -limit : 0
-        let upper = actions.contains { $0.side == .leading } ? limit : 0
-        return min(upper, max(lower, offset))
+        let side: SwipeSide = offset < 0 ? .trailing : .leading
+        guard actions.contains(where: { $0.side == side }) else { return 0 }
+        let open = abs(openOffset(.trailing, inset: inset, gap: gap, edge: edge))
+        let distance = abs(offset)
+        guard distance > open else { return offset }
+        let stretch = distance - open, give = open / 2
+        let banded = open + give * stretch / (stretch + give)
+        return offset < 0 ? -banded : banded
+    }
+
+    /// 0 when closed, 1 once the button has its full width; drives the icon's grow and fade.
+    static func progress(_ offset: CGFloat, inset: CGFloat, gap: CGFloat, edge: CGFloat = 0) -> CGFloat {
+        min(1, abs(offset) / abs(openOffset(.trailing, inset: inset, gap: gap, edge: edge)))
     }
 }
 
@@ -83,7 +94,12 @@ private struct SwipeReveal: ViewModifier {
         guard let open, open.id == id else { return 0 }
         return SwipeGeometry.openOffset(open.side, inset: inset, gap: gap, edge: edge)
     }
-    private var offset: CGFloat { live ?? resting }
+    /// `live` is the raw drag; the row shows it rubber-banded.
+    private var offset: CGFloat { live.map { SwipeGeometry.clamp($0, actions: actions, inset: inset, gap: gap, edge: edge) } ?? resting }
+    private var progress: CGFloat { SwipeGeometry.progress(offset, inset: inset, gap: gap, edge: edge) }
+    /// Past halfway a release snaps open, so that is where the haptic tick lands, like the system swipe.
+    private var armed: Bool { SwipeGeometry.rest(for: offset, actions: actions, inset: inset, gap: gap, edge: edge) != nil }
+    private var spring: Animation? { reduceMotion ? nil : .spring(duration: 0.4, bounce: 0.28) }
 
     func body(content: Content) -> some View {
         ZStack { content.offset(x: offset) }
@@ -91,6 +107,7 @@ private struct SwipeReveal: ViewModifier {
             .overlay { GeometryReader { geo in button(in: geo.size) } }
             #if os(iOS)
             .gesture(HorizontalPan(changed: drag, ended: release))
+            .sensoryFeedback(.impact(weight: .light), trigger: armed) { _, now in now && live != nil }
             #else
             .onHover { hover = $0 }
             .onAppear { monitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { scroll($0) } }
@@ -108,10 +125,16 @@ private struct SwipeReveal: ViewModifier {
             let frame = SwipeGeometry.buttonFrame(rowWidth: size.width, rowHeight: size.height, offset: offset, inset: inset, gap: gap, edge: edge)
             Button {
                 close()
-                action.perform()
+                // Let the row spring shut before the action moves or removes it.
+                Task { try? await Task.sleep(for: .milliseconds(reduceMotion ? 0 : 180)); action.perform() }
             } label: {
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous).fill(action.color)
-                    .overlay { Image(systemName: action.symbol).font(.system(size: 18, weight: .semibold)).foregroundStyle(.white) }
+                RoundedRectangle(cornerRadius: cornerRadius * (0.4 + 0.6 * progress), style: .continuous).fill(action.color)
+                    .opacity(0.35 + 0.65 * progress)
+                    .overlay {
+                        Image(systemName: action.symbol).font(.system(size: 18, weight: .semibold)).foregroundStyle(.white)
+                            .scaleEffect(0.4 + 0.6 * progress).opacity(Double(progress * progress))
+                            .rotationEffect(.degrees(reduceMotion ? 0 : (1 - progress) * (side == .trailing ? 25 : -25)))
+                    }
             }
             .buttonStyle(.plain).accessibilityLabel(action.label)
             .frame(width: max(0, frame.width), height: max(0, frame.height - verticalInset * 2))
@@ -122,7 +145,7 @@ private struct SwipeReveal: ViewModifier {
     private func close() { settle(nil) }
 
     private func settle(_ side: SwipeSide?) {
-        withAnimation(reduceMotion ? nil : .snappy(duration: 0.25)) {
+        withAnimation(spring) {
             live = nil
             open = side.map { SwipeOpen(id: id, side: $0) }
         }
@@ -134,12 +157,15 @@ private struct SwipeReveal: ViewModifier {
     }
 
     private func move(by delta: CGFloat) {
-        live = SwipeGeometry.clamp((live ?? resting) + delta, actions: actions, inset: inset, gap: gap, edge: edge)
+        let raw = (live ?? resting) + delta
+        let reach = abs(SwipeGeometry.openOffset(.trailing, inset: inset, gap: gap, edge: edge)) * 3
+        // Keep the raw value near what is shown, so reversing a trackpad swipe responds at once.
+        live = SwipeGeometry.clamp(raw, actions: actions, inset: inset, gap: gap, edge: edge) == 0 ? 0 : min(reach, max(-reach, raw))
     }
 
     #if os(iOS)
     private func drag(_ translation: CGFloat) {
-        live = SwipeGeometry.clamp(resting + translation, actions: actions, inset: inset, gap: gap, edge: edge)
+        live = resting + translation
     }
     #else
     /// Two-finger trackpad swipes arrive as scroll events, not drags.
