@@ -56,7 +56,7 @@ struct MacLibraryView: View {
 
     @ViewBuilder private var reader: some View {
         if let article = openArticle, filtered.contains(where: { $0.id == article.id }) {
-            ReaderView(article: article, toggleList: { listVisible.toggle() }, clearsTrafficLights: !listVisible).id(article.id)
+            ReaderView(article: article, toggleList: { listVisible.toggle() }, clearsTrafficLights: !listVisible)
         } else {
             VStack(spacing: 0) {
                 if !listVisible { Button { listVisible = true } label: { Image(systemName: "sidebar.left") }

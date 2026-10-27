@@ -117,7 +117,7 @@ struct LibraryView: View {
 
     @ViewBuilder private var detail: some View {
         if let selection, let article = articles.first(where: { $0.id == selection }) {
-            ReaderView(article: article, close: { self.selection = nil }).id(article.id)
+            ReaderView(article: article, close: { self.selection = nil })
         } else {
             Theme.paper.ignoresSafeArea()
         }

@@ -21,8 +21,12 @@
       desired = config.progress || 0;
       if (!restoring) {
         restoring = true;
-        const images = Array.from(document.images).map(img => img.complete ? Promise.resolve() : new Promise(resolve => { img.addEventListener('load', resolve, {once:true}); img.addEventListener('error', resolve, {once:true}); setTimeout(resolve, 2000); }));
-        Promise.all([document.fonts.ready, ...images]).then(() => requestAnimationFrame(() => { scrollTo(0,desired * Math.max(0,document.documentElement.scrollHeight-innerHeight)); restored = true; }));
+        // 'shown' tells the app the page is styled and in place, so it can fade in.
+        const shown = () => requestAnimationFrame(() => requestAnimationFrame(() => post('shown')));
+        if (desired > 0.001) {
+          const images = Array.from(document.images).map(img => img.complete ? Promise.resolve() : new Promise(resolve => { img.addEventListener('load', resolve, {once:true}); img.addEventListener('error', resolve, {once:true}); setTimeout(resolve, 2000); }));
+          Promise.all([document.fonts.ready, ...images]).then(() => requestAnimationFrame(() => { scrollTo(0,desired * Math.max(0,document.documentElement.scrollHeight-innerHeight)); restored = true; shown(); }));
+        } else { restored = true; document.fonts.ready.then(shown); }
       }
     } else if (styleChanged) {
       requestAnimationFrame(() => scrollTo(0,(anchor || 0) * Math.max(0,document.documentElement.scrollHeight-innerHeight)));

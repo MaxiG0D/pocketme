@@ -7,6 +7,7 @@ struct ReaderView: View {
     @Environment(\.openURL) private var openURL
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     #if os(iOS)
     @Environment(\.horizontalSizeClass) private var sizeClass
     #endif
@@ -76,18 +77,16 @@ struct ReaderView: View {
                 }
                 if video == nil || article.contentHTML != nil {
                     ReaderWebView(article: article, fileURL: fileURL, configurationJSON: config, next: next, onMessage: message,
-                                  openLink: { openURL($0) }, saveLink: { _ = store.saveLink($0.absoluteString) })
+                                  openLink: { openURL($0) }, saveLink: { _ = store.saveLink($0.absoluteString) }, reduceMotion: reduceMotion)
                 } else { Spacer() }
             }
         }
         .foregroundStyle(preferences.theme.ink).background(preferences.theme.paper)
         .preferredColorScheme(preferences.theme == .dark ? .dark : preferences.theme == .light ? .light : nil)
         .sheet(isPresented: $settings) { ReaderSettingsSheet() }
-        .onAppear {
-            progress = min(max(article.readingProgress, 0), 1)
-            article.lastOpenedAt = .now; store.persist()
-            if article.status == .pending { store.processor?.start() }
-        }
+        .onAppear { open(article) }
+        // The reader stays put when another article is picked beside it, so the page can fade across.
+        .onChange(of: article) { old, new in saveProgress(old, force: true); open(new) }
         .onDisappear { saveProgress(force: true) }
         .onChange(of: scenePhase) { _, phase in if phase != .active { saveProgress(force: true) } }
         #if os(macOS)
@@ -151,10 +150,16 @@ struct ReaderView: View {
         saveProgress(force: true)
         if let close { close() } else if toggleList == nil { dismiss() }
     }
-    private func saveProgress(force: Bool = false) {
-        guard article.modelContext != nil else { return }
+    private func open(_ article: Article) {
+        progress = min(max(article.readingProgress, 0), 1)
+        article.lastOpenedAt = .now; store.persist()
+        if article.status == .pending { store.processor?.start() }
+    }
+    private func saveProgress(_ target: Article? = nil, force: Bool = false) {
+        let target = target ?? article
+        guard target.modelContext != nil else { return }
         guard force || Date.now.timeIntervalSince(lastSaved) >= 2 else { return }
-        article.readingProgress = min(max(progress, 0), 1)
+        target.readingProgress = min(max(progress, 0), 1)
         lastSaved = .now; store.persist()
     }
     private func message(_ action: String, _ value: Double?) {
