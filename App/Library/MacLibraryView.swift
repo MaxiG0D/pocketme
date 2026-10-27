@@ -10,6 +10,7 @@ struct MacLibraryView: View {
     @State private var readerID: UUID?
     @State private var listVisible = true
     @State private var toDelete: Article?
+    @State private var openSwipe: SwipeOpen?
     @State private var showAdd = false
     @State private var search = ""
     @State private var searching = false
@@ -88,8 +89,7 @@ struct MacLibraryView: View {
                         Button { readerID = article.id } label: {
                             CompactRow(article: article, selected: readerID == article.id)
                         }.buttonStyle(CardButtonStyle()).frame(maxWidth: .infinity)
-                            .swipeToArchive(archived: article.archivedAt != nil, favorite: article.isFavorite,
-                                            onArchive: { store.archive(article) }, onFavorite: { store.favorite(article) })
+                            .swipeReveal(id: article.id, open: $openSwipe, actions: swipeActions(for: article), cornerRadius: 16)
                             .contextMenu { menu(article) }
                             .accessibilityAddTraits(readerID == article.id ? [.isButton, .isSelected] : .isButton)
                     }
@@ -174,6 +174,10 @@ struct MacLibraryView: View {
         action(article)
         return .handled
     }
+    private func swipeActions(for article: Article) -> [SwipeAction] {[
+        SwipeAction(side: .leading, symbol: "bookmark", color: Theme.ink, label: article.isFavorite ? "Remove favorite" : "Favorite") { store.favorite(article) },
+        SwipeAction(side: .trailing, symbol: "archivebox", color: Theme.success, label: article.archivedAt == nil ? "Archive" : "Unarchive") { store.archive(article) },
+    ]}
     @ViewBuilder private func menu(_ article: Article) -> some View {
         Button("Open original in browser") { if let url = URL(string: article.url) { openURL(url) } }
         Button("Copy link") { Clipboard.copy(article.url) }
@@ -212,78 +216,6 @@ private struct CompactRow: View {
             // A faint ink ring makes the open article read at a glance without shouting.
             .overlay { if selected { RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(Theme.ink.opacity(0.14), lineWidth: 1) } }
             .contentShape(Rectangle()).onHover { hover = $0 }
-    }
-}
-
-/// Two-finger trackpad swipe on a card, like the iPhone list: left opens Archive, right opens Favorite; clicking the button acts.
-private struct SwipeToArchive: ViewModifier {
-    let archived: Bool
-    let favorite: Bool
-    let onArchive: () -> Void
-    let onFavorite: () -> Void
-    @State private var offset: CGFloat = 0
-    @State private var hover = false
-    @State private var monitor: Any?
-    @State private var horizontal = false
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    private let reveal: CGFloat = 84
-
-    func body(content: Content) -> some View {
-        content
-            .offset(x: offset)
-            .background(alignment: offset < 0 ? .trailing : .leading) { actionButton }
-            .onHover { hover = $0 }
-            .onAppear { monitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { handle($0) } }
-            .onDisappear { if let monitor { NSEvent.removeMonitor(monitor) }; monitor = nil }
-            .accessibilityAction(named: archived ? "Unarchive" : "Archive", onArchive)
-    }
-
-    @ViewBuilder private var actionButton: some View {
-        if offset != 0 {
-            let leftward = offset < 0
-            Button {
-                settle(0)
-                if leftward { onArchive() } else { onFavorite() }
-            } label: {
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(leftward ? Theme.success : Theme.ink)
-                    .overlay {
-                        Image(systemName: leftward ? "archivebox" : "bookmark")
-                            .font(.system(size: 18, weight: .semibold)).foregroundStyle(.white)
-                    }
-            }.buttonStyle(.plain).frame(width: min(abs(offset), reveal))
-                .accessibilityLabel(leftward ? (archived ? "Unarchive" : "Archive") : (favorite ? "Remove favorite" : "Favorite"))
-        }
-    }
-
-    private func settle(_ target: CGFloat) {
-        withAnimation(reduceMotion ? nil : .snappy(duration: 0.25)) { offset = target }
-    }
-
-    private func handle(_ event: NSEvent) -> NSEvent? {
-        guard event.hasPreciseScrollingDeltas else { return event }
-        if event.phase == .began || event.phase == .mayBegin {
-            horizontal = hover && abs(event.scrollingDeltaX) > abs(event.scrollingDeltaY)
-            if !horizontal && offset != 0 { settle(0) }
-        }
-        guard horizontal else {
-            // Scrolling the list vertically closes an open card.
-            if offset != 0, abs(event.scrollingDeltaY) > abs(event.scrollingDeltaX) { settle(0) }
-            return event
-        }
-        if event.phase == .ended || event.phase == .cancelled {
-            horizontal = false
-            settle(abs(offset) > reveal / 2 ? (offset < 0 ? -reveal : reveal) : 0)
-            return nil
-        }
-        offset = min(reveal * 1.4, max(-reveal * 1.4, offset + event.scrollingDeltaX))
-        return nil
-    }
-}
-
-private extension View {
-    func swipeToArchive(archived: Bool, favorite: Bool, onArchive: @escaping () -> Void, onFavorite: @escaping () -> Void) -> some View {
-        modifier(SwipeToArchive(archived: archived, favorite: favorite, onArchive: onArchive, onFavorite: onFavorite))
     }
 }
 

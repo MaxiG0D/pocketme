@@ -33,8 +33,11 @@ struct LibraryView: View {
     }
     private var rows: [Article] { filtered.filter { $0.id != current?.id } }
     private let rowInsets = EdgeInsets(top: 0, leading: Theme.gutter, bottom: 0, trailing: Theme.gutter)
-    // Tighter trailing inset so a swiped row sits close to its action button.
-    private let articleRowInsets = EdgeInsets(top: 0, leading: Theme.gutter, bottom: 0, trailing: 12)
+    @State private var openSwipe: SwipeOpen?
+    private func swipeActions(for article: Article) -> [SwipeAction] {[
+        SwipeAction(side: .leading, symbol: "bookmark", color: Theme.ink, label: article.isFavorite ? "Remove favorite" : "Favorite") { store.favorite(article) },
+        SwipeAction(side: .trailing, symbol: "archivebox", color: Theme.success, label: article.archivedAt == nil ? "Archive" : "Unarchive") { store.archive(article) },
+    ]}
 
     var body: some View {
         NavigationSplitView(columnVisibility: $columns, preferredCompactColumn: $compactColumn) {
@@ -80,16 +83,13 @@ struct LibraryView: View {
                 }
                 ForEach(rows, id: \.id) { article in
                     ArticleRow(article: article)
-                        .listRowInsets(articleRowInsets).listRowSeparatorTint(Theme.hairline)
-                        .listRowBackground(selection == article.id ? Theme.cardSelection : Theme.paper)
-                        .swipeActions(edge: .leading, allowsFullSwipe: true) {
-                            Button { store.favorite(article) } label: { Label(article.isFavorite ? "Remove favorite" : "Favorite", systemImage: "bookmark") }
-                                .tint(Theme.ink)
-                        }
-                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                            Button { store.archive(article) } label: { Label(article.archivedAt == nil ? "Archive" : "Unarchive", systemImage: "archivebox") }
-                                .tint(Theme.success)
-                        }
+                        .padding(.horizontal, Theme.gutter)
+                        .background(selection == article.id ? Theme.cardSelection : Theme.paper)
+                        .swipeReveal(id: article.id, open: $openSwipe, actions: swipeActions(for: article), inset: Theme.gutter, gap: 12)
+                        .listRowInsets(EdgeInsets()).listRowBackground(Theme.paper)
+                        .listRowSeparatorTint(Theme.hairline)
+                        .alignmentGuide(.listRowSeparatorLeading) { _ in Theme.gutter }
+                        .alignmentGuide(.listRowSeparatorTrailing) { $0.width - Theme.gutter }
                         .contextMenu { articleMenu(article) }
                 }
             }
