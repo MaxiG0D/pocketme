@@ -1,3 +1,8 @@
+# 0.1.5
+
+- Swipe a row with two fingers on the trackpad to archive or favorite it.
+- The archive button sits closer to a swiped row.
+
 # 0.1.4
 
 - The app icon now has dark and tinted versions that follow your Mac and iPhone appearance.
