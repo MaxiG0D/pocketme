@@ -46,7 +46,7 @@ struct ReaderWebView {
         if let fileURL {
             web.loadFileURL(fileURL, allowingReadAccessTo: fileURL.deletingLastPathComponent())
         } else if article.contentHTML != nil,
-                  let html = try? ReaderDocument.html(article: ArticleContent(article), content: ArticleContent(article).html, leadImage: article.leadImageURL, offline: false) {
+                  let html = try? ReaderDocument.html(article: ArticleContent(article), content: ArticleContent(article).html, leadImage: article.leadImageURL, leadSource: article.leadImageURL, offline: false) {
             web.loadHTMLString(html, baseURL: Bundle.main.resourceURL)
         } else if let url = URL(string: article.url) { web.load(URLRequest(url: url)) }
     }

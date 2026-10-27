@@ -42,3 +42,17 @@ struct ExtractionTests {
     }
 
 }
+
+struct LeadImageDuplicateTests {
+    @Test func recognizesTheLeadPhotoAtAnotherCrop() {
+        let body = "<figure><img src=\"https://images.lpcdn.ca/924x615/202610/27/5001234-carney.jpg\"><figcaption>Caption</figcaption></figure><p>Text</p>"
+        #expect(ReaderDocument.leadRepeats(in: body, lead: "https://images.lpcdn.ca/1200x630/202610/27/5001234-carney.jpg?v=2"))
+        let sized = "<p><img src='https://example.com/a/photo-1020x680.jpg'></p>"
+        #expect(ReaderDocument.leadRepeats(in: sized, lead: "https://example.com/a/photo.jpg"))
+    }
+    @Test func keepsADifferentPhoto() {
+        let body = "<p><img src=\"https://example.com/a/other.jpg\"></p>"
+        #expect(!ReaderDocument.leadRepeats(in: body, lead: "https://example.com/a/photo.jpg"))
+        #expect(!ReaderDocument.leadRepeats(in: "<p>No images</p>", lead: "https://example.com/a/photo.jpg"))
+    }
+}

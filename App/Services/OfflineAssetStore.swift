@@ -63,7 +63,7 @@ actor OfflineAssetStore {
         for old in cached where !kept.contains(old.lastPathComponent) { try? FileManager.default.removeItem(at: old) }
         let content = HTMLAssets.rewrite(article.html, paths: paths)
         try copyFonts(to: folder)
-        let document = try ReaderDocument.html(article: article, content: content, leadImage: article.leadImageURL.flatMap { paths[$0] }, offline: true)
+        let document = try ReaderDocument.html(article: article, content: content, leadImage: article.leadImageURL.flatMap { ReaderDocument.leadRepeats(in: article.html, lead: $0) ? nil : paths[$0] }, offline: true)
         try document.write(to: index(article.id), atomically: true, encoding: .utf8)
         try signature(article).write(to: folder.appending(path: "source.txt"), atomically: true, encoding: .utf8)
     }
