@@ -93,10 +93,6 @@ struct MacLibraryView: View {
             .onChange(of: readerID) { _, id in if let id { proxy.scrollTo(id) } }
             }
         }.background(Theme.paper)
-            .overlay(alignment: .topLeading) {
-                Text("Pocket Me").font(Typo.sans(13).weight(.semibold)).foregroundStyle(Theme.muted)
-                    .padding(.leading, 84).padding(.top, 15).allowsHitTesting(false)
-            }
             .focusable().focusEffectDisabled()
             .onKeyPress(.downArrow) { step(1) }
             .onKeyPress(.upArrow) { step(-1) }
