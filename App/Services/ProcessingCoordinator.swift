@@ -49,7 +49,8 @@ final class ProcessingCoordinator {
                 article.status = .pending; article.extractionAttempts = 0
             }
         }
-        for article in articles {
+        // Text first, newest save first: an article is readable before any image downloads start.
+        for article in articles.reversed() {
             guard article.modelContext != nil else { continue }
             if Task.isCancelled { return }
             if article.status == .failed {
@@ -58,7 +59,11 @@ final class ProcessingCoordinator {
                 article.status = .pending
             }
             if article.status == .pending { await extract(article) }
-            guard article.modelContext != nil, article.status == .ready, article.contentHTML != nil else { continue }
+        }
+        for article in articles.reversed() {
+            guard article.modelContext != nil else { continue }
+            if Task.isCancelled { return }
+            guard article.status == .ready, article.contentHTML != nil else { continue }
             let snapshot = ArticleContent(article)
             if await assets.isReady(snapshot) { offlineReady.insert(article.id); continue }
             guard (assetRetry[article.id] ?? .distantPast) <= .now else { continue }

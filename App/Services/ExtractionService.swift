@@ -34,7 +34,8 @@ final class ExtractionService: NSObject, WKNavigationDelegate {
     }
 
     func extract(url: URL) async throws -> ExtractedArticle {
-        try await withTaskCancellationHandler {
+        await installLightweightRules()
+        return try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { continuation in
                 self.continuation = continuation
                 let id = UUID(); requestID = id
@@ -55,11 +56,10 @@ final class ExtractionService: NSObject, WKNavigationDelegate {
         let id = requestID
         Task { [weak self] in
             do {
-                try await Task.sleep(for: .milliseconds(500))
+                try await Task.sleep(for: .milliseconds(150))
                 guard let self, self.requestID == id, self.continuation != nil else { return }
                 for name in ["Readability", "extract"] {
-                    guard let url = Bundle.main.url(forResource: name, withExtension: "js") else { throw ExtractionError.resourceMissing }
-                    let source = try String(contentsOf: url, encoding: .utf8)
+                    let source = try Self.script(name)
                     if name == "Readability" { _ = try await self.evaluate(source) }
                     else {
                         guard let json = try await self.evaluate(source), let data = json.data(using: .utf8) else { throw ExtractionError.noArticle }
@@ -70,6 +70,29 @@ final class ExtractionService: NSObject, WKNavigationDelegate {
             } catch { self?.finish(.failure(error)) }
         }
     }
+
+    private static var scripts: [String: String] = [:]
+    private static func script(_ name: String) throws -> String {
+        if let cached = scripts[name] { return cached }
+        guard let url = Bundle.main.url(forResource: name, withExtension: "js") else { throw ExtractionError.resourceMissing }
+        let source = try String(contentsOf: url, encoding: .utf8)
+        scripts[name] = source
+        return source
+    }
+
+    /// Extraction only needs the markup; skipping images, media and fonts makes the page finish loading sooner.
+    private static var lightweightRules: WKContentRuleList?
+    private func installLightweightRules() async {
+        if Self.lightweightRules == nil {
+            let rules = #"[{"trigger":{"url-filter":".*","resource-type":["image","media","font"]},"action":{"type":"block"}}]"#
+            Self.lightweightRules = try? await WKContentRuleListStore.default().compileContentRuleList(forIdentifier: "PocketMeExtraction", encodedContentRuleList: rules)
+        }
+        if !rulesInstalled, let list = Self.lightweightRules {
+            webView.configuration.userContentController.add(list)
+            rulesInstalled = true
+        }
+    }
+    private var rulesInstalled = false
 
     private func evaluate(_ script: String) async throws -> String? {
         try await withCheckedThrowingContinuation { continuation in
