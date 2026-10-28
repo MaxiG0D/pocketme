@@ -48,6 +48,8 @@ struct MacLibraryView: View {
         .animation(reduceMotion ? .easeInOut(duration: 0.2) : .libraryLayout, value: layout)
         #if os(macOS)
         .toolbarBackground(.hidden, for: .windowToolbar)
+        // An empty toolbar item makes the title bar a 52pt unified one, which centers the window buttons on the reader header's line.
+        .toolbar { ToolbarItem(placement: .navigation) { Color.clear.frame(width: 1, height: 1).accessibilityHidden(true) } }
         .frame(minWidth: 900, minHeight: 600)
         #endif
         .background(Theme.paper)
@@ -276,8 +278,8 @@ struct MacLibraryView: View {
                         help: layout == .list ? "Show as Grid (⌘2)" : "Show as List (⌘1)") { switchLayout(to: layout.other) }
     }
     /// Where the window's close, minimize and zoom buttons sit, so the list toggle can line up with them.
-    static let besideWindowButtons: CGFloat = 78
-    static let windowButtonsMidY: CGFloat = 16
+    static let besideWindowButtons: CGFloat = 88
+    static let windowButtonsMidY: CGFloat = 26
     private var searchButton: some View {
         Button { searching.toggle(); searchFocused = searching; if !searching { search = "" } } label: {
             Image(systemName: "magnifyingglass").font(.system(size: 13, weight: .medium)).foregroundStyle(searching ? Theme.ink : Theme.muted)

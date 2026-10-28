@@ -130,7 +130,7 @@ struct ReaderView: View {
                 Button { openURL(url) } label: { Image(systemName: "safari") }.buttonStyle(CircleIconButtonStyle()).accessibilityLabel("Open in Browser").keyboardShortcut("o", modifiers: [])
                 ShareLink(item: url) { Image(systemName: "square.and.arrow.up") }.buttonStyle(CircleIconButtonStyle()).accessibilityLabel("Share article")
             }
-        }.padding(.horizontal, 12).padding(.leading, !isMac ? 0 : !besideList ? 76 : clearsTrafficLights ? 108 : 0).frame(height: isMac ? 52 : 44).background(preferences.theme.paper)
+        }.padding(.horizontal, 12).padding(.leading, !isMac ? 0 : !besideList ? 86 : clearsTrafficLights ? 118 : 0).frame(height: isMac ? 52 : 44).background(preferences.theme.paper)
     }
     @ViewBuilder private var backButton: some View {
         if besideList { EmptyView() } else if isMac {

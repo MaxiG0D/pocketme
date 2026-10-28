@@ -38,6 +38,7 @@ struct PocketMeApp: App {
         #if os(macOS)
         .defaultSize(width: 1100, height: 760)
         .windowStyle(.hiddenTitleBar)
+        .windowToolbarStyle(.unified)
         .commands {
             CommandGroup(after: .appInfo) {
                 Button("Check for Updates…") { updater.check() }
