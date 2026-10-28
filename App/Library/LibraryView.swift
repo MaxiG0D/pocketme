@@ -104,19 +104,44 @@ struct LibraryView: View {
             return min(max(offset / 320, 0), 1)
         } action: { _, new in heroSquish = new }
         .modifier(LibrarySearch(enabled: !articles.isEmpty, text: $search, isPresented: $showSearch))
-        .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Button { addLink = true } label: { Image(systemName: "plus").fontWeight(.bold) }
-                    .buttonStyle(.borderedProminent).buttonBorderShape(.circle).tint(Theme.accent)
-                    .accessibilityLabel("Save a link")
-            }
-            ToolbarItem(placement: .topBarTrailing) {
-                if !articles.isEmpty { Button("Search", systemImage: "magnifyingglass") { showSearch = true } }
-            }
-        }
+        .toolbar { libraryToolbar }
         .refreshable { store.refresh(); await store.drainInbox() }
         .overlay(alignment: .bottom) { ToastView(store: store) }
         .animation(reduceMotion ? nil : .snappy(duration: 0.25), value: store.toast?.id)
+    }
+
+    /// The glass bar morphs its items between screens; the + draws its own coral disc with the shared glass hidden,
+    /// so the system doesn't wrap a second circle around it as the bar re-forms on the way back from the reader.
+    @ToolbarContentBuilder private var libraryToolbar: some ToolbarContent {
+        if #available(iOS 26, macOS 26, *) {
+            ToolbarItem(placement: .topBarLeading) { addButton }.sharedBackgroundVisibility(.hidden)
+        } else {
+            ToolbarItem(placement: .topBarLeading) { addButton }
+        }
+        if #available(iOS 26, macOS 26, *) {
+            ToolbarItem(placement: .topBarTrailing) { searchButton }.sharedBackgroundVisibility(.hidden)
+        } else {
+            ToolbarItem(placement: .topBarTrailing) { searchButton }
+        }
+    }
+
+    @ViewBuilder private var searchButton: some View {
+        if !articles.isEmpty {
+            Button { showSearch = true } label: {
+                Image(systemName: "magnifyingglass").font(.system(size: 20))
+                    .foregroundStyle(Theme.icon).frame(width: 44, height: 44)
+                    .background(Theme.paper, in: Circle()).overlay(Circle().strokeBorder(Theme.hairline))
+            }
+            .buttonStyle(.plain).accessibilityLabel("Search")
+        }
+    }
+
+    private var addButton: some View {
+        Button { addLink = true } label: {
+            Image(systemName: "plus").fontWeight(.bold).foregroundStyle(.white)
+                .frame(width: 44, height: 44).background(Theme.accent, in: Circle())
+        }
+        .buttonStyle(.plain).accessibilityLabel("Save a link")
     }
 
     @ViewBuilder private var filters: some View {
