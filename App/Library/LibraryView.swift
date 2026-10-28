@@ -10,6 +10,7 @@ struct LibraryView: View {
     @Query(sort: \Article.savedAt, order: .reverse) private var articles: [Article]
     var favoritesOnly = false
     @State private var archive = false
+    @State private var heroSquish: CGFloat = 0
     @State private var search = ""
     @State private var showSearch = false
     @State private var addLink = false
@@ -78,7 +79,7 @@ struct LibraryView: View {
                 }.listRowInsets(EdgeInsets()).listRowSeparator(.hidden).listRowBackground(Theme.paper)
             } else {
                 if let current {
-                    ContinueReadingCard(article: current) { selection = current.id }
+                    ContinueReadingCard(article: current, squish: reduceMotion ? 0 : heroSquish) { selection = current.id }
                         .listRowInsets(EdgeInsets(top: 0, leading: Theme.gutter, bottom: 22, trailing: Theme.gutter))
                         .listRowSeparator(.hidden).listRowBackground(Theme.paper)
                 }
@@ -97,6 +98,11 @@ struct LibraryView: View {
             }
         }
         .listStyle(.plain).scrollContentBackground(.hidden).background(Theme.paper).scrollIndicators(.hidden)
+        // Follows the finger only while the card is leaving; past it the value stops changing, so reading down sends no updates.
+        .onScrollGeometryChange(for: CGFloat.self) { geometry in
+            let offset = geometry.contentOffset.y + geometry.contentInsets.top
+            return min(max(offset / 200, 0), 1)
+        } action: { _, new in heroSquish = new }
         .modifier(LibrarySearch(enabled: !articles.isEmpty, text: $search, isPresented: $showSearch))
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
