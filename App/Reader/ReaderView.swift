@@ -96,8 +96,6 @@ struct ReaderView: View {
         // The system bar keeps Back first and moves to the side on the iPhone Duo outer display.
         .navigationTitle("").navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(preferences.theme.paper, for: .navigationBar)
-        .toolbarBackgroundVisibility(.visible, for: .navigationBar)
-        .toolbarColorScheme(barScheme, for: .navigationBar)
         // Softened so the bar glyphs sit gently on every reader paper.
         .tint(preferences.theme.ink.opacity(0.6))
         .toolbar {
@@ -111,12 +109,6 @@ struct ReaderView: View {
         }
         #endif
     }
-
-    #if os(iOS)
-    private var barScheme: ColorScheme? {
-        switch preferences.theme { case .dark: .dark; case .light, .sepia: .light; case .auto: nil }
-    }
-    #endif
 
     private var header: some View {
         HStack(spacing: 0) {
