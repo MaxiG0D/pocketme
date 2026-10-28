@@ -102,7 +102,7 @@ struct ReaderView: View {
             ToolbarItemGroup(placement: .topBarTrailing) {
                 if video == nil { Button("Reader settings", systemImage: "textformat.size") { settings = true } }
                 if let url = URL(string: article.url) {
-                    Button("Open in Browser", systemImage: "safari") { openURL(url) }
+                    Button("Open in Browser", systemImage: "safari") { openURL(url) }.keyboardShortcut("o", modifiers: [])
                     ShareLink(item: url) { Label("Share", systemImage: "square.and.arrow.up") }
                 }
             }
@@ -118,7 +118,7 @@ struct ReaderView: View {
             if video == nil { Button { settings = true } label: { Text("Aa").font(Typo.serif(17)) }.buttonStyle(CircleIconButtonStyle()).accessibilityLabel("Reader settings") }
             if isMac { Button { store.favorite(article) } label: { Image(systemName: article.isFavorite ? "bookmark.fill" : "bookmark") }.buttonStyle(CircleIconButtonStyle()).accessibilityLabel("Toggle favorite") }
             if let url = URL(string: article.url) {
-                Button { openURL(url) } label: { Image(systemName: "safari") }.buttonStyle(CircleIconButtonStyle()).accessibilityLabel("Open in Browser")
+                Button { openURL(url) } label: { Image(systemName: "safari") }.buttonStyle(CircleIconButtonStyle()).accessibilityLabel("Open in Browser").keyboardShortcut("o", modifiers: [])
                 ShareLink(item: url) { Image(systemName: "square.and.arrow.up") }.buttonStyle(CircleIconButtonStyle()).accessibilityLabel("Share article")
             }
         }.padding(.horizontal, 12).padding(.leading, isMac && (toggleList == nil || clearsTrafficLights) ? 76 : 0).frame(height: isMac ? 52 : 44).background(preferences.theme.paper)
