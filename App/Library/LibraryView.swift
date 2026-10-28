@@ -67,14 +67,17 @@ struct LibraryView: View {
         SwipeAction(side: .trailing, symbol: "archivebox", color: Theme.swipeArchive, label: article.archivedAt == nil ? "Archive" : "Unarchive") { store.archive(article) },
     ]}
 
+    private var gridBuilt: Bool { layout == .grid || front == .grid }
+    private var gridFront: Bool { front == .grid }
+
     var body: some View {
         // The list stays built underneath, so it keeps its scroll spot and hidden search field for the way back.
         // The bars and pills match in both, so only the articles change; every step is a plain fade, which also suits Reduce Motion.
         ZStack {
             split.layoutLayer(shown: layout == .list)
-            if layout == .grid || front == .grid {
+            if gridBuilt {
                 // Never faded as a whole: UIKit fades each piece on its own, so the matching bars and pills would dip grey.
-                gridStack.layoutLayer(shown: layout == .grid).opacity(front == .grid ? 1 : 0)
+                gridStack.layoutLayer(shown: layout == .grid).opacity(gridFront ? 1.0 : 0.0)
             }
         }
         .sensoryFeedback(.selection, trigger: layout)
