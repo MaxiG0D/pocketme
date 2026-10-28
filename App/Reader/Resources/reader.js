@@ -76,7 +76,7 @@
     if (meta) meta.textContent = next.meta;
     if (thumb) {
       thumb.className = 'thumb cover' + next.cover; thumb.textContent = '';
-      if (next.image) { const img = document.createElement('img'); img.alt = ''; img.src = next.image; thumb.classList.add('photo'); thumb.appendChild(img); }
+      if (next.image) { const img = document.createElement('img'); img.alt = ''; img.decoding = 'async'; img.src = next.image; thumb.classList.add('photo'); thumb.appendChild(img); }
       else thumb.textContent = next.initial;
     }
   };

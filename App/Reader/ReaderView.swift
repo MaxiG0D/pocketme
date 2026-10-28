@@ -209,11 +209,11 @@ struct ReaderView: View {
         target.readingProgress = min(max(progress.value, 0), 1)
         store.persist()
     }
-    /// Saves a moment after scrolling stops rather than writing to the store mid-scroll.
+    /// Saves well after scrolling stops, so the store write and the list updates it causes never land on a scroll bounce.
     private func saveSoon() {
         saveTask?.cancel()
         saveTask = Task {
-            try? await Task.sleep(for: .seconds(1))
+            try? await Task.sleep(for: .seconds(4))
             guard !Task.isCancelled else { return }
             saveProgress(force: true)
         }
