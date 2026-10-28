@@ -27,27 +27,58 @@ private struct TabBarTint: UIViewControllerRepresentable {
     final class Probe: UIViewController {
         private let symbols = ["book", "bookmark", "gearshape"]
         private var selection: NSKeyValueObservation?
+        private var itemWatchers: [NSKeyValueObservation] = []
+        private var watched: [ObjectIdentifier] = []
+        private var glyphs: [String: UIImage] = [:]
+        private weak var bar: UITabBar?
+        private var painting = false
 
         override func viewDidLoad() {
             super.viewDidLoad()
-            registerForTraitChanges([UITraitUserInterfaceStyle.self]) { (probe: Probe, _) in probe.apply() }
+            registerForTraitChanges([UITraitUserInterfaceStyle.self]) { (probe: Probe, _) in probe.glyphs = [:]; probe.apply() }
         }
 
         override func viewDidAppear(_ animated: Bool) { super.viewDidAppear(animated); apply() }
 
         func apply() {
             guard let root = view.window?.rootViewController, let tabs = tabBarController(in: root) else { return }
-            // SwiftUI rebuilds the items when the selection changes, so the colors go on again afterwards.
             if selection == nil {
                 selection = tabs.observe(\.selectedIndex) { [weak self] _, _ in
                     DispatchQueue.main.async { self?.apply() }
                 }
             }
-            let color = (UIColor(named: "Icon") ?? .gray).resolvedColor(with: tabs.traitCollection)
-            for (item, symbol) in zip(tabs.tabBar.items ?? [], symbols) {
-                item.image = UIImage(systemName: symbol)?.withTintColor(color, renderingMode: .alwaysOriginal)
-                item.selectedImage = UIImage(systemName: symbol + ".fill")
+            bar = tabs.tabBar
+            let items = tabs.tabBar.items ?? []
+            items.forEach(paint)
+            // SwiftUI swaps the items' images when the selection changes. Repainting inside that setter,
+            // before the frame is drawn, keeps its stark default glyph from flashing for a frame.
+            let ids = items.map(ObjectIdentifier.init)
+            if ids != watched {
+                watched = ids
+                itemWatchers = items.flatMap { item in [
+                    item.observe(\.image) { [weak self] item, _ in MainActor.assumeIsolated { self?.paint(item) } },
+                    item.observe(\.selectedImage) { [weak self] item, _ in MainActor.assumeIsolated { self?.paint(item) } },
+                ] }
             }
+        }
+
+        private func paint(_ item: UITabBarItem) {
+            guard !painting, let tabs = bar, let index = tabs.items?.firstIndex(of: item), symbols.indices.contains(index) else { return }
+            let image = glyph(symbols[index], color: "Icon", traits: tabs.traitCollection)
+            let selected = glyph(symbols[index] + ".fill", color: "IconSelected", traits: tabs.traitCollection)
+            // Our own writes re-fire the observers; the flag and identity checks keep that from looping.
+            painting = true
+            defer { painting = false }
+            if item.image !== image { item.image = image }
+            if item.selectedImage !== selected { item.selectedImage = selected }
+        }
+
+        private func glyph(_ symbol: String, color: String, traits: UITraitCollection) -> UIImage {
+            if let cached = glyphs[symbol] { return cached }
+            let tint = (UIColor(named: color) ?? .gray).resolvedColor(with: traits)
+            let image = UIImage(systemName: symbol)?.withTintColor(tint, renderingMode: .alwaysOriginal) ?? UIImage()
+            glyphs[symbol] = image
+            return image
         }
 
         private func tabBarController(in controller: UIViewController) -> UITabBarController? {
