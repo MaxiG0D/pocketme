@@ -1,23 +1,9 @@
-import Observation
 import SwiftData
 import SwiftUI
 
-/// Live scroll position. Kept out of ReaderView's own state so a scroll frame redraws only the thin bar, not the whole reader.
-@MainActor @Observable final class ReadingProgress {
+/// Latest scroll position. Deliberately not observable: the page draws its own bar, so a scroll never redraws the reader.
+@MainActor final class ReadingProgress {
     var value: Double = 0
-}
-
-private struct ProgressBar: View {
-    let progress: ReadingProgress
-    let ink: Color
-    var body: some View {
-        Rectangle().fill(ink.opacity(0.06))
-            .overlay(alignment: .leading) {
-                Rectangle().fill(Theme.accent).scaleEffect(x: max(progress.value, 0.0001), y: 1, anchor: .leading)
-            }
-            .frame(height: 2)
-            .clipped()
-    }
 }
 
 struct ReaderView: View {
@@ -66,9 +52,6 @@ struct ReaderView: View {
             // In theater mode the header steps aside, so the video centers in the whole window.
             if !theater { header.transition(.opacity) }
             #endif
-            if video == nil {
-                ProgressBar(progress: progress, ink: preferences.theme.ink)
-            }
             if article.status == .pending {
                 VStack(spacing: 20) {
                     Text(article.title).font(Typo.sheetTitle)
@@ -234,7 +217,7 @@ struct ReaderView: View {
     }
     private func message(_ action: String, _ value: Double?) {
         switch action {
-        case "progress", "scroll": if let value, value.isFinite { progress.value = min(max(value, 0), 1); saveSoon() }
+        case "progress": if let value, value.isFinite { progress.value = min(max(value, 0), 1); saveSoon() }
         case "archive": store.archive(article); goBack()
         case "favorite": store.favorite(article)
         case "share": if let url = URL(string: article.url) { SharePresenter.share(url) }

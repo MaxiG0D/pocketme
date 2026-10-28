@@ -7,13 +7,23 @@
     const height = document.documentElement.scrollHeight - innerHeight;
     post('progress', {value: height > 0 ? Math.max(0,Math.min(1,scrollY / height)) : 0});
   }
-  let frame = 0;
-  function live() {
-    if (!restored || frame) return;
+  // The reading bar lives in the page and moves with a transform, so scrolling never crosses the native bridge.
+  const bar = document.createElement('div'), fill = document.createElement('div');
+  bar.id = 'readbar';
+  bar.style.cssText = 'position:fixed;top:0;left:0;right:0;height:2px;z-index:10;pointer-events:none;overflow:hidden;background:color-mix(in srgb,var(--ink,#1A1A1A) 6%,transparent)';
+  fill.style.cssText = 'height:100%;background:var(--accent,#E2562B);transform-origin:0 50%;transform:scaleX(.0001);will-change:transform';
+  bar.appendChild(fill); (document.body || document.documentElement).appendChild(bar);
+  if (document.body?.classList.contains('video')) bar.hidden = true;
+  let range = 0, frame = 0, settle = 0;
+  const measure = () => { range = Math.max(0, document.documentElement.scrollHeight - innerHeight); };
+  measure();
+  if (window.ResizeObserver) new ResizeObserver(measure).observe(document.documentElement);
+  window.addEventListener('resize', measure);
+  function paint() {
+    if (frame) return;
     frame = requestAnimationFrame(() => {
       frame = 0;
-      const height = document.documentElement.scrollHeight - innerHeight;
-      post('scroll', {value: height > 0 ? Math.max(0,Math.min(1,scrollY / height)) : 0});
+      fill.style.transform = 'scaleX(' + Math.max(.0001, range > 0 ? Math.min(1, scrollY / range) : 0) + ')';
     });
   }
   window.pocketmeConfigure = config => {
@@ -34,18 +44,22 @@
         const shown = () => requestAnimationFrame(() => requestAnimationFrame(() => post('shown')));
         if (desired > 0.001) {
           const images = Array.from(document.images).map(img => img.complete ? Promise.resolve() : new Promise(resolve => { img.addEventListener('load', resolve, {once:true}); img.addEventListener('error', resolve, {once:true}); setTimeout(resolve, 2000); }));
-          Promise.all([document.fonts.ready, ...images]).then(() => requestAnimationFrame(() => { scrollTo(0,desired * Math.max(0,document.documentElement.scrollHeight-innerHeight)); restored = true; shown(); }));
+          Promise.all([document.fonts.ready, ...images]).then(() => requestAnimationFrame(() => { scrollTo(0,desired * Math.max(0,document.documentElement.scrollHeight-innerHeight)); restored = true; measure(); paint(); shown(); }));
         } else { restored = true; document.fonts.ready.then(shown); }
       }
     } else if (styleChanged) {
-      requestAnimationFrame(() => scrollTo(0,(anchor || 0) * Math.max(0,document.documentElement.scrollHeight-innerHeight)));
+      requestAnimationFrame(() => { measure(); scrollTo(0,(anchor || 0) * range); paint(); });
     }
   };
   document.addEventListener('click', event => {
     const button = event.target.closest('[data-action]');
     if (button) { event.preventDefault(); progress(true); post(button.dataset.action); }
   });
-  document.addEventListener('scroll', () => { live(); progress(); }, {passive:true});
+  document.addEventListener('scroll', () => {
+    paint(); progress();
+    // The throttle can swallow the last position, so report where scrolling came to rest.
+    clearTimeout(settle); settle = setTimeout(() => progress(true), 150);
+  }, {passive:true});
   window.addEventListener('pagehide', () => progress(true));
   document.addEventListener('keydown', event => {
     if (['INPUT','TEXTAREA'].includes(event.target.tagName)) return;
