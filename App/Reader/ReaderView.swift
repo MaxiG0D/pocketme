@@ -149,9 +149,12 @@ struct ReaderView: View {
     /// Playing one dims the lights: the title fades and the player grows into the middle of the dark.
     private func videoPage(_ video: VideoLink) -> some View {
         GeometryReader { stage in
+            // The reader sits flush right, so the window's center is half its left inset away; the player centers there.
+            let inset = stage.frame(in: .global).minX
+            let screen = CGSize(width: stage.size.width + inset, height: stage.size.height)
             VStack(spacing: 20) {
                 VideoPlayerView(article: article, video: video, playing: $videoPlaying, play: { store.setTheater(true, reduceMotion: reduceMotion) })
-                    .frame(width: theater ? Theater.videoWidth(in: stage.size, mac: isMac) : nil)
+                    .frame(width: theater ? Theater.videoWidth(in: screen, mac: isMac) : nil)
                     .id(article.id)
                 if !theater {
                     Text(article.title).font(isMac ? Typo.serif(26) : Typo.cardTitleSerif).multilineTextAlignment(.center)
@@ -161,7 +164,10 @@ struct ReaderView: View {
             }
             .frame(maxWidth: theater ? .infinity : (isMac ? 860 : 640)).padding(.horizontal, theater ? 0 : (isMac ? 40 : 16))
             .frame(width: stage.size.width, height: stage.size.height)
+            .offset(x: theater ? -inset / 2 : 0)
         }
+        // On a phone the bars are gone, so the player centers on the whole screen, not the space between the insets.
+        .ignoresSafeArea(.container, edges: theater ? .all : [])
         .background {
             Theater.shade.opacity(theater ? 1 : 0).ignoresSafeArea()
                 .contentShape(Rectangle()).onTapGesture { store.setTheater(false, reduceMotion: reduceMotion) }
