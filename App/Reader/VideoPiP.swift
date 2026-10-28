@@ -80,10 +80,11 @@ final class VideoPiP: NSObject, WKScriptMessageHandler {
         isActive = active
     }
 
-    /// Floats the video if one is playing. It has to be asked from a tap or as the app steps aside.
+    /// Floats the video if one is playing. It has to be asked straight from a tap.
     func enter() {
         guard isPlaying, !isActive, let web, let frame else { return }
-        Task { _ = try? await web.callAsyncJavaScript("return window.__pmEnterPip ? window.__pmEnterPip() : false", in: frame, contentWorld: Self.world) }
+        // Straight from the tap, with no hop in between, so the request still counts as the user's own.
+        web.callAsyncJavaScript("return window.__pmEnterPip ? window.__pmEnterPip() : false", arguments: [:], in: frame, in: Self.world) { _ in }
     }
 
     func reset() {

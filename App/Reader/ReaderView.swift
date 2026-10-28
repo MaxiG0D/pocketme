@@ -97,13 +97,10 @@ struct ReaderView: View {
         // The reader stays put when another article is picked beside it, so the page can fade across.
         .onChange(of: article) { old, new in saveProgress(old, force: true); open(new) }
         .onDisappear { saveProgress(force: true); store.setTheater(false) }
+        .onChange(of: pip.isActive) { _, floating in if floating { store.setTheater(false, reduceMotion: reduceMotion) } }
         .onChange(of: scenePhase) { _, phase in
             if phase != .active { saveProgress(force: true) }
         }
-        #if os(iOS)
-        // As the app steps aside with a video playing, ask for Picture in Picture; the system decides whether to allow it.
-        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)) { _ in pip.enter() }
-        #endif
         #if os(macOS)
         // The window has a hidden title bar; the header shares its row with the traffic lights.
         .ignoresSafeArea(.container, edges: .top)
@@ -211,10 +208,12 @@ struct ReaderView: View {
         }
         .buttonStyle(.plain).accessibilityLabel(label)
     }
-    /// Floats the video in the system's Picture in Picture; the lights come back up behind it.
+    /// Floats the video in the system's Picture in Picture. The lights stay down until it has actually started, since
+    /// resizing the player while the request is still in flight can make the system drop it.
     private func enterPiP() {
         pip.enter()
-        store.setTheater(false, reduceMotion: reduceMotion)
+        // If the system never reports it floating, don't leave the lights down behind a button that did nothing.
+        Task { try? await Task.sleep(for: .seconds(1.5)); if store.theater { store.setTheater(false, reduceMotion: reduceMotion) } }
     }
     private func enterTheater() {
         videoPlaying = true
