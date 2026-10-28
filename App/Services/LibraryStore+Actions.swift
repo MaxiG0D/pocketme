@@ -25,6 +25,10 @@ extension LibraryStore {
         do {
             let root = persistence.container.configurations.first?.url.deletingLastPathComponent()
             let queue = try SaveQueue(directory: AppIdentity.inboxURL ?? root)
+            if persistence.mode == .cloud, let webInbox = WebSaveInbox() {
+                // Links saved from the web; offline or signed-out iCloud just tries again next time.
+                _ = try? await webInbox.drain(into: queue)
+            }
             while true {
               let entries = try await queue.entries()
               if entries.isEmpty { break }
