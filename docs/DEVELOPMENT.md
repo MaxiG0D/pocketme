@@ -69,6 +69,6 @@ Run `Release/build_release_app.sh`, then open **PocketMe Release.app** at the pr
 - **TestFlight:** with Upload unchecked, create an unsigned local iOS archive.
 - **Publish:** with Publish unchecked, run tests and create unsigned local Mac and iOS archives.
 
-Uploads and publishing are unavailable until M7 configures PocketMe’s own distribution. Local archives are for inspection, cannot be installed as distribution builds, and leave the source version/build counter unchanged. No Carnet credentials or release destinations are copied. The applet never commits or tags.
+TestFlight upload: `Release/testflight.sh` (needs `DEVELOPMENT_TEAM`, `ASC_ISSUER_ID` and an API key in `~/.appstoreconnect/private_keys`; `ASC_KEY_ID` if more than one). Mac publishing stays unavailable until M7. Local archives are for inspection, cannot be installed as distribution builds, and leave the source version/build counter unchanged. No Carnet credentials or release destinations are copied. The applet never commits or tags.
 
 Commands: `Release/dev.sh build` (build without opening), `Release/dev.sh open`, `Release/dev.sh test`, `Release/dev.sh devices`, `Release/release.sh --no-publish --ios`, `Release/testflight.sh --no-upload`. Scripted project generation and build products stay under `~/Library/Caches/PocketMe` to avoid iCloud Drive placeholders and duplicate generated projects in Documents; archives appear in ignored `Release Archive/`.
