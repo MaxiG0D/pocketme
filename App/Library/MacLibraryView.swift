@@ -255,9 +255,13 @@ struct MacLibraryView: View {
     /// The title and controls, shared by the list column and the grid; the grid sets them in from the window edge.
     private func header(inset: CGFloat, compactSearch: Bool) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("Pocket Me").font(Typo.largeTitle).tracking(-0.5).foregroundStyle(Theme.ink)
-                .padding(.horizontal, inset).padding(.top, 44).padding(.bottom, 10)
-            HStack(spacing: 8) { addButton; Divider().frame(height: 16).padding(.horizontal, 4); tabs; Spacer(minLength: 0); layoutButton; searchButton }
+            // The layout toggle rides on the title line, so the tabs below keep their full width.
+            HStack {
+                Text("Pocket Me").font(Typo.largeTitle).tracking(-0.5).foregroundStyle(Theme.ink)
+                Spacer(minLength: 0)
+                layoutButton
+            }.padding(.leading, inset).padding(.trailing, inset - 4).padding(.top, 44).padding(.bottom, 10)
+            HStack(spacing: 8) { addButton; Divider().frame(height: 16).padding(.horizontal, 4); tabs; Spacer(minLength: 0); searchButton }
                 .padding(.horizontal, inset - 4).padding(.bottom, searching ? 6 : 10)
             if searching { searchField.frame(maxWidth: compactSearch ? 360 : .infinity, alignment: .leading).padding(.leading, inset - 16) }
             if let message = store.errorMessage { Text(message).font(Typo.meta).foregroundStyle(Theme.muted).padding(.horizontal, inset).padding(.bottom, 8) }
@@ -303,7 +307,7 @@ struct MacLibraryView: View {
                     HStack(spacing: 5) {
                         Text(choice.title).font(Typo.sans(13).weight(section == choice ? .semibold : .medium))
                         if choice == .unread { Text(String(unread)).font(Typo.sans(12).weight(.medium)).foregroundStyle(Theme.muted) }
-                    }.foregroundStyle(section == choice ? Theme.ink : Theme.muted)
+                    }.fixedSize().foregroundStyle(section == choice ? Theme.ink : Theme.muted)
                         .padding(.horizontal, 10).frame(height: 28)
                         .background(section == choice ? Theme.sidebarSelection : .clear, in: Capsule())
                         .contentShape(Capsule())
