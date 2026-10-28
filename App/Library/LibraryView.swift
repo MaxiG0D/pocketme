@@ -24,15 +24,18 @@ struct LibraryView: View {
     @State private var gridWidth: CGFloat = 0
     /// The article open beside the list while the grid covers it, reopened on the way back.
     @State private var parkedSelection: UUID?
-    /// The layout in front. It trails `layout` by half a switch: the old articles fade out, the layers swap
-    /// in that empty moment, then the new articles fade in, so the two never show through each other.
-    @State private var front: LibraryLayout
-    @State private var articlesHidden = false
+    /// One switch is one continuous animation: `phase` runs to `switches`, and every piece reads its own opacity from it.
+    @State private var fade: LayoutFade
+    @State private var switches = 0
+    @State private var phase = 0.0
+    /// False until the switch has played out; only then does the list behind the grid shed its rows.
+    @State private var settled = true
     @State private var listHeights = RowHeights()
 
     init(favoritesOnly: Bool = false) {
         self.favoritesOnly = favoritesOnly
-        _front = State(initialValue: UserDefaults.standard.string(forKey: LibraryLayout.storageKey).flatMap(LibraryLayout.init) ?? .list)
+        let stored = UserDefaults.standard.string(forKey: LibraryLayout.storageKey).flatMap(LibraryLayout.init) ?? .list
+        _fade = State(initialValue: LayoutFade(from: stored, to: stored))
     }
     @Namespace private var zoom
 
@@ -58,21 +61,21 @@ struct LibraryView: View {
     ]}
 
     var body: some View {
-        // The list stays built underneath, so it keeps its scroll spot and hidden search field for the way back.
-        // The bars and pills match in both, so only the articles change; every step is a plain fade, which also suits Reduce Motion.
+        // Both layouts stay built: the list keeps its scroll spot and hidden search field, and a switch never pays
+        // for building a layout mid-fade. The bars and pills match in both, so only the articles change.
         ZStack {
             split.layoutLayer(shown: layout == .list)
-            if layout == .grid || front == .grid {
-                // Never faded as a whole: UIKit fades each piece on its own, so the matching bars and pills would dip grey.
-                gridStack.layoutLayer(shown: layout == .grid).opacity(front == .grid ? 1 : 0)
-            }
+            // Never faded as a whole: UIKit fades each piece on its own, so the matching bars and pills would dip grey.
+            // It cuts in at the midpoint instead, when no articles are showing.
+            gridStack.layoutLayer(shown: layout == .grid).modifier(fade.piece(.layer(.grid), phase: phase, switches: switches))
         }
         .sensoryFeedback(.selection, trigger: layout)
-        .onChange(of: layout) { _, new in
-            withAnimation(.easeIn(duration: 0.12)) { articlesHidden = true } completion: {
-                front = layout
-                withAnimation(.easeOut(duration: 0.22)) { articlesHidden = false }
-            }
+        .onChange(of: layout) { old, new in
+            fade = LayoutFade(from: old, to: new)
+            settled = false
+            switches += 1
+            let target = Double(switches)
+            withAnimation(.linear(duration: 0.36)) { phase = target } completion: { if phase == target { settled = true } }
             gridOpen = nil
             // Side by side, the hidden list must not keep a reader (or a playing video) open behind the grid.
             if sizeClass == .regular {
@@ -133,7 +136,7 @@ struct LibraryView: View {
                                 .contextMenu { articleMenu(article) }
                         }
                     }.padding(.horizontal, Theme.gutter - 8).padding(.bottom, 24)
-                }.opacity(articlesShown(.grid) ? 1 : 0)
+                }.modifier(fade.piece(.articles(.grid), phase: phase, switches: switches)).accessibilityHidden(layout != .grid)
             }
             .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { gridWidth = $0 }
             .scrollIndicators(.hidden).background(Theme.paper)
@@ -154,7 +157,7 @@ struct LibraryView: View {
 
     private var list: some View {
         List(selection: $selection) {
-            filters.standIn(away: front != .list, id: "filters", heights: listHeights).listRowInsets(EdgeInsets()).listRowSeparator(.hidden).listRowBackground(Theme.paper)
+            filters.standIn(away: listAway, id: "filters", heights: listHeights).listRowInsets(EdgeInsets()).listRowSeparator(.hidden).listRowBackground(Theme.paper)
             if let error = store.errorMessage {
                 Text(error).font(Typo.meta).foregroundStyle(Theme.muted)
                     .listRowInsets(rowInsets).listRowSeparator(.hidden).listRowBackground(Theme.paper)
@@ -163,12 +166,12 @@ struct LibraryView: View {
                 Group {
                     if articles.isEmpty { EmptyStateView(paste: pasteOrAdd).frame(maxWidth: .infinity).padding(.top, 30) }
                     else { Text(search.isEmpty ? "No articles here yet" : "No matching articles").font(Typo.meta).foregroundStyle(Theme.muted).padding(.top, 40) }
-                }.opacity(articlesShown(.list) ? 1 : 0).listRowInsets(EdgeInsets()).listRowSeparator(.hidden).listRowBackground(Theme.paper)
+                }.modifier(fade.piece(.articles(.list), phase: phase, switches: switches)).listRowInsets(EdgeInsets()).listRowSeparator(.hidden).listRowBackground(Theme.paper)
             } else {
                 if let current {
                     ContinueReadingCard(article: current, squish: reduceMotion ? 0 : heroSquish) { selection = current.id }
-                        .opacity(articlesShown(.list) ? 1 : 0)
-                        .standIn(away: front != .list, id: "hero", heights: listHeights)
+                        .modifier(fade.piece(.articles(.list), phase: phase, switches: switches))
+                        .standIn(away: listAway, id: "hero", heights: listHeights)
                         .listRowInsets(EdgeInsets(top: 0, leading: Theme.gutter, bottom: 22, trailing: Theme.gutter))
                         .listRowSeparator(.hidden).listRowBackground(Theme.paper)
                 }
@@ -178,9 +181,9 @@ struct LibraryView: View {
                         // Behind the swipe, so the row slides over one still surface instead of dragging a slab along.
                         .swipeReveal(id: article.id, open: $openSwipe, actions: swipeActions(for: article), inset: Theme.gutter, gap: 12, cornerRadius: Theme.radiusThumb, maxHeight: Theme.rowThumb, edge: 12)
                         .background(selection == article.id ? Theme.cardSelection : Theme.paper)
-                        .opacity(articlesShown(.list) ? 1 : 0)
+                        .modifier(fade.piece(.articles(.list), phase: phase, switches: switches))
                         .contextMenu { articleMenu(article) }
-                        .standIn(away: front != .list, id: article.id, heights: listHeights)
+                        .standIn(away: listAway, id: article.id, heights: listHeights)
                         .listRowInsets(EdgeInsets()).listRowBackground(Theme.paper)
                         .listRowSeparatorTint(Theme.hairline)
                         .alignmentGuide(.listRowSeparatorLeading) { _ in Theme.gutter }
@@ -285,10 +288,10 @@ struct LibraryView: View {
         if let selection, filtered.contains(where: { $0.id == selection }) { return }
         selection = (inProgress ?? filtered.first)?.id
     }
-    /// The list's bar behind the grid keeps its buttons drawn, since removing them re-forms the glass bar on the way back,
-    /// but they go unlabeled and hidden so VoiceOver finds one of each. The grid is only built while it is (nearly) in front.
-    private func reachable(_ layer: LibraryLayout) -> Bool { layer == .grid || front == .list }
-    private func articlesShown(_ layer: LibraryLayout) -> Bool { front == layer && !articlesHidden }
+    /// The hidden layout's bar keeps its buttons drawn, since removing them re-forms the glass bar on the way back,
+    /// but they go unlabeled and hidden so VoiceOver finds one of each.
+    private func reachable(_ layer: LibraryLayout) -> Bool { layout == layer }
+    private var listAway: Bool { layout == .grid && settled }
     /// Only the layout on screen shows the search field; the hidden one would steal its focus.
     private func searchPresented(in shown: LibraryLayout) -> Binding<Bool> {
         layout == shown ? $showSearch : .constant(false)
@@ -307,13 +310,51 @@ private extension View {
     func layoutLayer(shown: Bool) -> some View {
         allowsHitTesting(shown).accessibilityHidden(!shown)
     }
-    /// List cells live in their own UIKit hosts, out of the layer's reach, and still speak to VoiceOver when hidden.
-    /// Behind the grid each row becomes an empty spacer of its own height, so the list keeps its scroll spot.
     func barLabel(_ label: String, reachable: Bool) -> some View {
         accessibilityLabel(reachable ? label : "").accessibilityHidden(!reachable)
     }
+    /// List cells live in their own UIKit hosts, out of the layer's reach, and still speak to VoiceOver when hidden.
+    /// Behind the grid each row becomes an empty spacer of its own height, so the list keeps its scroll spot.
     func standIn(away: Bool, id: AnyHashable, heights: RowHeights) -> some View {
         modifier(StandIn(away: away, id: id, heights: heights))
+    }
+}
+
+/// A fade-through between the layouts: the old articles fade out, the grid cuts in or out while nothing shows,
+/// then the new articles fade in. A plain fade throughout, so it also suits Reduce Motion.
+private struct LayoutFade: Equatable {
+    let from: LibraryLayout
+    let to: LibraryLayout
+    enum Part: Equatable { case articles(LibraryLayout), layer(LibraryLayout) }
+    func piece(_ part: Part, phase: Double, switches: Int) -> Piece {
+        Piece(fade: self, part: part, phase: phase, switches: switches)
+    }
+
+    /// Recomputes only its own opacity each frame, never the library's body.
+    struct Piece: ViewModifier, Animatable {
+        let fade: LayoutFade
+        let part: Part
+        var phase: Double
+        let switches: Int
+        var animatableData: Double {
+            get { phase }
+            set { phase = newValue }
+        }
+        func body(content: Content) -> some View { content.opacity(opacity) }
+
+        private var opacity: Double {
+            // 0 when the switch starts, 1 once it has played out, whatever the last switch left unfinished.
+            let p = min(max(phase - Double(switches - 1), 0), 1)
+            switch part {
+            case .layer(let layout):
+                return (p < 0.5 ? fade.from : fade.to) == layout ? 1 : 0
+            case .articles(let layout):
+                if fade.from == fade.to { return layout == fade.to ? 1 : 0 }
+                if layout == fade.from { let t = min(p / 0.46, 1); return 1 - t * t }
+                if layout == fade.to { let t = max((p - 0.54) / 0.46, 0); return 1 - (1 - t) * (1 - t) }
+                return 0
+            }
+        }
     }
 }
 
