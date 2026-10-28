@@ -106,7 +106,12 @@ struct LibraryView: View {
         }
         .onChange(of: articles.map(\.id)) { _, ids in if let selection, !ids.contains(selection) { self.selection = nil } }
         .onAppear(perform: ensureSelection)
-        .onChange(of: selection) { _, _ in openSwipe = nil }
+        .onChange(of: selection) { _, new in
+            openSwipe = nil
+            // Folded, the split view only moves to the reader when told; the list no longer does it through its selection.
+            if sizeClass != .regular { compactColumn = new == nil ? .sidebar : .detail }
+        }
+        .onChange(of: compactColumn) { _, column in if column == .sidebar && sizeClass != .regular { selection = nil } }
         .onChange(of: filtered.map(\.id)) { _, _ in ensureSelection() }
         .onChange(of: sizeClass) { _, _ in ensureSelection() }
         .onChange(of: store.requestedArticleID) { _, id in
@@ -170,43 +175,49 @@ struct LibraryView: View {
     }
     private var gridColumns: Int { gridWidth < 600 ? 2 : gridWidth < 900 ? 3 : 4 }
 
+    /// A lazy stack, not a `List`: a List guesses 44 pt for every row it has not built yet, so its scroll extent
+    /// grew by hundreds of points as the last rows appeared and the end of the list popped. A lazy stack averages
+    /// the rows it has measured, so the extent stays close to the truth from the first screen.
     private var list: some View {
-        List(selection: $selection) {
-            filters.standIn(away: front != .list, id: "filters", heights: listHeights).listRowInsets(EdgeInsets()).listRowSeparator(.hidden).listRowBackground(Theme.paper)
-            if let error = store.errorMessage {
-                Text(error).font(Typo.meta).foregroundStyle(Theme.muted)
-                    .listRowInsets(rowInsets).listRowSeparator(.hidden).listRowBackground(Theme.paper)
-            }
-            if filtered.isEmpty {
-                Group {
-                    if articles.isEmpty { EmptyStateView(paste: pasteOrAdd).frame(maxWidth: .infinity).padding(.top, 30) }
-                    else { Text(search.isEmpty ? "No articles here yet" : "No matching articles").font(Typo.meta).foregroundStyle(Theme.muted).padding(.top, 40) }
-                }.opacity(articlesShown(.list) ? 1 : 0).listRowInsets(EdgeInsets()).listRowSeparator(.hidden).listRowBackground(Theme.paper)
-            } else {
-                if let current {
-                    ContinueReadingCard(article: current, squish: reduceMotion ? 0 : heroSquish) { selection = current.id }
-                        .opacity(articlesShown(.list) ? 1 : 0)
-                        .standIn(away: front != .list, id: "hero", heights: listHeights)
-                        .listRowInsets(EdgeInsets(top: 0, leading: Theme.gutter, bottom: 22, trailing: Theme.gutter))
-                        .listRowSeparator(.hidden).listRowBackground(Theme.paper)
+        let items = rows
+        let hero = sizeClass == .regular ? nil : inProgress(in: filtered)
+        return ScrollView {
+            VStack(spacing: 0) {
+                filters.standIn(away: front != .list, id: "filters", heights: listHeights)
+                if let error = store.errorMessage {
+                    Text(error).font(Typo.meta).foregroundStyle(Theme.muted)
+                        .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, Theme.gutter)
                 }
-                ForEach(rows, id: \.id) { article in
-                    ArticleRow(article: article)
-                        .padding(.horizontal, Theme.gutter)
-                        // Behind the swipe, so the row slides over one still surface instead of dragging a slab along.
-                        .swipeReveal(id: article.id, open: $openSwipe, actions: swipeActions(for: article), inset: Theme.gutter, gap: 12, cornerRadius: Theme.radiusThumb, maxHeight: Theme.rowThumb, edge: 12)
-                        .background(selection == article.id ? Theme.cardSelection : Theme.paper)
-                        .opacity(articlesShown(.list) ? 1 : 0)
-                        .contextMenu { articleMenu(article) }
-                        .standIn(away: front != .list, id: article.id, heights: listHeights)
-                        .listRowInsets(EdgeInsets()).listRowBackground(Theme.paper)
-                        .listRowSeparatorTint(Theme.hairline)
-                        .alignmentGuide(.listRowSeparatorLeading) { _ in Theme.gutter }
-                        .alignmentGuide(.listRowSeparatorTrailing) { $0.width - Theme.gutter }
+                if filtered.isEmpty {
+                    Group {
+                        if articles.isEmpty { EmptyStateView(paste: pasteOrAdd).frame(maxWidth: .infinity).padding(.top, 30) }
+                        else { Text(search.isEmpty ? "No articles here yet" : "No matching articles").font(Typo.meta).foregroundStyle(Theme.muted).padding(.top, 40) }
+                    }.opacity(articlesShown(.list) ? 1 : 0)
+                } else {
+                    if let hero {
+                        ContinueReadingCard(article: hero, squish: reduceMotion ? 0 : heroSquish) { selection = hero.id }
+                            .opacity(articlesShown(.list) ? 1 : 0)
+                            .standIn(away: front != .list, id: "hero", heights: listHeights)
+                            .padding(.horizontal, Theme.gutter).padding(.bottom, 22)
+                    }
+                    // Only the rows are lazy: with the filters and the hero card in the same stack their very different
+                    // heights skewed the stack's estimate of the rows it had not built.
+                    LazyVStack(spacing: 0) { ForEach(items, id: \.id) { article in
+                        Button { selection = article.id } label: { ArticleRow(article: article).padding(.horizontal, Theme.gutter) }
+                            .buttonStyle(RowPressStyle())
+                            // Behind the swipe, so the row slides over one still surface instead of dragging a slab along.
+                            .swipeReveal(id: article.id, open: $openSwipe, actions: swipeActions(for: article), inset: Theme.gutter, gap: 12, cornerRadius: Theme.radiusThumb, maxHeight: Theme.rowThumb, edge: 12)
+                            .background(selection == article.id ? Theme.cardSelection : Theme.paper)
+                            .opacity(articlesShown(.list) ? 1 : 0)
+                            .contextMenu { articleMenu(article) }
+                            .standIn(away: front != .list, id: article.id, heights: listHeights)
+                            .overlay(alignment: .bottom) { Theme.hairline.frame(height: 1).padding(.horizontal, Theme.gutter) }
+                            .accessibilityAddTraits(selection == article.id ? [.isButton, .isSelected] : .isButton)
+                    } }
                 }
             }
         }
-        .listStyle(.plain).scrollContentBackground(.hidden).background(Theme.paper).scrollIndicators(.hidden)
+        .background(Theme.paper).scrollIndicators(.hidden)
         // Follows the finger only while the card is leaving; past it the value stops changing, so reading down sends no updates.
         .onScrollGeometryChange(for: CGFloat.self) { geometry in
             let offset = geometry.contentOffset.y + geometry.contentInsets.top
@@ -363,6 +374,13 @@ private struct ZoomFromCard: ViewModifier {
 }
 
 /// An empty library has nothing to search, so the field only appears once there is something to find.
+/// A row is a plain button; pressing it tints it the way a list row would.
+private struct RowPressStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label.background(configuration.isPressed ? Theme.cardSelection : Color.clear)
+    }
+}
+
 private struct LibrarySearch: ViewModifier {
     let enabled: Bool
     @Binding var text: String
