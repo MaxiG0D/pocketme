@@ -14,11 +14,18 @@ struct MacLibraryView: View {
     @State private var showAdd = false
     @State private var search = ""
     @State private var searching = false
+    @State private var heroSquish: CGFloat = 0
     @FocusState private var searchFocused: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private var filtered: [Article] {
         articles.filter { section.includes($0) && (search.isEmpty || ($0.title + " " + $0.siteName).localizedCaseInsensitiveContains(search)) }
             .sorted { section == .archive ? ($0.archivedAt ?? .distantPast) > ($1.archivedAt ?? .distantPast) : $0.savedAt > $1.savedAt }
+    }
+    /// The unread article that was left part-way through, shown as a card above the rest of the list.
+    private var inProgress: Article? {
+        guard section == .unread, search.isEmpty else { return nil }
+        return filtered.filter { $0.lastOpenedAt != nil && $0.readingProgress > 0.02 && $0.readingProgress < 0.95 }
+            .max { ($0.lastOpenedAt ?? .distantPast) < ($1.lastOpenedAt ?? .distantPast) }
     }
     private var openArticle: Article? { readerID.flatMap { id in articles.first { $0.id == id } } }
     private var unread: Int { articles.filter { $0.archivedAt == nil }.count }
@@ -85,7 +92,11 @@ struct MacLibraryView: View {
             ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(spacing: 10) {
-                    ForEach(filtered) { article in
+                    if let current = inProgress {
+                        ContinueReadingCard(article: current, squish: reduceMotion ? 0 : heroSquish) { readerID = current.id }
+                            .padding(.bottom, 4)
+                    }
+                    ForEach(filtered.filter { $0.id != inProgress?.id }) { article in
                         // A real button takes the click itself; stacked tap gestures on the card were swallowing it.
                         Button { readerID = article.id } label: {
                             CompactRow(article: article, selected: readerID == article.id)
@@ -96,6 +107,9 @@ struct MacLibraryView: View {
                     }
                 }.padding(.horizontal, 12).padding(.bottom, 24)
             }.scrollIndicators(.hidden)
+            .onScrollGeometryChange(for: CGFloat.self) { geometry in
+                min(max((geometry.contentOffset.y + geometry.contentInsets.top) / 320, 0), 1)
+            } action: { _, new in heroSquish = new }
             .onChange(of: readerID) { _, id in if let id { proxy.scrollTo(id) } }
             }
         }.background(Theme.paper)

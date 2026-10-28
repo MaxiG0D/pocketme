@@ -28,8 +28,8 @@ struct ContinueReadingCard: View {
             .overlay { RoundedRectangle(cornerRadius: Theme.radiusHero + 10, style: .continuous).strokeBorder(Theme.ink.opacity(0.08), lineWidth: 1) }
             .shadow(color: Theme.ink.opacity(0.12), radius: 12, y: 4)
         }.buttonStyle(.plain)
-            .scaleEffect(x: 1 - 0.12 * squish, y: 1 - 0.55 * squish, anchor: .bottom)
-            .opacity(1 - 0.85 * squish)
+            .scaleEffect(x: 1 - 0.06 * squish, y: 1 - 0.3 * squish, anchor: .bottom)
+            .opacity(1 - 0.55 * squish)
             .accessibilityLabel("Continue reading \(article.title)")
             .accessibilityValue("\(Int((min(max(article.readingProgress, 0), 1) * 100).rounded())) percent read")
     }

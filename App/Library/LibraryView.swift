@@ -101,7 +101,7 @@ struct LibraryView: View {
         // Follows the finger only while the card is leaving; past it the value stops changing, so reading down sends no updates.
         .onScrollGeometryChange(for: CGFloat.self) { geometry in
             let offset = geometry.contentOffset.y + geometry.contentInsets.top
-            return min(max(offset / 200, 0), 1)
+            return min(max(offset / 320, 0), 1)
         } action: { _, new in heroSquish = new }
         .modifier(LibrarySearch(enabled: !articles.isEmpty, text: $search, isPresented: $showSearch))
         .toolbar {
