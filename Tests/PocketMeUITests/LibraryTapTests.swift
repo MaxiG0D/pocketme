@@ -105,12 +105,18 @@ final class LibraryTapTests: XCTestCase {
     func testSwipeRevealsButtonAndRowStillOpens() {
         let row = app.staticTexts[title].firstMatch
         XCTAssertTrue(row.waitForExistence(timeout: 10))
-        // Other rows carry their own Archive buttons, so look only inside this row's cell.
-        let archive = app.cells.containing(.staticText, identifier: title).buttons["Archive"]
+        // A row draws its Archive button only while swiped open; the filter pill is the one that is always there.
+        let archive = app.buttons.matching(identifier: "Archive")
+        let resting = archive.count
+        func waitForCount(_ count: Int) -> Bool {
+            let end = Date().addingTimeInterval(5)
+            while archive.count != count && Date() < end { RunLoop.current.run(until: Date().addingTimeInterval(0.1)) }
+            return archive.count == count
+        }
         row.swipeLeft()
-        XCTAssertTrue(archive.waitForExistence(timeout: 5))
+        XCTAssertTrue(waitForCount(resting + 1))
         row.swipeRight()
-        XCTAssertTrue(archive.waitForNonExistence(timeout: 5))
+        XCTAssertTrue(waitForCount(resting))
         app.swipeUp()
         app.swipeDown()
         row.tap()
