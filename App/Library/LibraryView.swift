@@ -71,6 +71,40 @@ struct LibraryView: View {
     private var gridFront: Bool { front == .grid }
 
     var body: some View {
+        // Two stages: one long modifier chain overran the type checker's time limit on Xcode 26.6.
+        layers
+            .onAppear(perform: ensureSelection)
+            .onChange(of: selection) { _, new in selectionChanged(to: new) }
+            .onChange(of: compactColumn) { _, column in compactColumnChanged(to: column) }
+            .onChange(of: filtered.map(\.id)) { _, _ in ensureSelection() }
+            .onChange(of: sizeClass) { _, _ in ensureSelection() }
+            .onChange(of: store.requestedArticleID) { _, id in openRequested(id) }
+            .sensoryFeedback(.success, trigger: store.savedToken)
+            .sensoryFeedback(.success, trigger: store.actionToken)
+            .animation(reduceMotion ? nil : .snappy(duration: 0.25), value: archive)
+            .animation(reduceMotion ? nil : .snappy(duration: 0.25), value: filtered.map(\.id))
+    }
+
+    private func selectionChanged(to new: UUID?) {
+        openSwipe = nil
+        // Folded, the split view only moves to the reader when told; the list no longer does it through its selection.
+        if sizeClass != .regular {
+            let target: NavigationSplitViewColumn = new == nil ? .sidebar : .detail
+            compactColumn = target
+        }
+    }
+
+    private func compactColumnChanged(to column: NavigationSplitViewColumn) {
+        if column == .sidebar && sizeClass != .regular { selection = nil }
+    }
+
+    private func openRequested(_ id: UUID?) {
+        guard let id else { return }
+        if layout == .grid { gridOpen = id } else { selection = id }
+        store.requestedArticleID = nil
+    }
+
+    private var layers: some View {
         // The list stays built underneath, so it keeps its scroll spot and hidden search field for the way back.
         // The bars and pills match in both, so only the articles change; every step is a plain fade, which also suits Reduce Motion.
         ZStack {
@@ -108,26 +142,6 @@ struct LibraryView: View {
             Button("Cancel", role: .cancel) { toDelete = nil }
         }
         .onChange(of: articles.map(\.id)) { _, ids in if let selection, !ids.contains(selection) { self.selection = nil } }
-        .onAppear(perform: ensureSelection)
-        .onChange(of: selection) { _, new in
-            openSwipe = nil
-            // Folded, the split view only moves to the reader when told; the list no longer does it through its selection.
-            if sizeClass != .regular {
-                let target: NavigationSplitViewColumn = new == nil ? .sidebar : .detail
-                compactColumn = target
-            }
-        }
-        .onChange(of: compactColumn) { _, column in if column == .sidebar && sizeClass != .regular { selection = nil } }
-        .onChange(of: filtered.map(\.id)) { _, _ in ensureSelection() }
-        .onChange(of: sizeClass) { _, _ in ensureSelection() }
-        .onChange(of: store.requestedArticleID) { _, id in
-            guard let id else { return }
-            if layout == .grid { gridOpen = id } else { selection = id }
-            store.requestedArticleID = nil
-        }
-        .sensoryFeedback(.success, trigger: store.savedToken).sensoryFeedback(.success, trigger: store.actionToken)
-        .animation(reduceMotion ? nil : .snappy(duration: 0.25), value: archive)
-        .animation(reduceMotion ? nil : .snappy(duration: 0.25), value: filtered.map(\.id))
     }
 
     private var split: some View {
