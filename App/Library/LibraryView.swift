@@ -82,7 +82,8 @@ struct LibraryView: View {
             .sensoryFeedback(.success, trigger: store.savedToken)
             .sensoryFeedback(.success, trigger: store.actionToken)
             .animation(reduceMotion ? nil : .snappy(duration: 0.25), value: archive)
-            .animation(reduceMotion ? nil : .snappy(duration: 0.25), value: filtered.map(\.id))
+            // A short ease, no overshoot: rows below close the gap and settle, they do not spring past it.
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.22), value: filtered.map(\.id))
     }
 
     private func selectionChanged(to new: UUID?) {
@@ -233,6 +234,9 @@ struct LibraryView: View {
                             .standIn(away: front != .list, id: article.id, heights: listHeights)
                             .overlay(alignment: .bottom) { Theme.hairline.frame(height: 1).padding(.horizontal, Theme.gutter) }
                             .accessibilityAddTraits(selection == article.id ? [.isButton, .isSelected] : .isButton)
+                            // The swipe has already played its closing spring, so the row is simply gone and the rows below ease up
+                            // into the gap; a fade left it under them, overlapping, while they slid.
+                            .transition(.identity)
                     } }
                 }
             }
