@@ -49,7 +49,7 @@ struct MacLibraryView: View {
         #if os(macOS)
         .toolbarBackground(.hidden, for: .windowToolbar)
         // An empty toolbar item makes the title bar a 52pt unified one, which centers the window buttons on the reader header's line.
-        .toolbar { ToolbarItem(placement: .navigation) { Color.clear.frame(width: 1, height: 1).accessibilityHidden(true) } }
+        .toolbar { windowToolbar }
         .frame(minWidth: 900, minHeight: 600)
         #endif
         .background(Theme.paper)
@@ -82,14 +82,6 @@ struct MacLibraryView: View {
             }
             reader.frame(maxWidth: .infinity, maxHeight: .infinity)
                 .overlay(alignment: .leading) { if listVisible && !store.theater { Rectangle().fill(Theme.hairline).frame(width: 1) } }
-        }
-        // Like Mail and Notes: one spot beside the window buttons, whether the list is showing or not.
-        .overlay(alignment: .topLeading) {
-            if !store.theater {
-                HoverIconButton(symbol: "sidebar.left", glyph: 15, size: 30, label: listVisible ? "Hide list" : "Show list", help: "Show or Hide List (⌃⌘S)") { listVisible.toggle() }
-                    .padding(.leading, Self.besideWindowButtons).padding(.top, Self.windowButtonsMidY - 15)
-                    .ignoresSafeArea(.container, edges: .top)
-            }
         }
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: listVisible)
     }
@@ -266,7 +258,7 @@ struct MacLibraryView: View {
                 Text("Pocket Me").font(Typo.largeTitle).tracking(-0.5).foregroundStyle(Theme.ink)
                 Spacer(minLength: 0)
                 layoutButton
-            }.padding(.leading, 16).padding(.trailing, 6).padding(.top, 44).padding(.bottom, 10)
+            }.padding(.leading, 16).padding(.trailing, 6).padding(.top, 8).padding(.bottom, 10)
             HStack(spacing: 8) { addButton; Divider().frame(height: 16).padding(.horizontal, 4); tabs; Spacer(minLength: 0); searchButton }
                 .padding(.horizontal, 12).padding(.bottom, searching ? 6 : 10)
             if searching { searchField }
@@ -277,9 +269,29 @@ struct MacLibraryView: View {
         HoverIconButton(symbol: layout.toggleSymbol, glyph: 17, size: 40, label: layout.toggleLabel,
                         help: layout == .list ? "Show as Grid (⌘2)" : "Show as List (⌘1)") { switchLayout(to: layout.other) }
     }
-    /// Where the window's close, minimize and zoom buttons sit, so the list toggle can line up with them.
-    static let besideWindowButtons: CGFloat = 88
-    static let windowButtonsMidY: CGFloat = 26
+    /// The list toggle, like Mail and Notes: one spot beside the window buttons. In the grid and in theater mode the item stays,
+    /// empty, so the bar keeps its height. The glass behind it is hidden so nothing draws around it.
+    private var listToggle: some View {
+        Group {
+            if layout == .list && !store.theater {
+                HoverIconButton(symbol: "sidebar.left", glyph: 15, size: 30, label: listVisible ? "Hide list" : "Show list", help: "Show or Hide List (⌃⌘S)") { listVisible.toggle() }
+            } else {
+                Color.clear.frame(width: 30, height: 30).accessibilityHidden(true)
+            }
+        }
+    }
+    @ToolbarContentBuilder private var windowToolbar: some ToolbarContent {
+        // `sharedBackgroundVisibility` only exists in the Swift 6.2 (Xcode 26) SDKs; CI's pinned Xcode 16.4 must not see it.
+        #if compiler(>=6.2)
+        if #available(macOS 26, *) {
+            ToolbarItem(placement: .navigation) { listToggle }.sharedBackgroundVisibility(.hidden)
+        } else {
+            ToolbarItem(placement: .navigation) { listToggle }
+        }
+        #else
+        ToolbarItem(placement: .navigation) { listToggle }
+        #endif
+    }
     private var searchButton: some View {
         Button { searching.toggle(); searchFocused = searching; if !searching { search = "" } } label: {
             Image(systemName: "magnifyingglass").font(.system(size: 13, weight: .medium)).foregroundStyle(searching ? Theme.ink : Theme.muted)
