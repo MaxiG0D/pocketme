@@ -112,7 +112,10 @@ struct LibraryView: View {
         .onChange(of: selection) { _, new in
             openSwipe = nil
             // Folded, the split view only moves to the reader when told; the list no longer does it through its selection.
-            if sizeClass != .regular { compactColumn = new == nil ? .sidebar : .detail }
+            if sizeClass != .regular {
+                let target: NavigationSplitViewColumn = new == nil ? .sidebar : .detail
+                compactColumn = target
+            }
         }
         .onChange(of: compactColumn) { _, column in if column == .sidebar && sizeClass != .regular { selection = nil } }
         .onChange(of: filtered.map(\.id)) { _, _ in ensureSelection() }
