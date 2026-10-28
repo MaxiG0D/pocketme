@@ -72,6 +72,8 @@ private struct TabBarTint: UIViewControllerRepresentable {
             let bars = [floatingBar(in: tabs.view) ?? tabs.tabBar] + navigationBars(in: tabs.view)
             guard bars.contains(where: { $0.alpha != alpha }) else { return }
             bars.forEach { $0.isUserInteractionEnabled = !away }
+            // The status bar's clock and icons follow the window's style, so they turn light over the dark.
+            view.window?.overrideUserInterfaceStyle = away ? .dark : .unspecified
             UIView.animate(withDuration: 0.4, delay: 0, options: [.curveEaseInOut, .beginFromCurrentState]) { bars.forEach { $0.alpha = alpha } }
         }
 

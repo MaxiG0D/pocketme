@@ -20,7 +20,9 @@ struct LibraryHostView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Theme.paper).environment(store).environment(store.readerPreferences)
+        // Theater mode dims this too, so the strip under the status bar goes dark with everything else.
+        .background { (store.theater ? Theater.shade : Theme.paper).ignoresSafeArea() }
+        .environment(store).environment(store.readerPreferences)
         #if os(macOS)
         .frame(minWidth: 900, minHeight: 600)
         #endif
