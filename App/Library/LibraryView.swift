@@ -113,6 +113,8 @@ struct LibraryView: View {
     /// The glass bar morphs its items between screens; the + draws its own coral disc with the shared glass hidden,
     /// so the system doesn't wrap a second circle around it as the bar re-forms on the way back from the reader.
     @ToolbarContentBuilder private var libraryToolbar: some ToolbarContent {
+        // `sharedBackgroundVisibility` only exists in the Swift 6.2 (Xcode 26) SDKs; CI's pinned Xcode 16.4 must not see it.
+        #if compiler(>=6.2)
         if #available(iOS 26, macOS 26, *) {
             ToolbarItem(placement: .topBarLeading) { addButton }.sharedBackgroundVisibility(.hidden)
         } else {
@@ -123,6 +125,10 @@ struct LibraryView: View {
         } else {
             ToolbarItem(placement: .topBarTrailing) { searchButton }
         }
+        #else
+        ToolbarItem(placement: .topBarLeading) { addButton }
+        ToolbarItem(placement: .topBarTrailing) { searchButton }
+        #endif
     }
 
     @ViewBuilder private var searchButton: some View {
