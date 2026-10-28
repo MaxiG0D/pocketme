@@ -27,6 +27,12 @@ enum SampleData {
             if index == 0 || index == 1 { article.thumbnailData = thumbnail(siteName: sites[index]) }
             container.mainContext.insert(article)
         }
+        // Last and oldest, so the order of the other rows (and the tests that tap them) stays put.
+        let video = Article(url: "https://www.youtube.com/watch?v=aqz-KE-bpKQ", normalizedURL: "https://www.youtube.com/watch?v=aqz-KE-bpKQ",
+                            title: "A short film about slow mornings", siteName: "YouTube", savedAt: .now.addingTimeInterval(-9 * 3600))
+        video.status = .ready
+        video.contentHTML = Data("<p></p>".utf8)
+        container.mainContext.insert(video)
         try container.mainContext.save()
         return container
     }

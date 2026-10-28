@@ -18,7 +18,9 @@ struct ReaderView: View {
     @State private var progress: Double = 0
     @State private var lastSaved = Date.distantPast
     @State private var settings = false
+    @State private var videoPlaying = false
     private var video: VideoLink? { VideoLink(article.url) }
+    private var theater: Bool { store.theater && video != nil }
     private var next: Article? { articles.first { $0.id != article.id && $0.archivedAt == nil } }
     private var fileURL: URL? {
         guard store.processor?.offlineReady.contains(article.id) == true else { return nil }
@@ -40,7 +42,8 @@ struct ReaderView: View {
     var body: some View {
         VStack(spacing: 0) {
             #if os(macOS)
-            header
+            // In theater mode the header steps aside, so the video centers in the whole window.
+            if !theater { header.transition(.opacity) }
             #endif
             if video == nil {
                 Rectangle().fill(preferences.theme.ink.opacity(0.06))
@@ -86,7 +89,7 @@ struct ReaderView: View {
         .onAppear { open(article) }
         // The reader stays put when another article is picked beside it, so the page can fade across.
         .onChange(of: article) { old, new in saveProgress(old, force: true); open(new) }
-        .onDisappear { saveProgress(force: true) }
+        .onDisappear { saveProgress(force: true); store.setTheater(false) }
         .onChange(of: scenePhase) { _, phase in if phase != .active { saveProgress(force: true) } }
         #if os(macOS)
         // The window has a hidden title bar; the header shares its row with the traffic lights.
@@ -101,12 +104,17 @@ struct ReaderView: View {
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
                 if video == nil { Button("Reader settings", systemImage: "textformat.size") { settings = true } }
+                else { Button("Dim the lights", systemImage: "lightbulb.slash", action: dimLights) }
                 if let url = URL(string: article.url) {
                     Button("Open in Browser", systemImage: "safari") { openURL(url) }.keyboardShortcut("o", modifiers: [])
                     ShareLink(item: url) { Label("Share", systemImage: "square.and.arrow.up") }
                 }
             }
         }
+        .toolbar(theater ? .hidden : .automatic, for: .navigationBar, .tabBar)
+        .statusBarHidden(theater)
+        .persistentSystemOverlays(theater ? .hidden : .automatic)
+        .sensoryFeedback(.impact(weight: .light), trigger: theater)
         #endif
     }
 
@@ -116,6 +124,7 @@ struct ReaderView: View {
             Spacer()
             if isMac { Text(article.title).font(Typo.sans(13).weight(.semibold)).foregroundStyle(Theme.muted).lineLimit(1); Spacer() }
             if video == nil { Button { settings = true } label: { Text("Aa").font(Typo.serif(17)) }.buttonStyle(CircleIconButtonStyle()).accessibilityLabel("Reader settings") }
+            else { Button(action: dimLights) { Image(systemName: "lightbulb.slash") }.buttonStyle(CircleIconButtonStyle()).accessibilityLabel("Dim the lights").help("Theater mode (T)").keyboardShortcut("t", modifiers: []) }
             if isMac { Button { store.favorite(article) } label: { Image(systemName: article.isFavorite ? "bookmark.fill" : "bookmark") }.buttonStyle(CircleIconButtonStyle()).accessibilityLabel("Toggle favorite") }
             if let url = URL(string: article.url) {
                 Button { openURL(url) } label: { Image(systemName: "safari") }.buttonStyle(CircleIconButtonStyle()).accessibilityLabel("Open in Browser").keyboardShortcut("o", modifiers: [])
@@ -137,14 +146,41 @@ struct ReaderView: View {
         }
     }
     /// Videos get only the player and their title, centered; there is nothing to read or scroll.
+    /// Playing one dims the lights: the title fades and the player grows into the middle of the dark.
     private func videoPage(_ video: VideoLink) -> some View {
-        VStack(spacing: 20) {
-            VideoPlayerView(article: article, video: video).id(article.id)
-            Text(article.title).font(isMac ? Typo.serif(26) : Typo.cardTitleSerif).multilineTextAlignment(.center)
-                .lineLimit(3).fixedSize(horizontal: false, vertical: true)
+        GeometryReader { stage in
+            VStack(spacing: 20) {
+                VideoPlayerView(article: article, video: video, playing: $videoPlaying, play: { store.setTheater(true, reduceMotion: reduceMotion) })
+                    .frame(width: theater ? Theater.videoWidth(in: stage.size, mac: isMac) : nil)
+                    .id(article.id)
+                if !theater {
+                    Text(article.title).font(isMac ? Typo.serif(26) : Typo.cardTitleSerif).multilineTextAlignment(.center)
+                        .lineLimit(3).fixedSize(horizontal: false, vertical: true)
+                        .transition(.opacity)
+                }
+            }
+            .frame(maxWidth: theater ? .infinity : (isMac ? 860 : 640)).padding(.horizontal, theater ? 0 : (isMac ? 40 : 16))
+            .frame(width: stage.size.width, height: stage.size.height)
         }
-        .frame(maxWidth: isMac ? 860 : 640).padding(.horizontal, isMac ? 40 : 16)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background {
+            Theater.shade.opacity(theater ? 1 : 0).ignoresSafeArea()
+                .contentShape(Rectangle()).onTapGesture { store.setTheater(false, reduceMotion: reduceMotion) }
+                .allowsHitTesting(theater).accessibilityHidden(true)
+        }
+        .overlay(alignment: .topTrailing) {
+            if theater {
+                Button { store.setTheater(false, reduceMotion: reduceMotion) } label: {
+                    Image(systemName: "lightbulb").font(.system(size: 15, weight: .medium)).foregroundStyle(Theater.ink.opacity(0.75))
+                        .frame(width: isMac ? 30 : 36, height: isMac ? 30 : 36).background(Theater.ink.opacity(0.08), in: Circle()).contentShape(Circle())
+                }
+                .buttonStyle(.plain).accessibilityLabel("Lights on").keyboardShortcut(.cancelAction)
+                .padding(.top, isMac ? 0 : 8).padding(.trailing, 12).transition(.opacity)
+            }
+        }
+    }
+    private func dimLights() {
+        videoPlaying = true
+        store.setTheater(true, reduceMotion: reduceMotion)
     }
     private var originalButton: some View {
         Button("Open original") { if let url = URL(string: article.url) { openURL(url) } }.buttonStyle(PrimaryButtonStyle()).frame(maxWidth: 300)
@@ -154,6 +190,8 @@ struct ReaderView: View {
         if let close { close() } else if toggleList == nil { dismiss() }
     }
     private func open(_ article: Article) {
+        videoPlaying = false
+        store.setTheater(false, reduceMotion: reduceMotion)
         progress = min(max(article.readingProgress, 0), 1)
         article.lastOpenedAt = .now; store.persist()
         if article.status == .pending { store.processor?.start() }

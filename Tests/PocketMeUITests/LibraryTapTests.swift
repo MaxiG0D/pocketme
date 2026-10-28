@@ -27,6 +27,22 @@ final class LibraryTapTests: XCTestCase {
         #endif
     }
 
+    func testDimTheLightsAndBack() {
+        let video = app.staticTexts["A short film about slow mornings"].firstMatch
+        XCTAssertTrue(app.staticTexts[title].firstMatch.waitForExistence(timeout: 10))
+        // The film is the oldest row, below the fold and not built until scrolled to.
+        for _ in 0..<5 where !video.exists || !video.isHittable { app.swipeUp() }
+        XCTAssertTrue(video.isHittable)
+        video.tap()
+        let dim = app.buttons["Dim the lights"].firstMatch
+        XCTAssertTrue(dim.waitForExistence(timeout: 5))
+        dim.tap()
+        let lightsOn = app.buttons["Lights on"]
+        XCTAssertTrue(lightsOn.waitForExistence(timeout: 5))
+        lightsOn.tap()
+        XCTAssertTrue(lightsOn.waitForNonExistence(timeout: 5))
+    }
+
     #if os(iOS)
     func testTappingGridCardOpensReader() {
         app.terminate()

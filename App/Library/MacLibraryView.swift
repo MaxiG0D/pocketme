@@ -76,10 +76,10 @@ struct MacLibraryView: View {
     private var split: some View {
         HStack(spacing: 0) {
             if listVisible {
-                list.frame(width: 360).transition(reduceMotion ? AnyTransition.opacity : AnyTransition.move(edge: .leading).combined(with: .opacity))
+                list.frame(width: 360).overlay { TheaterShade() }.transition(reduceMotion ? AnyTransition.opacity : AnyTransition.move(edge: .leading).combined(with: .opacity))
             }
             reader.frame(maxWidth: .infinity, maxHeight: .infinity)
-                .overlay(alignment: .leading) { if listVisible { Rectangle().fill(Theme.hairline).frame(width: 1) } }
+                .overlay(alignment: .leading) { if listVisible && !store.theater { Rectangle().fill(Theme.hairline).frame(width: 1) } }
         }
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: listVisible)
     }

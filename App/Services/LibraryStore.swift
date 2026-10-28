@@ -17,6 +17,8 @@ final class LibraryStore {
     var requestedLayout: LibraryLayout?
     var savedToken = 0
     var actionToken = 0
+    /// A video is playing in theater mode; everything around it dims.
+    var theater = false
     var draining = false
     private(set) var toast: Toast?
     @ObservationIgnored private var toastTask: Task<Void, Never>?

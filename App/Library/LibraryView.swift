@@ -163,6 +163,9 @@ struct LibraryView: View {
         } action: { _, new in heroSquish = new }
         .modifier(LibrarySearch(enabled: !articles.isEmpty, text: $search, isPresented: $showSearch))
         .toolbar { libraryToolbar }
+        // Side by side with a video in theater mode, the list dims with its bar out of the way.
+        .overlay { TheaterShade() }
+        .toolbar(store.theater ? .hidden : .automatic, for: .navigationBar)
         .refreshable { store.refresh(); await store.drainInbox() }
         .overlay(alignment: .bottom) { ToastView(store: store) }
         .animation(reduceMotion ? nil : .snappy(duration: 0.25), value: store.toast?.id)

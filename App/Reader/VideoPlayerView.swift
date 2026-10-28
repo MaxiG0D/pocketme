@@ -5,8 +5,9 @@ import WebKit
 struct VideoPlayerView: View {
     let article: Article
     let video: VideoLink
+    @Binding var playing: Bool
+    var play: () -> Void = {}
     @Environment(\.openURL) private var openURL
-    @State private var playing = false
 
     var body: some View {
         Color.black
@@ -14,7 +15,7 @@ struct VideoPlayerView: View {
                 if playing {
                     VideoEmbedView(video: video, openLink: { openURL($0) })
                 } else {
-                    Button { playing = true } label: { poster }.buttonStyle(.plain).accessibilityLabel("Play video")
+                    Button { playing = true; play() } label: { poster }.buttonStyle(.plain).accessibilityLabel("Play video")
                 }
             }
             .aspectRatio(16 / 9, contentMode: .fit)
@@ -61,7 +62,13 @@ private struct VideoEmbedView {
         web.isOpaque = false
         web.backgroundColor = .black
         web.scrollView.isScrollEnabled = false
+        #else
+        // Black from the first frame, so the player never flashes white while it grows into theater mode.
+        web.setValue(false, forKey: "drawsBackground")
+        web.wantsLayer = true
+        web.layer?.backgroundColor = NSColor.black.cgColor
         #endif
+        web.underPageBackgroundColor = .black
         let html = """
         <!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">
         <style>html,body{margin:0;height:100%;background:#000;overflow:hidden}iframe{display:block;border:0;width:100%;height:100%}</style></head>
