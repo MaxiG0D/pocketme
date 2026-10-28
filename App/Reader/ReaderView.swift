@@ -8,9 +8,6 @@ struct ReaderView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    #if os(iOS)
-    @Environment(\.horizontalSizeClass) private var sizeClass
-    #endif
     @Query(sort: \Article.savedAt, order: .reverse) private var articles: [Article]
     let article: Article
     var backTitle = "Unread"
@@ -97,7 +94,6 @@ struct ReaderView: View {
         #endif
         #if os(iOS)
         // The system bar keeps Back first and moves to the side on the iPhone Duo outer display.
-        .toolbar(sizeClass == .compact ? .hidden : .automatic, for: .tabBar)
         .navigationTitle("").navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(preferences.theme.paper, for: .navigationBar)
         .toolbarBackgroundVisibility(.visible, for: .navigationBar)
