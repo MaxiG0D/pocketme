@@ -58,6 +58,8 @@ struct ReaderWebView {
         var parent: ReaderWebView
         var loadedKey = ""
         var sentNextKey: String?
+        private var sentConfig: String?
+        private weak var sentConfigWeb: WKWebView?
         /// The page on screen, and the next page loading invisibly above it until it has laid out.
         private var current: WKWebView?
         private var incoming: WKWebView?
@@ -115,8 +117,12 @@ struct ReaderWebView {
             web.alphaValue = alpha
             #endif
         }
-        func configure(_ web: WKWebView) {
-            web.evaluateJavaScript("window.pocketmeConfigure && window.pocketmeConfigure(\(parent.configurationJSON))", completionHandler: nil)
+        func configure(_ web: WKWebView, force: Bool = false) {
+            // Scrolling re-renders the parent constantly; the page only needs the configuration when it actually changed.
+            if force || sentConfig != parent.configurationJSON || sentConfigWeb !== web {
+                sentConfig = parent.configurationJSON; sentConfigWeb = web
+                web.evaluateJavaScript("window.pocketmeConfigure && window.pocketmeConfigure(\(parent.configurationJSON))", completionHandler: nil)
+            }
             // The next article's thumbnail is large, so it is sent only when the next article changes.
             let nextKey = parent.next.map { "\($0.id):\($0.title):\($0.thumbnailData?.count ?? 0)" } ?? ""
             guard nextKey != sentNextKey else { return }
@@ -126,14 +132,14 @@ struct ReaderWebView {
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             guard webView === active else { return }
             sentNextKey = nil
-            configure(webView)
+            configure(webView, force: true)
         }
         func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
             // Only the newest page speaks; the page being replaced is already somebody else's article.
             guard message.frameInfo.isMainFrame, let web = message.webView, web === active,
                   let body = message.body as? [String: Any], let action = body["action"] as? String else { return }
             switch action {
-            case "ready": sentNextKey = nil; configure(web)
+            case "ready": sentNextKey = nil; configure(web, force: true)
             case "shown": reveal(web)
             default: if web === current { parent.onMessage(action, body["value"] as? Double) }
             }
