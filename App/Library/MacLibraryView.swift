@@ -29,10 +29,10 @@ struct MacLibraryView: View {
         articles.filter { section.includes($0) && (search.isEmpty || ($0.title + " " + $0.siteName).localizedCaseInsensitiveContains(search)) }
             .sorted { section == .archive ? ($0.archivedAt ?? .distantPast) > ($1.archivedAt ?? .distantPast) : $0.savedAt > $1.savedAt }
     }
-    /// The unread article that was left part-way through, shown as a card above the rest of the list.
+    /// The most recently opened unread article (even if scrolled back to the top), shown as a card above the rest of the list.
     private var inProgress: Article? {
         guard section == .unread, search.isEmpty else { return nil }
-        return filtered.filter { $0.lastOpenedAt != nil && $0.readingProgress > 0.02 && $0.readingProgress < 0.95 }
+        return filtered.filter { $0.lastOpenedAt != nil && $0.readingProgress < 0.95 }
             .max { ($0.lastOpenedAt ?? .distantPast) < ($1.lastOpenedAt ?? .distantPast) }
     }
     private var openArticle: Article? { readerID.flatMap { id in articles.first { $0.id == id } } }

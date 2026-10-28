@@ -34,7 +34,7 @@ struct LibraryView: View {
     private var current: Article? { sizeClass == .regular ? nil : inProgress }
     private var inProgress: Article? {
         guard !favoritesOnly, !archive, search.isEmpty else { return nil }
-        return filtered.filter { $0.lastOpenedAt != nil && $0.readingProgress > 0.02 && $0.readingProgress < 0.95 }
+        return filtered.filter { $0.lastOpenedAt != nil && $0.readingProgress < 0.95 }
             .max { ($0.lastOpenedAt ?? .distantPast) < ($1.lastOpenedAt ?? .distantPast) }
     }
     private var rows: [Article] { filtered.filter { $0.id != current?.id } }
