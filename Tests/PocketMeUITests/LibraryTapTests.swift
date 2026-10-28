@@ -64,6 +64,8 @@ final class LibraryTapTests: XCTestCase {
         app.launch()
         let card = app.staticTexts[title].firstMatch
         XCTAssertTrue(card.waitForExistence(timeout: 10))
+        // The list stays built behind the grid; none of it may reach VoiceOver.
+        XCTAssertEqual(app.staticTexts.matching(identifier: title).count, 1)
         card.tap()
         XCTAssertTrue(app.buttons["Reader settings"].waitForExistence(timeout: 5))
         app.navigationBars.buttons.element(boundBy: 0).tap()
@@ -77,6 +79,25 @@ final class LibraryTapTests: XCTestCase {
         let toggle = app.descendants(matching: .any)["Theater mode on play"].firstMatch
         XCTAssertTrue(toggle.waitForExistence(timeout: 5))
         XCTAssertEqual(toggle.value as? String, "Off")
+    }
+
+    func testSwitchingLayoutsKeepsTapsOnTheRightArticle() {
+        app.terminate()
+        // Unpinned, so the toggle can change the stored layout.
+        app.launchArguments = ["-PocketMeUITest"]
+        app.launch()
+        let toGrid = app.buttons["Show as grid"], toList = app.buttons["Show as list"]
+        XCTAssertTrue(toGrid.waitForExistence(timeout: 10) || toList.exists)
+        if toList.exists { toList.tap() }
+        for button in [toGrid, toList, toGrid, toList] {
+            XCTAssertTrue(button.waitForExistence(timeout: 5))
+            button.tap()
+            XCTAssertTrue(app.staticTexts[title].firstMatch.waitForExistence(timeout: 5))
+            XCTAssertEqual(app.staticTexts.matching(identifier: title).count, 1)
+        }
+        app.staticTexts[title].firstMatch.tap()
+        XCTAssertTrue(app.staticTexts[title].firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Reader settings"].waitForExistence(timeout: 5))
     }
 
     func testSwipeRevealsButtonAndRowStillOpens() {

@@ -22,6 +22,18 @@ struct LibraryView: View {
     /// The article pushed from the grid; the grid always reads full screen, folded or not.
     @State private var gridOpen: UUID?
     @State private var gridWidth: CGFloat = 0
+    /// The article open beside the list while the grid covers it, reopened on the way back.
+    @State private var parkedSelection: UUID?
+    /// The layout in front. It trails `layout` by half a switch: the old articles fade out, the layers swap
+    /// in that empty moment, then the new articles fade in, so the two never show through each other.
+    @State private var front: LibraryLayout
+    @State private var articlesHidden = false
+    @State private var listHeights = RowHeights()
+
+    init(favoritesOnly: Bool = false) {
+        self.favoritesOnly = favoritesOnly
+        _front = State(initialValue: UserDefaults.standard.string(forKey: LibraryLayout.storageKey).flatMap(LibraryLayout.init) ?? .list)
+    }
     @Namespace private var zoom
 
     private var filtered: [Article] {
@@ -46,13 +58,28 @@ struct LibraryView: View {
     ]}
 
     var body: some View {
+        // The list stays built underneath, so it keeps its scroll spot and hidden search field for the way back.
+        // The bars and pills match in both, so only the articles change; every step is a plain fade, which also suits Reduce Motion.
         ZStack {
-            if layout == .grid { gridStack.transition(.libraryLayout(reduceMotion: reduceMotion)) }
-            else { split.transition(.libraryLayout(reduceMotion: reduceMotion)) }
+            split.layoutLayer(shown: layout == .list)
+            if layout == .grid || front == .grid {
+                // Never faded as a whole: UIKit fades each piece on its own, so the matching bars and pills would dip grey.
+                gridStack.layoutLayer(shown: layout == .grid).opacity(front == .grid ? 1 : 0)
+            }
         }
-        .animation(reduceMotion ? .easeInOut(duration: 0.2) : .libraryLayout, value: layout)
         .sensoryFeedback(.selection, trigger: layout)
-        .onChange(of: layout) { _, _ in gridOpen = nil; ensureSelection() }
+        .onChange(of: layout) { _, new in
+            withAnimation(.easeIn(duration: 0.12)) { articlesHidden = true } completion: {
+                front = layout
+                withAnimation(.easeOut(duration: 0.22)) { articlesHidden = false }
+            }
+            gridOpen = nil
+            // Side by side, the hidden list must not keep a reader (or a playing video) open behind the grid.
+            if sizeClass == .regular {
+                if new == .grid { parkedSelection = selection; selection = nil } else { selection = parkedSelection }
+            }
+            ensureSelection()
+        }
         .tint(Theme.icon)
         .sheet(isPresented: $addLink) { AddLinkSheet() }
         .confirmationDialog("Delete this article?", isPresented: Binding(get: { toDelete != nil }, set: { if !$0 { toDelete = nil } }), titleVisibility: .visible) {
@@ -93,24 +120,26 @@ struct LibraryView: View {
                 if let error = store.errorMessage {
                     Text(error).font(Typo.meta).foregroundStyle(Theme.muted).frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, Theme.gutter)
                 }
-                if filtered.isEmpty {
-                    if articles.isEmpty { EmptyStateView(paste: pasteOrAdd).frame(maxWidth: .infinity).padding(.top, 30) }
-                    else { Text(search.isEmpty ? "No articles here yet" : "No matching articles").font(Typo.meta).foregroundStyle(Theme.muted).padding(.top, 40) }
-                }
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4, alignment: .top), count: gridColumns), spacing: 10) {
-                    ForEach(filtered, id: \.id) { article in
-                        Button { gridOpen = article.id } label: { ArticleGridCard(article: article) }
-                            .buttonStyle(GridCardButtonStyle())
-                            .matchedTransitionSource(id: article.id, in: zoom)
-                            .contextMenu { articleMenu(article) }
+                Group {
+                    if filtered.isEmpty {
+                        if articles.isEmpty { EmptyStateView(paste: pasteOrAdd).frame(maxWidth: .infinity).padding(.top, 30) }
+                        else { Text(search.isEmpty ? "No articles here yet" : "No matching articles").font(Typo.meta).foregroundStyle(Theme.muted).padding(.top, 40) }
                     }
-                }.padding(.horizontal, Theme.gutter - 8).padding(.bottom, 24)
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4, alignment: .top), count: gridColumns), spacing: 10) {
+                        ForEach(filtered, id: \.id) { article in
+                            Button { gridOpen = article.id } label: { ArticleGridCard(article: article) }
+                                .buttonStyle(GridCardButtonStyle())
+                                .matchedTransitionSource(id: article.id, in: zoom)
+                                .contextMenu { articleMenu(article) }
+                        }
+                    }.padding(.horizontal, Theme.gutter - 8).padding(.bottom, 24)
+                }.opacity(articlesShown(.grid) ? 1 : 0)
             }
             .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { gridWidth = $0 }
             .scrollIndicators(.hidden).background(Theme.paper)
             .navigationTitle(favoritesOnly ? "Favorites" : "Pocket Me")
-            .modifier(LibrarySearch(enabled: !articles.isEmpty, text: $search, isPresented: $showSearch))
-            .toolbar { libraryToolbar }
+            .modifier(LibrarySearch(enabled: !articles.isEmpty, text: $search, isPresented: searchPresented(in: .grid)))
+            .toolbar { libraryToolbar(.grid) }
             .refreshable { store.refresh(); await store.drainInbox() }
             .overlay(alignment: .bottom) { ToastView(store: store) }
             .animation(reduceMotion ? nil : .snappy(duration: 0.25), value: store.toast?.id)
@@ -125,7 +154,7 @@ struct LibraryView: View {
 
     private var list: some View {
         List(selection: $selection) {
-            filters.listRowInsets(EdgeInsets()).listRowSeparator(.hidden).listRowBackground(Theme.paper)
+            filters.standIn(away: front != .list, id: "filters", heights: listHeights).listRowInsets(EdgeInsets()).listRowSeparator(.hidden).listRowBackground(Theme.paper)
             if let error = store.errorMessage {
                 Text(error).font(Typo.meta).foregroundStyle(Theme.muted)
                     .listRowInsets(rowInsets).listRowSeparator(.hidden).listRowBackground(Theme.paper)
@@ -134,10 +163,12 @@ struct LibraryView: View {
                 Group {
                     if articles.isEmpty { EmptyStateView(paste: pasteOrAdd).frame(maxWidth: .infinity).padding(.top, 30) }
                     else { Text(search.isEmpty ? "No articles here yet" : "No matching articles").font(Typo.meta).foregroundStyle(Theme.muted).padding(.top, 40) }
-                }.listRowInsets(EdgeInsets()).listRowSeparator(.hidden).listRowBackground(Theme.paper)
+                }.opacity(articlesShown(.list) ? 1 : 0).listRowInsets(EdgeInsets()).listRowSeparator(.hidden).listRowBackground(Theme.paper)
             } else {
                 if let current {
                     ContinueReadingCard(article: current, squish: reduceMotion ? 0 : heroSquish) { selection = current.id }
+                        .opacity(articlesShown(.list) ? 1 : 0)
+                        .standIn(away: front != .list, id: "hero", heights: listHeights)
                         .listRowInsets(EdgeInsets(top: 0, leading: Theme.gutter, bottom: 22, trailing: Theme.gutter))
                         .listRowSeparator(.hidden).listRowBackground(Theme.paper)
                 }
@@ -147,11 +178,13 @@ struct LibraryView: View {
                         // Behind the swipe, so the row slides over one still surface instead of dragging a slab along.
                         .swipeReveal(id: article.id, open: $openSwipe, actions: swipeActions(for: article), inset: Theme.gutter, gap: 12, cornerRadius: Theme.radiusThumb, maxHeight: Theme.rowThumb, edge: 12)
                         .background(selection == article.id ? Theme.cardSelection : Theme.paper)
+                        .opacity(articlesShown(.list) ? 1 : 0)
+                        .contextMenu { articleMenu(article) }
+                        .standIn(away: front != .list, id: article.id, heights: listHeights)
                         .listRowInsets(EdgeInsets()).listRowBackground(Theme.paper)
                         .listRowSeparatorTint(Theme.hairline)
                         .alignmentGuide(.listRowSeparatorLeading) { _ in Theme.gutter }
                         .alignmentGuide(.listRowSeparatorTrailing) { $0.width - Theme.gutter }
-                        .contextMenu { articleMenu(article) }
                 }
             }
         }
@@ -161,8 +194,8 @@ struct LibraryView: View {
             let offset = geometry.contentOffset.y + geometry.contentInsets.top
             return min(max(offset / 320, 0), 1)
         } action: { _, new in heroSquish = new }
-        .modifier(LibrarySearch(enabled: !articles.isEmpty, text: $search, isPresented: $showSearch))
-        .toolbar { libraryToolbar }
+        .modifier(LibrarySearch(enabled: !articles.isEmpty, text: $search, isPresented: searchPresented(in: .list)))
+        .toolbar { libraryToolbar(.list) }
         // Side by side with a video in theater mode, the list dims with its bar out of the way.
         .overlay { TheaterShade() }
         .toolbar(store.theater ? .hidden : .automatic, for: .navigationBar)
@@ -173,54 +206,59 @@ struct LibraryView: View {
 
     /// The glass bar morphs its items between screens; the + draws its own coral disc with the shared glass hidden,
     /// so the system doesn't wrap a second circle around it as the bar re-forms on the way back from the reader.
-    @ToolbarContentBuilder private var libraryToolbar: some ToolbarContent {
+    @ToolbarContentBuilder private func libraryToolbar(_ layer: LibraryLayout) -> some ToolbarContent {
         // `sharedBackgroundVisibility` only exists in the Swift 6.2 (Xcode 26) SDKs; CI's pinned Xcode 16.4 must not see it.
         #if compiler(>=6.2)
         if #available(iOS 26, macOS 26, *) {
-            ToolbarItem(placement: .topBarLeading) { addButton }.sharedBackgroundVisibility(.hidden)
+            ToolbarItem(placement: .topBarLeading) { addButton(reachable(layer)) }.sharedBackgroundVisibility(.hidden)
         } else {
-            ToolbarItem(placement: .topBarLeading) { addButton }
+            ToolbarItem(placement: .topBarLeading) { addButton(reachable(layer)) }
         }
         if #available(iOS 26, macOS 26, *) {
-            ToolbarItem(placement: .topBarTrailing) { trailingButtons }.sharedBackgroundVisibility(.hidden)
+            ToolbarItem(placement: .topBarTrailing) { trailingButtons(reachable(layer)) }.sharedBackgroundVisibility(.hidden)
         } else {
-            ToolbarItem(placement: .topBarTrailing) { trailingButtons }
+            ToolbarItem(placement: .topBarTrailing) { trailingButtons(reachable(layer)) }
         }
         #else
-        ToolbarItem(placement: .topBarLeading) { addButton }
-        ToolbarItem(placement: .topBarTrailing) { trailingButtons }
+        ToolbarItem(placement: .topBarLeading) { addButton(reachable(layer)) }
+        ToolbarItem(placement: .topBarTrailing) { trailingButtons(reachable(layer)) }
         #endif
     }
 
-    private var trailingButtons: some View { HStack(spacing: 8) { layoutButton; searchButton } }
-    @ViewBuilder private var layoutButton: some View {
+    private func trailingButtons(_ reachable: Bool) -> some View { HStack(spacing: 8) { layoutButton(reachable); searchButton(reachable) } }
+    @ViewBuilder private func layoutButton(_ reachable: Bool) -> some View {
         if !articles.isEmpty {
             Button { layout = layout.other } label: {
-                Image(systemName: layout.toggleSymbol).font(.system(size: 18))
-                    .foregroundStyle(Theme.icon).frame(width: 44, height: 44)
-                    .background(Theme.paper, in: Circle()).overlay(Circle().strokeBorder(Theme.hairline))
-                    .contentTransition(.symbolEffect(.replace))
+                // Both symbols stay put and crossfade; swapping one symbol made the toolbar re-form around it.
+                ZStack {
+                    ForEach([LibraryLayout.list, .grid], id: \.self) { mode in
+                        Image(systemName: mode.toggleSymbol).opacity(layout == mode ? 1 : 0)
+                    }
+                }
+                .font(.system(size: 18)).animation(.easeInOut(duration: 0.16), value: layout)
+                .foregroundStyle(Theme.icon).frame(width: 44, height: 44)
+                .background(Theme.paper, in: Circle()).overlay(Circle().strokeBorder(Theme.hairline))
             }
-            .buttonStyle(.plain).accessibilityLabel(layout.toggleLabel)
+            .buttonStyle(.plain).barLabel(layout.toggleLabel, reachable: reachable)
         }
     }
-    @ViewBuilder private var searchButton: some View {
+    @ViewBuilder private func searchButton(_ reachable: Bool) -> some View {
         if !articles.isEmpty {
             Button { showSearch = true } label: {
                 Image(systemName: "magnifyingglass").font(.system(size: 20))
                     .foregroundStyle(Theme.icon).frame(width: 44, height: 44)
                     .background(Theme.paper, in: Circle()).overlay(Circle().strokeBorder(Theme.hairline))
             }
-            .buttonStyle(.plain).accessibilityLabel("Search")
+            .buttonStyle(.plain).barLabel("Search", reachable: reachable)
         }
     }
 
-    private var addButton: some View {
+    private func addButton(_ reachable: Bool) -> some View {
         Button { addLink = true } label: {
             Image(systemName: "plus").fontWeight(.bold).foregroundStyle(.white)
                 .frame(width: 44, height: 44).background(Theme.accent, in: Circle())
         }
-        .buttonStyle(.plain).accessibilityLabel("Save a link")
+        .buttonStyle(.plain).barLabel("Save a link", reachable: reachable)
     }
 
     @ViewBuilder private var filters: some View {
@@ -247,12 +285,53 @@ struct LibraryView: View {
         if let selection, filtered.contains(where: { $0.id == selection }) { return }
         selection = (inProgress ?? filtered.first)?.id
     }
+    /// The list's bar behind the grid keeps its buttons drawn, since removing them re-forms the glass bar on the way back,
+    /// but they go unlabeled and hidden so VoiceOver finds one of each. The grid is only built while it is (nearly) in front.
+    private func reachable(_ layer: LibraryLayout) -> Bool { layer == .grid || front == .list }
+    private func articlesShown(_ layer: LibraryLayout) -> Bool { front == layer && !articlesHidden }
+    /// Only the layout on screen shows the search field; the hidden one would steal its focus.
+    private func searchPresented(in shown: LibraryLayout) -> Binding<Bool> {
+        layout == shown ? $showSearch : .constant(false)
+    }
     private func pasteOrAdd() { if let link = Clipboard.link { _ = store.saveLink(link) } else { addLink = true } }
     @ViewBuilder private func articleMenu(_ article: Article) -> some View {
         Button(article.isFavorite ? "Remove favorite" : "Favorite", systemImage: "bookmark") { store.favorite(article) }
         Button(article.archivedAt == nil ? "Archive" : "Unarchive", systemImage: "archivebox") { store.archive(article) }
         Button("Copy link", systemImage: "link") { Clipboard.copy(article.url) }
         Button("Delete", systemImage: "trash", role: .destructive) { toDelete = article }
+    }
+}
+
+private extension View {
+    /// The hidden layout stays built but takes no taps and says nothing to VoiceOver or UI tests.
+    func layoutLayer(shown: Bool) -> some View {
+        allowsHitTesting(shown).accessibilityHidden(!shown)
+    }
+    /// List cells live in their own UIKit hosts, out of the layer's reach, and still speak to VoiceOver when hidden.
+    /// Behind the grid each row becomes an empty spacer of its own height, so the list keeps its scroll spot.
+    func barLabel(_ label: String, reachable: Bool) -> some View {
+        accessibilityLabel(reachable ? label : "").accessibilityHidden(!reachable)
+    }
+    func standIn(away: Bool, id: AnyHashable, heights: RowHeights) -> some View {
+        modifier(StandIn(away: away, id: id, heights: heights))
+    }
+}
+
+/// Plain storage, not state: rows note their heights as they lay out without redrawing the library.
+private final class RowHeights {
+    var values: [AnyHashable: CGFloat] = [:]
+}
+
+private struct StandIn: ViewModifier {
+    let away: Bool
+    let id: AnyHashable
+    let heights: RowHeights
+    func body(content: Content) -> some View {
+        if away {
+            Color.clear.frame(height: heights.values[id] ?? Theme.rowThumb)
+        } else {
+            content.onGeometryChange(for: CGFloat.self) { $0.size.height } action: { heights.values[id] = $0 }
+        }
     }
 }
 
