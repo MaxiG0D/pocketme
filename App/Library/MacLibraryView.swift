@@ -81,6 +81,14 @@ struct MacLibraryView: View {
             reader.frame(maxWidth: .infinity, maxHeight: .infinity)
                 .overlay(alignment: .leading) { if listVisible && !store.theater { Rectangle().fill(Theme.hairline).frame(width: 1) } }
         }
+        // Like Mail and Notes: one spot beside the window buttons, whether the list is showing or not.
+        .overlay(alignment: .topLeading) {
+            if !store.theater {
+                HoverIconButton(symbol: "sidebar.left", glyph: 15, size: 30, label: listVisible ? "Hide list" : "Show list", help: "Show or Hide List (⌃⌘S)") { listVisible.toggle() }
+                    .padding(.leading, Self.besideWindowButtons).padding(.top, Self.windowButtonsMidY - 15)
+                    .ignoresSafeArea(.container, edges: .top)
+            }
+        }
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: listVisible)
     }
 
@@ -194,14 +202,9 @@ struct MacLibraryView: View {
 
     @ViewBuilder private var reader: some View {
         if let article = openArticle, filtered.contains(where: { $0.id == article.id }) {
-            ReaderView(article: article, toggleList: { listVisible.toggle() }, clearsTrafficLights: !listVisible)
+            ReaderView(article: article, besideList: true, clearsTrafficLights: !listVisible)
         } else {
-            VStack(spacing: 0) {
-                if !listVisible { Button { listVisible = true } label: { Image(systemName: "sidebar.left") }
-                    .buttonStyle(CircleIconButtonStyle()).accessibilityLabel("Show list")
-                    .frame(maxWidth: .infinity, alignment: .leading).padding(.leading, 76).padding(.top, 8) }
-                emptyContent.frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
+            emptyContent.frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
     @ViewBuilder private var emptyContent: some View {
@@ -268,7 +271,13 @@ struct MacLibraryView: View {
             if let message = store.errorMessage { Text(message).font(Typo.meta).foregroundStyle(Theme.muted).padding(.horizontal, 16).padding(.bottom, 8) }
         }
     }
-    private var layoutButton: some View { LayoutToggle(layout: layout) { switchLayout(to: layout.other) } }
+    private var layoutButton: some View {
+        HoverIconButton(symbol: layout.toggleSymbol, glyph: 17, size: 40, label: layout.toggleLabel,
+                        help: layout == .list ? "Show as Grid (⌘2)" : "Show as List (⌘1)") { switchLayout(to: layout.other) }
+    }
+    /// Where the window's close, minimize and zoom buttons sit, so the list toggle can line up with them.
+    static let besideWindowButtons: CGFloat = 78
+    static let windowButtonsMidY: CGFloat = 16
     private var searchButton: some View {
         Button { searching.toggle(); searchFocused = searching; if !searching { search = "" } } label: {
             Image(systemName: "magnifyingglass").font(.system(size: 13, weight: .medium)).foregroundStyle(searching ? Theme.ink : Theme.muted)
@@ -393,21 +402,25 @@ private struct MacGridItem: View {
     }
 }
 
-/// Sized to the title beside it, with a soft disc on hover so it reads as a target.
-private struct LayoutToggle: View {
-    let layout: LibraryLayout
+/// A bare glyph with a soft disc on hover, so it reads as a target without drawing a button.
+private struct HoverIconButton: View {
+    let symbol: String
+    let glyph: CGFloat
+    let size: CGFloat
+    let label: String
+    let help: String
     let action: () -> Void
     @State private var hover = false
     var body: some View {
         Button(action: action) {
-            Image(systemName: layout.toggleSymbol).font(.system(size: 17, weight: .medium)).foregroundStyle(hover ? Theme.iconSelected : Theme.icon)
-                .frame(width: 40, height: 40)
+            Image(systemName: symbol).font(.system(size: glyph, weight: .medium)).foregroundStyle(hover ? Theme.iconSelected : Theme.icon)
+                .frame(width: size, height: size)
                 .background(Theme.chip.opacity(hover ? 1 : 0), in: Circle())
                 .contentShape(Circle())
                 .contentTransition(.symbolEffect(.replace))
         }.buttonStyle(.plain)
             .onHover { inside in withAnimation(.easeOut(duration: 0.15)) { hover = inside } }
-            .accessibilityLabel(layout.toggleLabel).help(layout == .list ? "Show as Grid (⌘2)" : "Show as List (⌘1)")
+            .accessibilityLabel(label).help(help)
     }
 }
 

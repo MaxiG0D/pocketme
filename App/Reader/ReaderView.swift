@@ -11,8 +11,8 @@ struct ReaderView: View {
     @Query(sort: \Article.savedAt, order: .reverse) private var articles: [Article]
     let article: Article
     var backTitle = "Unread"
-    /// Set when the reader sits beside the Mac library list: the back button becomes a list toggle.
-    var toggleList: (() -> Void)?
+    /// Set when the reader sits beside the Mac library list, whose own toggle stands in for a back button.
+    var besideList = false
     var clearsTrafficLights = false
     var close: (() -> Void)?
     @State private var progress: Double = 0
@@ -130,13 +130,10 @@ struct ReaderView: View {
                 Button { openURL(url) } label: { Image(systemName: "safari") }.buttonStyle(CircleIconButtonStyle()).accessibilityLabel("Open in Browser").keyboardShortcut("o", modifiers: [])
                 ShareLink(item: url) { Image(systemName: "square.and.arrow.up") }.buttonStyle(CircleIconButtonStyle()).accessibilityLabel("Share article")
             }
-        }.padding(.horizontal, 12).padding(.leading, isMac && (toggleList == nil || clearsTrafficLights) ? 76 : 0).frame(height: isMac ? 52 : 44).background(preferences.theme.paper)
+        }.padding(.horizontal, 12).padding(.leading, !isMac ? 0 : !besideList ? 76 : clearsTrafficLights ? 108 : 0).frame(height: isMac ? 52 : 44).background(preferences.theme.paper)
     }
     @ViewBuilder private var backButton: some View {
-        if let toggleList {
-            Button(action: toggleList) { Image(systemName: "sidebar.left") }
-                .buttonStyle(CircleIconButtonStyle()).accessibilityLabel("Toggle article list")
-        } else if isMac {
+        if besideList { EmptyView() } else if isMac {
             Button(action: goBack) { Label(backTitle, systemImage: "chevron.left") }
                 .buttonStyle(.plain).font(Typo.sans(13).weight(.medium)).frame(minHeight: 44)
                 .accessibilityLabel("Back to library")
@@ -193,7 +190,7 @@ struct ReaderView: View {
     }
     private func goBack() {
         saveProgress(force: true)
-        if let close { close() } else if toggleList == nil { dismiss() }
+        if let close { close() } else if !besideList { dismiss() }
     }
     private func open(_ article: Article) {
         videoPlaying = false
