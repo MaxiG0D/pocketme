@@ -27,8 +27,17 @@ struct ReaderView: View {
     @State private var saveTask: Task<Void, Never>?
     @State private var settings = false
     @State private var videoPlaying = false
+    @State private var pip = VideoPiP()
     private var video: VideoLink? { VideoLink(article.url) }
     private var theater: Bool { store.theater && video != nil }
+    /// A video is playing and not already floating. The Mac's web view rejects Picture in Picture, so only iOS offers it.
+    private var canFloat: Bool {
+        #if os(iOS)
+        video != nil && pip.isPlaying && !pip.isActive
+        #else
+        false
+        #endif
+    }
     private var next: Article? { articles.first { $0.id != article.id && $0.archivedAt == nil } }
     private var fileURL: URL? {
         guard store.processor?.offlineReady.contains(article.id) == true else { return nil }
@@ -88,7 +97,13 @@ struct ReaderView: View {
         // The reader stays put when another article is picked beside it, so the page can fade across.
         .onChange(of: article) { old, new in saveProgress(old, force: true); open(new) }
         .onDisappear { saveProgress(force: true); store.setTheater(false) }
-        .onChange(of: scenePhase) { _, phase in if phase != .active { saveProgress(force: true) } }
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active { saveProgress(force: true) }
+        }
+        #if os(iOS)
+        // As the app steps aside with a video playing, ask for Picture in Picture; the system decides whether to allow it.
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)) { _ in pip.enter() }
+        #endif
         #if os(macOS)
         // The window has a hidden title bar; the header shares its row with the traffic lights.
         .ignoresSafeArea(.container, edges: .top)
@@ -102,7 +117,10 @@ struct ReaderView: View {
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
                 if video == nil { Button("Reader settings", systemImage: "textformat.size") { settings = true } }
-                else { Button("Theater mode", systemImage: "popcorn", action: enterTheater) }
+                else {
+                    if canFloat { Button("Picture in Picture", systemImage: "pip.enter", action: enterPiP) }
+                    Button("Theater mode", systemImage: "popcorn", action: enterTheater)
+                }
                 if let url = URL(string: article.url) {
                     Button("Open in Browser", systemImage: "safari") { openURL(url) }.keyboardShortcut("o", modifiers: [])
                     ShareLink(item: url) { Label("Share", systemImage: "square.and.arrow.up") }
@@ -124,7 +142,10 @@ struct ReaderView: View {
             Spacer()
             if isMac { Text(article.title).font(Typo.sans(13).weight(.semibold)).foregroundStyle(Theme.muted).lineLimit(1); Spacer() }
             if video == nil { Button { settings = true } label: { Text("Aa").font(Typo.serif(17)) }.buttonStyle(CircleIconButtonStyle()).accessibilityLabel("Reader settings") }
-            else { Button(action: enterTheater) { Image(systemName: "popcorn") }.buttonStyle(CircleIconButtonStyle()).accessibilityLabel("Theater mode").help("Theater mode (T)").keyboardShortcut("t", modifiers: []) }
+            else {
+                if canFloat { Button(action: enterPiP) { Image(systemName: "pip.enter") }.buttonStyle(CircleIconButtonStyle()).accessibilityLabel("Picture in Picture").help("Picture in Picture") }
+                Button(action: enterTheater) { Image(systemName: "popcorn") }.buttonStyle(CircleIconButtonStyle()).accessibilityLabel("Theater mode").help("Theater mode (T)").keyboardShortcut("t", modifiers: [])
+            }
             if isMac { Button { store.favorite(article) } label: { Image(systemName: article.isFavorite ? "bookmark.fill" : "bookmark") }.buttonStyle(CircleIconButtonStyle()).accessibilityLabel("Toggle favorite") }
             if let url = URL(string: article.url) {
                 Button { openURL(url) } label: { Image(systemName: "safari") }.buttonStyle(CircleIconButtonStyle()).accessibilityLabel("Open in Browser").keyboardShortcut("o", modifiers: [])
@@ -151,7 +172,7 @@ struct ReaderView: View {
             let inset = stage.frame(in: .global).minX
             let screen = CGSize(width: stage.size.width + inset, height: stage.size.height)
             VStack(spacing: 20) {
-                VideoPlayerView(article: article, video: video, playing: $videoPlaying, play: { if preferences.theaterOnPlay { store.setTheater(true, reduceMotion: reduceMotion) } })
+                VideoPlayerView(article: article, video: video, playing: $videoPlaying, pip: pip, play: { if preferences.theaterOnPlay { store.setTheater(true, reduceMotion: reduceMotion) } })
                     .frame(width: theater ? Theater.videoWidth(in: screen, mac: isMac) : nil)
                     .id(article.id)
                 if !theater {
@@ -173,14 +194,27 @@ struct ReaderView: View {
         }
         .overlay(alignment: .topTrailing) {
             if theater {
-                Button { store.setTheater(false, reduceMotion: reduceMotion) } label: {
-                    Image(systemName: "popcorn.fill").font(.system(size: isMac ? 13 : 15, weight: .medium)).foregroundStyle(Theater.ink.opacity(0.75))
-                        .frame(width: isMac ? 30 : 36, height: isMac ? 30 : 36).background(Theater.ink.opacity(0.08), in: Circle()).contentShape(Circle())
+                HStack(spacing: 8) {
+                    if canFloat { theaterDisc("pip.enter", label: "Picture in Picture", action: enterPiP) }
+                    theaterDisc("popcorn.fill", label: "Leave theater mode") { store.setTheater(false, reduceMotion: reduceMotion) }
+                        .keyboardShortcut(.cancelAction)
                 }
-                .buttonStyle(.plain).accessibilityLabel("Leave theater mode").keyboardShortcut(.cancelAction)
                 .padding(.top, isMac ? 0 : 8).padding(.trailing, 12).transition(.opacity)
             }
         }
+    }
+    /// A small disc in the theater's corner, quiet against the dark.
+    private func theaterDisc(_ symbol: String, label: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol).font(.system(size: isMac ? 13 : 15, weight: .medium)).foregroundStyle(Theater.ink.opacity(0.75))
+                .frame(width: isMac ? 30 : 36, height: isMac ? 30 : 36).background(Theater.ink.opacity(0.08), in: Circle()).contentShape(Circle())
+        }
+        .buttonStyle(.plain).accessibilityLabel(label)
+    }
+    /// Floats the video in the system's Picture in Picture; the lights come back up behind it.
+    private func enterPiP() {
+        pip.enter()
+        store.setTheater(false, reduceMotion: reduceMotion)
     }
     private func enterTheater() {
         videoPlaying = true
@@ -195,6 +229,7 @@ struct ReaderView: View {
     }
     private func open(_ article: Article) {
         videoPlaying = false
+        pip.reset()
         store.setTheater(false, reduceMotion: reduceMotion)
         saveTask?.cancel()
         startProgress = min(max(article.readingProgress, 0), 1)

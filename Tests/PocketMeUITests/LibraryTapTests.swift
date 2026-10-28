@@ -40,6 +40,8 @@ final class LibraryTapTests: XCTestCase {
         openVideo()
         let enter = app.buttons["Theater mode"].firstMatch
         XCTAssertTrue(enter.waitForExistence(timeout: 5))
+        // Picture in Picture is offered only once a video is playing.
+        XCTAssertFalse(app.buttons["Picture in Picture"].exists)
         enter.tap()
         let leave = app.buttons["Leave theater mode"]
         XCTAssertTrue(leave.waitForExistence(timeout: 5))

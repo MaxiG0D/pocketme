@@ -6,6 +6,7 @@ struct VideoPlayerView: View {
     let article: Article
     let video: VideoLink
     @Binding var playing: Bool
+    let pip: VideoPiP
     var play: () -> Void = {}
     @Environment(\.openURL) private var openURL
 
@@ -13,7 +14,7 @@ struct VideoPlayerView: View {
         Color.black
             .overlay {
                 if playing {
-                    VideoEmbedView(video: video, openLink: { openURL($0) })
+                    VideoEmbedView(video: video, pip: pip, openLink: { openURL($0) })
                 } else {
                     Button { playing = true; play() } label: { poster }.buttonStyle(.plain).accessibilityLabel("Play video")
                 }
@@ -45,6 +46,7 @@ struct VideoPlayerView: View {
 
 private struct VideoEmbedView {
     let video: VideoLink
+    let pip: VideoPiP
     let openLink: @MainActor (URL) -> Void
 
     @MainActor func makeWebView(context: Context) -> WKWebView {
@@ -55,7 +57,9 @@ private struct VideoEmbedView {
         #if os(iOS)
         configuration.allowsInlineMediaPlayback = true
         #endif
+        pip.attach(to: configuration)
         let web = WKWebView(frame: .zero, configuration: configuration)
+        pip.web = web
         web.navigationDelegate = context.coordinator
         web.uiDelegate = context.coordinator
         #if os(iOS)
