@@ -40,18 +40,26 @@ struct LibraryView: View {
 
     private var filtered: [Article] {
         let section: LibrarySection = favoritesOnly ? .favorites : archive ? .archive : .unread
-        return articles.filter { section.includes($0) && (search.isEmpty || ($0.title + " " + $0.siteName).localizedCaseInsensitiveContains(search)) }
-            .sorted { archive && !favoritesOnly ? ($0.archivedAt ?? .distantPast) > ($1.archivedAt ?? .distantPast) : $0.savedAt > $1.savedAt }
+        let matches = articles.filter { section.includes($0) && (search.isEmpty || ($0.title + " " + $0.siteName).localizedCaseInsensitiveContains(search)) }
+        // The query already arrives newest first; only the archive reorders, so the common case sorts nothing.
+        guard archive && !favoritesOnly else { return matches }
+        return matches.sorted { ($0.archivedAt ?? .distantPast) > ($1.archivedAt ?? .distantPast) }
     }
     /// Side by side, the article being read is already open next to the list; promoting it to a hero card
     /// would make its row jump in and out as reading progress changes.
     private var current: Article? { sizeClass == .regular ? nil : inProgress }
-    private var inProgress: Article? {
+    private var inProgress: Article? { inProgress(in: filtered) }
+    private func inProgress(in filtered: [Article]) -> Article? {
         guard !favoritesOnly, !archive, search.isEmpty else { return nil }
         return filtered.filter { $0.lastOpenedAt != nil && $0.readingProgress < 0.95 }
             .max { ($0.lastOpenedAt ?? .distantPast) < ($1.lastOpenedAt ?? .distantPast) }
     }
-    private var rows: [Article] { filtered.filter { $0.id != current?.id } }
+    /// Built from one pass over the library: asking `current` per element would re-filter everything for each row.
+    private var rows: [Article] {
+        let items = filtered
+        let heroID = sizeClass == .regular ? nil : inProgress(in: items)?.id
+        return heroID == nil ? items : items.filter { $0.id != heroID }
+    }
     private let rowInsets = EdgeInsets(top: 0, leading: Theme.gutter, bottom: 0, trailing: Theme.gutter)
     @State private var openSwipe: SwipeOpen?
     private func swipeActions(for article: Article) -> [SwipeAction] {[
