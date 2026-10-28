@@ -105,7 +105,7 @@ struct MacLibraryView: View {
     private var showingGridReader: Bool {
         gridReader && openArticle != nil
     }
-    private var gridColumns: Int { min(5, max(2, Int((windowSize.width - 40 + 20) / (260 + 20)))) }
+    private var gridColumns: Int { min(5, max(2, Int(windowSize.width / 300))) }
     /// At its smallest the reader is one card wide, so it starts and ends right over the card.
     private var zoomTransition: AnyTransition {
         if reduceMotion { return .opacity }
@@ -118,7 +118,8 @@ struct MacLibraryView: View {
 
     private var grid: some View {
         VStack(alignment: .leading, spacing: 0) {
-            header(inset: 28, compactSearch: true)
+            // The same header, at the list column's width, so no control moves when the layout switches.
+            header.frame(width: 360, alignment: .leading)
             ScrollViewReader { proxy in
                 ScrollView {
                     if filtered.isEmpty {
@@ -131,7 +132,7 @@ struct MacLibraryView: View {
                                 .contextMenu { menu(article) }
                                 .id(article.id)
                         }
-                    }.padding(.horizontal, 20).padding(.bottom, 32)
+                    }.padding(.horizontal, 8).padding(.bottom, 32)
                 }.scrollIndicators(.hidden)
                 .onChange(of: revealID) { _, id in if let id { proxy.scrollTo(id, anchor: .center); revealID = nil } }
                 .onChange(of: readerID) { _, id in if let id, !gridReader { withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo(id) } } }
@@ -213,7 +214,7 @@ struct MacLibraryView: View {
 
     private var list: some View {
         VStack(alignment: .leading, spacing: 0) {
-            header(inset: 16, compactSearch: false)
+            header
             ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(spacing: 10) {
@@ -252,19 +253,19 @@ struct MacLibraryView: View {
             }
             #endif
     }
-    /// The title and controls, shared by the list column and the grid; the grid sets them in from the window edge.
-    private func header(inset: CGFloat, compactSearch: Bool) -> some View {
+    /// The title and controls, shared by the list column and the grid.
+    private var header: some View {
         VStack(alignment: .leading, spacing: 0) {
             // The layout toggle rides on the title line, so the tabs below keep their full width.
             HStack {
                 Text("Pocket Me").font(Typo.largeTitle).tracking(-0.5).foregroundStyle(Theme.ink)
                 Spacer(minLength: 0)
                 layoutButton
-            }.padding(.leading, inset).padding(.trailing, inset - 4).padding(.top, 44).padding(.bottom, 10)
+            }.padding(.leading, 16).padding(.trailing, 12).padding(.top, 44).padding(.bottom, 10)
             HStack(spacing: 8) { addButton; Divider().frame(height: 16).padding(.horizontal, 4); tabs; Spacer(minLength: 0); searchButton }
-                .padding(.horizontal, inset - 4).padding(.bottom, searching ? 6 : 10)
-            if searching { searchField.frame(maxWidth: compactSearch ? 360 : .infinity, alignment: .leading).padding(.leading, inset - 16) }
-            if let message = store.errorMessage { Text(message).font(Typo.meta).foregroundStyle(Theme.muted).padding(.horizontal, inset).padding(.bottom, 8) }
+                .padding(.horizontal, 12).padding(.bottom, searching ? 6 : 10)
+            if searching { searchField }
+            if let message = store.errorMessage { Text(message).font(Typo.meta).foregroundStyle(Theme.muted).padding(.horizontal, 16).padding(.bottom, 8) }
         }
     }
     private var layoutButton: some View {

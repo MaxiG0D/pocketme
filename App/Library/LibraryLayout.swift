@@ -10,10 +10,11 @@ enum LibraryLayout: String {
     var toggleLabel: String { self == .list ? "Show as grid" : "Show as list" }
 }
 
-/// Cards slide apart and settle while the two layouts crossfade; Reduce Motion keeps only the fade.
+/// The two layouts crossfade.
 extension AnyTransition {
     static func libraryLayout(reduceMotion: Bool) -> AnyTransition {
-        reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.985))
+        // Pure opacity: the identical headers crossfade without wobbling.
+        .opacity
     }
 }
 
