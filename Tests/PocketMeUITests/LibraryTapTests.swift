@@ -9,7 +9,8 @@ final class LibraryTapTests: XCTestCase {
     override func setUp() async throws {
         continueAfterFailure = false
         app = XCUIApplication()
-        app.launchArguments = ["-PocketMeUITest"]
+        // Pins the layout for the run, whatever the last run left in the simulator's defaults.
+        app.launchArguments = ["-PocketMeUITest", "-libraryLayout", "list"]
         app.launch()
     }
 
@@ -27,6 +28,20 @@ final class LibraryTapTests: XCTestCase {
     }
 
     #if os(iOS)
+    func testTappingGridCardOpensReader() {
+        app.terminate()
+        app.launchArguments = ["-PocketMeUITest", "-libraryLayout", "grid"]
+        app.launch()
+        let card = app.staticTexts[title].firstMatch
+        XCTAssertTrue(card.waitForExistence(timeout: 10))
+        card.tap()
+        XCTAssertTrue(app.buttons["Reader settings"].waitForExistence(timeout: 5))
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        XCTAssertTrue(card.waitForExistence(timeout: 5))
+        card.tap()
+        XCTAssertTrue(app.buttons["Reader settings"].waitForExistence(timeout: 5))
+    }
+
     func testSwipeRevealsButtonAndRowStillOpens() {
         let row = app.staticTexts[title].firstMatch
         XCTAssertTrue(row.waitForExistence(timeout: 10))

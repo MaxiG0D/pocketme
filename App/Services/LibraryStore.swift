@@ -13,6 +13,8 @@ final class LibraryStore {
     var findToken = 0
     var processor: ProcessingCoordinator?
     var requestedArticleID: UUID?
+    /// Set from the View menu; the library applies it with its own animation.
+    var requestedLayout: LibraryLayout?
     var savedToken = 0
     var actionToken = 0
     var draining = false

@@ -18,6 +18,11 @@ struct LibraryView: View {
     @State private var columns = NavigationSplitViewVisibility.doubleColumn
     @State private var toDelete: Article?
     @State private var compactColumn = NavigationSplitViewColumn.sidebar
+    @AppStorage(LibraryLayout.storageKey) private var layout: LibraryLayout = .list
+    /// The article pushed from the grid; the grid always reads full screen, folded or not.
+    @State private var gridOpen: UUID?
+    @State private var gridWidth: CGFloat = 0
+    @Namespace private var zoom
 
     private var filtered: [Article] {
         let section: LibrarySection = favoritesOnly ? .favorites : archive ? .archive : .unread
@@ -41,13 +46,13 @@ struct LibraryView: View {
     ]}
 
     var body: some View {
-        NavigationSplitView(columnVisibility: $columns, preferredCompactColumn: $compactColumn) {
-            list
-                .navigationTitle(favoritesOnly ? "Favorites" : "Pocket Me")
-                .navigationSplitViewColumnWidth(min: 300, ideal: 360, max: 420)
-        } detail: {
-            detail
+        ZStack {
+            if layout == .grid { gridStack.transition(.libraryLayout(reduceMotion: reduceMotion)) }
+            else { split.transition(.libraryLayout(reduceMotion: reduceMotion)) }
         }
+        .animation(reduceMotion ? .easeInOut(duration: 0.2) : .libraryLayout, value: layout)
+        .sensoryFeedback(.selection, trigger: layout)
+        .onChange(of: layout) { _, _ in gridOpen = nil; ensureSelection() }
         .tint(Theme.icon)
         .sheet(isPresented: $addLink) { AddLinkSheet() }
         .confirmationDialog("Delete this article?", isPresented: Binding(get: { toDelete != nil }, set: { if !$0 { toDelete = nil } }), titleVisibility: .visible) {
@@ -59,11 +64,64 @@ struct LibraryView: View {
         .onChange(of: selection) { _, _ in openSwipe = nil }
         .onChange(of: filtered.map(\.id)) { _, _ in ensureSelection() }
         .onChange(of: sizeClass) { _, _ in ensureSelection() }
-        .onChange(of: store.requestedArticleID) { _, id in if let id { selection = id; store.requestedArticleID = nil } }
+        .onChange(of: store.requestedArticleID) { _, id in
+            guard let id else { return }
+            if layout == .grid { gridOpen = id } else { selection = id }
+            store.requestedArticleID = nil
+        }
         .sensoryFeedback(.success, trigger: store.savedToken).sensoryFeedback(.success, trigger: store.actionToken)
         .animation(reduceMotion ? nil : .snappy(duration: 0.25), value: archive)
         .animation(reduceMotion ? nil : .snappy(duration: 0.25), value: filtered.map(\.id))
     }
+
+    private var split: some View {
+        NavigationSplitView(columnVisibility: $columns, preferredCompactColumn: $compactColumn) {
+            list
+                .navigationTitle(favoritesOnly ? "Favorites" : "Pocket Me")
+                .navigationSplitViewColumnWidth(min: 300, ideal: 360, max: 420)
+        } detail: {
+            detail
+        }
+    }
+
+    /// Two columns folded, more as the screen widens. A card is one Button, with no swipe or extra gestures;
+    /// favorite and archive live in its long-press menu and at the end of the article.
+    private var gridStack: some View {
+        NavigationStack {
+            ScrollView {
+                filters
+                if let error = store.errorMessage {
+                    Text(error).font(Typo.meta).foregroundStyle(Theme.muted).frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, Theme.gutter)
+                }
+                if filtered.isEmpty {
+                    if articles.isEmpty { EmptyStateView(paste: pasteOrAdd).frame(maxWidth: .infinity).padding(.top, 30) }
+                    else { Text(search.isEmpty ? "No articles here yet" : "No matching articles").font(Typo.meta).foregroundStyle(Theme.muted).padding(.top, 40) }
+                }
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4, alignment: .top), count: gridColumns), spacing: 10) {
+                    ForEach(filtered, id: \.id) { article in
+                        Button { gridOpen = article.id } label: { ArticleGridCard(article: article) }
+                            .buttonStyle(GridCardButtonStyle())
+                            .matchedTransitionSource(id: article.id, in: zoom)
+                            .contextMenu { articleMenu(article) }
+                    }
+                }.padding(.horizontal, Theme.gutter - 8).padding(.bottom, 24)
+            }
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { gridWidth = $0 }
+            .scrollIndicators(.hidden).background(Theme.paper)
+            .navigationTitle(favoritesOnly ? "Favorites" : "Pocket Me")
+            .modifier(LibrarySearch(enabled: !articles.isEmpty, text: $search, isPresented: $showSearch))
+            .toolbar { libraryToolbar }
+            .refreshable { store.refresh(); await store.drainInbox() }
+            .overlay(alignment: .bottom) { ToastView(store: store) }
+            .animation(reduceMotion ? nil : .snappy(duration: 0.25), value: store.toast?.id)
+            .navigationDestination(item: $gridOpen) { id in
+                if let article = articles.first(where: { $0.id == id }) {
+                    ReaderView(article: article).modifier(ZoomFromCard(id: id, namespace: zoom, enabled: !reduceMotion))
+                }
+            }
+        }
+    }
+    private var gridColumns: Int { gridWidth < 600 ? 2 : gridWidth < 900 ? 3 : 4 }
 
     private var list: some View {
         List(selection: $selection) {
@@ -121,16 +179,28 @@ struct LibraryView: View {
             ToolbarItem(placement: .topBarLeading) { addButton }
         }
         if #available(iOS 26, macOS 26, *) {
-            ToolbarItem(placement: .topBarTrailing) { searchButton }.sharedBackgroundVisibility(.hidden)
+            ToolbarItem(placement: .topBarTrailing) { trailingButtons }.sharedBackgroundVisibility(.hidden)
         } else {
-            ToolbarItem(placement: .topBarTrailing) { searchButton }
+            ToolbarItem(placement: .topBarTrailing) { trailingButtons }
         }
         #else
         ToolbarItem(placement: .topBarLeading) { addButton }
-        ToolbarItem(placement: .topBarTrailing) { searchButton }
+        ToolbarItem(placement: .topBarTrailing) { trailingButtons }
         #endif
     }
 
+    private var trailingButtons: some View { HStack(spacing: 8) { layoutButton; searchButton } }
+    @ViewBuilder private var layoutButton: some View {
+        if !articles.isEmpty {
+            Button { layout = layout.other } label: {
+                Image(systemName: layout.toggleSymbol).font(.system(size: 18))
+                    .foregroundStyle(Theme.icon).frame(width: 44, height: 44)
+                    .background(Theme.paper, in: Circle()).overlay(Circle().strokeBorder(Theme.hairline))
+                    .contentTransition(.symbolEffect(.replace))
+            }
+            .buttonStyle(.plain).accessibilityLabel(layout.toggleLabel)
+        }
+    }
     @ViewBuilder private var searchButton: some View {
         if !articles.isEmpty {
             Button { showSearch = true } label: {
@@ -170,7 +240,7 @@ struct LibraryView: View {
 
     /// Side by side, the reader pane never opens blank: it shows the article being read, else the newest.
     private func ensureSelection() {
-        guard sizeClass == .regular else { return }
+        guard sizeClass == .regular, layout == .list else { return }
         if let selection, filtered.contains(where: { $0.id == selection }) { return }
         selection = (inProgress ?? filtered.first)?.id
     }
@@ -180,6 +250,16 @@ struct LibraryView: View {
         Button(article.archivedAt == nil ? "Archive" : "Unarchive", systemImage: "archivebox") { store.archive(article) }
         Button("Copy link", systemImage: "link") { Clipboard.copy(article.url) }
         Button("Delete", systemImage: "trash", role: .destructive) { toDelete = article }
+    }
+}
+
+/// The reader grows out of the card it was opened from and shrinks back into it.
+private struct ZoomFromCard: ViewModifier {
+    let id: UUID
+    let namespace: Namespace.ID
+    let enabled: Bool
+    func body(content: Content) -> some View {
+        if enabled { content.navigationTransition(.zoom(sourceID: id, in: namespace)) } else { content }
     }
 }
 

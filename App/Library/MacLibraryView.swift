@@ -16,6 +16,14 @@ struct MacLibraryView: View {
     @State private var searching = false
     @State private var heroSquish: CGFloat = 0
     @FocusState private var searchFocused: Bool
+    @FocusState private var gridFocused: Bool
+    @AppStorage(LibraryLayout.storageKey) private var layout: LibraryLayout = .list
+    /// In the grid the reader covers the whole window instead of sitting beside a list.
+    @State private var gridReader = false
+    @State private var zoomAnchor = UnitPoint.center
+    @State private var revealID: UUID?
+    @State private var windowSize = CGSize.zero
+    @State private var frames = CardFrames()
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private var filtered: [Article] {
         articles.filter { section.includes($0) && (search.isEmpty || ($0.title + " " + $0.siteName).localizedCaseInsensitiveContains(search)) }
@@ -31,14 +39,13 @@ struct MacLibraryView: View {
     private var unread: Int { articles.filter { $0.archivedAt == nil }.count }
 
     var body: some View {
-        HStack(spacing: 0) {
-            if listVisible {
-                list.frame(width: 360).transition(reduceMotion ? AnyTransition.opacity : AnyTransition.move(edge: .leading).combined(with: .opacity))
-            }
-            reader.frame(maxWidth: .infinity, maxHeight: .infinity)
-                .overlay(alignment: .leading) { if listVisible { Rectangle().fill(Theme.hairline).frame(width: 1) } }
+        ZStack {
+            if layout == .grid { gridMode.transition(.libraryLayout(reduceMotion: reduceMotion)) }
+            else { split.transition(.libraryLayout(reduceMotion: reduceMotion)) }
         }
-        .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: listVisible)
+        .coordinateSpace(.named(CardFrames.space))
+        .onGeometryChange(for: CGSize.self) { $0.size } action: { windowSize = $0 }
+        .animation(reduceMotion ? .easeInOut(duration: 0.2) : .libraryLayout, value: layout)
         #if os(macOS)
         .toolbarBackground(.hidden, for: .windowToolbar)
         .frame(minWidth: 900, minHeight: 600)
@@ -52,9 +59,12 @@ struct MacLibraryView: View {
         .onChange(of: filtered.map(\.id)) { _, _ in ensureSelection() }
         .onChange(of: store.focusPasteToken) { _, _ in addLink() }
         .onChange(of: store.findToken) { _, _ in listVisible = true; searching = true; searchFocused = true }
-        .onChange(of: store.toggleListToken) { _, _ in listVisible.toggle() }
+        .onChange(of: store.toggleListToken) { _, _ in if layout == .list { listVisible.toggle() } }
+        .onChange(of: store.requestedLayout) { _, new in if let new { switchLayout(to: new); store.requestedLayout = nil } }
         .onChange(of: store.requestedArticleID) { _, id in
-            if let id { section = .unread; readerID = id; store.requestedArticleID = nil }
+            guard let id else { return }
+            section = .unread; readerID = id; store.requestedArticleID = nil
+            if layout == .grid && !gridReader { open(id) }
         }
         .confirmationDialog("Delete this article?", isPresented: Binding(get: { toDelete != nil }, set: { if !$0 { toDelete = nil } }), titleVisibility: .visible) {
             Button("Delete article", role: .destructive) { if let article = toDelete { store.delete(article) }; toDelete = nil }
@@ -62,6 +72,124 @@ struct MacLibraryView: View {
         }
         .sheet(isPresented: $showAdd) { AddLinkSheet().frame(width: 420) }
     }
+
+    private var split: some View {
+        HStack(spacing: 0) {
+            if listVisible {
+                list.frame(width: 360).transition(reduceMotion ? AnyTransition.opacity : AnyTransition.move(edge: .leading).combined(with: .opacity))
+            }
+            reader.frame(maxWidth: .infinity, maxHeight: .infinity)
+                .overlay(alignment: .leading) { if listVisible { Rectangle().fill(Theme.hairline).frame(width: 1) } }
+        }
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: listVisible)
+    }
+
+    // MARK: Grid
+
+    /// The grid fills the window; opening a card grows the reader out of it, and closing shrinks it back in.
+    private var gridMode: some View {
+        ZStack {
+            grid
+                .scaleEffect(showingGridReader && !reduceMotion ? 0.97 : 1)
+                .opacity(showingGridReader ? 0 : 1)
+                .allowsHitTesting(!showingGridReader)
+                .accessibilityHidden(showingGridReader)
+            if showingGridReader, let article = openArticle {
+                ReaderView(article: article, backTitle: section.title, close: closeGrid)
+                    .background { Button("Back to library", action: closeGrid).keyboardShortcut(.cancelAction).opacity(0).accessibilityHidden(true) }
+                    .transition(zoomTransition)
+                    .zIndex(1)
+            }
+        }
+    }
+    private var showingGridReader: Bool {
+        gridReader && openArticle != nil
+    }
+    private var gridColumns: Int { min(5, max(2, Int((windowSize.width - 40 + 20) / (260 + 20)))) }
+    /// At its smallest the reader is one card wide, so it starts and ends right over the card.
+    private var zoomTransition: AnyTransition {
+        if reduceMotion { return .opacity }
+        let scale = 1 / CGFloat(gridColumns)
+        return .asymmetric(
+            insertion: .scale(scale: scale, anchor: zoomAnchor).combined(with: .opacity.animation(.easeOut(duration: 0.14))),
+            removal: .scale(scale: scale, anchor: zoomAnchor).combined(with: .opacity.animation(.easeIn(duration: 0.3))))
+    }
+    private var zoomAnimation: Animation { reduceMotion ? .easeInOut(duration: 0.2) : .smooth(duration: 0.38) }
+
+    private var grid: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            header(inset: 28, compactSearch: true)
+            ScrollViewReader { proxy in
+                ScrollView {
+                    if filtered.isEmpty {
+                        emptyContent.frame(maxWidth: .infinity).padding(.top, 120)
+                    }
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 16, alignment: .top), count: gridColumns), alignment: .leading, spacing: 16) {
+                        ForEach(filtered) { article in
+                            MacGridItem(article: article, selected: readerID == article.id, frames: frames, open: { open(article.id) },
+                                        favorite: { store.favorite(article) }, archive: { store.archive(article) })
+                                .contextMenu { menu(article) }
+                                .id(article.id)
+                        }
+                    }.padding(.horizontal, 20).padding(.bottom, 32)
+                }.scrollIndicators(.hidden)
+                .onChange(of: revealID) { _, id in if let id { proxy.scrollTo(id, anchor: .center); revealID = nil } }
+                .onChange(of: readerID) { _, id in if let id, !gridReader { withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo(id) } } }
+            }
+        }.background(Theme.paper)
+            .focusable().focusEffectDisabled().focused($gridFocused)
+            .onKeyPress(.leftArrow) { gridStep(-1) }
+            .onKeyPress(.rightArrow) { gridStep(1) }
+            .onKeyPress(.upArrow) { gridStep(-gridColumns) }
+            .onKeyPress(.downArrow) { gridStep(gridColumns) }
+            .onKeyPress(.return) { guard !searchFocused, let readerID else { return .ignored }; open(readerID); return .handled }
+            .onKeyPress("e") { act { store.archive($0) } }
+            .onKeyPress("f") { act { store.favorite($0) } }
+            .onKeyPress(.delete) { act { toDelete = $0 } }
+            .onKeyPress(.deleteForward) { act { toDelete = $0 } }
+            .onAppear { gridFocused = true }
+    }
+
+    private func switchLayout(to new: LibraryLayout) {
+        guard new != layout else { return }
+        gridReader = false
+        layout = new
+    }
+    private func open(_ id: UUID) {
+        readerID = id
+        zoomAnchor = anchor(for: id)
+        withAnimation(zoomAnimation) { gridReader = true }
+    }
+    /// The card may have moved since the reader opened (Next article, a resized window), so the anchor is
+    /// measured again and applied a frame before the reader leaves.
+    private func closeGrid() {
+        guard gridReader else { return }
+        if let readerID {
+            zoomAnchor = anchor(for: readerID)
+            if zoomAnchor == .center { revealID = readerID }
+        }
+        Task { @MainActor in
+            withAnimation(zoomAnimation) { gridReader = false }
+            gridFocused = true
+            ensureSelection()
+        }
+    }
+    /// The point the reader scales around so that, shrunk to one card's width, it sits centered on the card.
+    private func anchor(for id: UUID) -> UnitPoint {
+        let size = windowSize
+        guard size.width > 0, size.height > 0, let card = frames[id],
+              CGRect(origin: .zero, size: size).contains(CGPoint(x: card.midX, y: card.midY)) else { return .center }
+        let scale = 1 / CGFloat(gridColumns)
+        let x = (card.midX - scale * size.width / 2) / (1 - scale)
+        let y = (card.midY - scale * size.height / 2) / (1 - scale)
+        return UnitPoint(x: x / size.width, y: y / size.height)
+    }
+    private func gridStep(_ delta: Int) -> KeyPress.Result {
+        guard !gridReader, !searchFocused else { return .ignored }
+        return step(delta)
+    }
+
+    // MARK: List
 
     @ViewBuilder private var reader: some View {
         if let article = openArticle, filtered.contains(where: { $0.id == article.id }) {
@@ -71,24 +199,21 @@ struct MacLibraryView: View {
                 if !listVisible { Button { listVisible = true } label: { Image(systemName: "sidebar.left") }
                     .buttonStyle(CircleIconButtonStyle()).accessibilityLabel("Show list")
                     .frame(maxWidth: .infinity, alignment: .leading).padding(.leading, 76).padding(.top, 8) }
-                Group {
-                    if articles.isEmpty {
-                        EmptyStateView { pasteFromClipboard() }
-                    } else {
-                        Text(search.isEmpty ? "No articles here yet" : "No matching articles").font(Typo.meta).foregroundStyle(Theme.muted)
-                    }
-                }.frame(maxWidth: .infinity, maxHeight: .infinity)
+                emptyContent.frame(maxWidth: .infinity, maxHeight: .infinity)
             }
+        }
+    }
+    @ViewBuilder private var emptyContent: some View {
+        if articles.isEmpty {
+            EmptyStateView { pasteFromClipboard() }
+        } else {
+            Text(search.isEmpty ? "No articles here yet" : "No matching articles").font(Typo.meta).foregroundStyle(Theme.muted)
         }
     }
 
     private var list: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("Pocket Me").font(Typo.largeTitle).tracking(-0.5).foregroundStyle(Theme.ink)
-                .padding(.horizontal, 16).padding(.top, 44).padding(.bottom, 10)
-            HStack(spacing: 8) { addButton; Divider().frame(height: 16).padding(.horizontal, 4); tabs; Spacer(minLength: 0); searchButton }.padding(.horizontal, 12).padding(.bottom, searching ? 6 : 10)
-            if searching { searchField }
-            if let message = store.errorMessage { Text(message).font(Typo.meta).foregroundStyle(Theme.muted).padding(.horizontal, 16).padding(.bottom, 8) }
+            header(inset: 16, compactSearch: false)
             ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(spacing: 10) {
@@ -126,6 +251,24 @@ struct MacLibraryView: View {
                 Task { if let url = try? await ShareInput.link(from: [item]) { _ = store.saveLink(url.absoluteString) } }
             }
             #endif
+    }
+    /// The title and controls, shared by the list column and the grid; the grid sets them in from the window edge.
+    private func header(inset: CGFloat, compactSearch: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Pocket Me").font(Typo.largeTitle).tracking(-0.5).foregroundStyle(Theme.ink)
+                .padding(.horizontal, inset).padding(.top, 44).padding(.bottom, 10)
+            HStack(spacing: 8) { addButton; Divider().frame(height: 16).padding(.horizontal, 4); tabs; Spacer(minLength: 0); layoutButton; searchButton }
+                .padding(.horizontal, inset - 4).padding(.bottom, searching ? 6 : 10)
+            if searching { searchField.frame(maxWidth: compactSearch ? 360 : .infinity, alignment: .leading).padding(.leading, inset - 16) }
+            if let message = store.errorMessage { Text(message).font(Typo.meta).foregroundStyle(Theme.muted).padding(.horizontal, inset).padding(.bottom, 8) }
+        }
+    }
+    private var layoutButton: some View {
+        Button { switchLayout(to: layout.other) } label: {
+            Image(systemName: layout.toggleSymbol).font(.system(size: 13, weight: .medium)).foregroundStyle(Theme.muted)
+                .frame(width: 28, height: 28).contentShape(Rectangle())
+                .contentTransition(.symbolEffect(.replace))
+        }.buttonStyle(.plain).accessibilityLabel(layout.toggleLabel).help(layout == .list ? "Show as Grid (⌘2)" : "Show as List (⌘1)")
     }
     private var searchButton: some View {
         Button { searching.toggle(); searchFocused = searching; if !searching { search = "" } } label: {
@@ -174,6 +317,8 @@ struct MacLibraryView: View {
     private func pasteFromClipboard() { if let raw = Clipboard.link { _ = store.saveLink(raw) } else { showAdd = true } }
     /// Keeps the reader on a valid article: the one just read if there is one, else the newest.
     private func ensureSelection() {
+        // An article archived from the full-window reader stays on screen while the reader shrinks back.
+        if gridReader && layout == .grid && openArticle != nil { return }
         if let readerID, filtered.contains(where: { $0.id == readerID }) { return }
         let recent = filtered.filter { $0.lastOpenedAt != nil }.max { $0.lastOpenedAt! < $1.lastOpenedAt! }
         readerID = (recent ?? filtered.first)?.id
@@ -185,7 +330,7 @@ struct MacLibraryView: View {
     }
     /// Runs a list shortcut on the open article; ignored while typing in the search field.
     private func act(_ action: (Article) -> Void) -> KeyPress.Result {
-        guard !searchFocused, let article = openArticle else { return .ignored }
+        guard !searchFocused, !(layout == .grid && gridReader), let article = openArticle else { return .ignored }
         action(article)
         return .handled
     }
@@ -201,6 +346,51 @@ struct MacLibraryView: View {
         Button(article.archivedAt == nil ? "Archive" : "Unarchive") { store.archive(article) }
         if article.status == .failed { Button("Retry") { store.retry(article) } }
         Button("Delete", role: .destructive) { toDelete = article }
+    }
+}
+
+/// Where each grid card sits, kept out of SwiftUI state so scrolling the grid redraws nothing.
+@MainActor final class CardFrames {
+    static let space = "library"
+    private var frames: [UUID: CGRect] = [:]
+    subscript(id: UUID) -> CGRect? {
+        get { frames[id] }
+        set { frames[id] = newValue }
+    }
+}
+
+/// One grid card. The card is a single Button; the hover actions sit beside it in an overlay, never inside it,
+/// so a click lands on exactly one control.
+private struct MacGridItem: View {
+    let article: Article
+    let selected: Bool
+    let frames: CardFrames
+    let open: () -> Void
+    let favorite: () -> Void
+    let archive: () -> Void
+    @State private var hover = false
+    var body: some View {
+        Button(action: open) { ArticleGridCard(article: article, selected: selected, hovered: hover, showsFavorite: !hover) }
+            .buttonStyle(GridCardButtonStyle())
+            .overlay(alignment: .topTrailing) {
+                if hover {
+                    HStack(spacing: 6) {
+                        quick(article.isFavorite ? "bookmark.fill" : "bookmark", label: article.isFavorite ? "Remove favorite" : "Favorite",
+                              tint: article.isFavorite ? Theme.swipeFavorite : Theme.icon, action: favorite)
+                        quick("archivebox", label: article.archivedAt == nil ? "Archive" : "Unarchive", tint: Theme.icon, action: archive)
+                    }.padding(16).transition(.opacity)
+                }
+            }
+            .onHover { inside in withAnimation(.easeOut(duration: 0.15)) { hover = inside } }
+            .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(CardFrames.space)) } action: { frames[article.id] = $0 }
+            .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
+    }
+    private func quick(_ symbol: String, label: String, tint: Color, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol).font(.system(size: 12, weight: .semibold)).foregroundStyle(tint)
+                .frame(width: 28, height: 28).background(Theme.paper.opacity(0.94), in: Circle())
+                .shadow(color: Theme.ink.opacity(0.12), radius: 4, y: 1)
+        }.buttonStyle(.plain).accessibilityLabel(label).help(label)
     }
 }
 
