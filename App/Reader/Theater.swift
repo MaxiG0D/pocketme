@@ -12,7 +12,8 @@ enum Theater {
     /// The largest 16:9 width that fits `stage` with room left around it.
     static func videoWidth(in stage: CGSize, mac: Bool) -> CGFloat {
         let side: CGFloat = mac ? 48 : 12
-        let top: CGFloat = mac ? 64 : 56
+        // Tall screens leave room for the lights-on button above the picture; a phone on its side has none to spare.
+        let top: CGFloat = mac ? 64 : (stage.height > 700 ? 100 : 56)
         return max(0, min(stage.width - side * 2, (stage.height - top * 2) * 16 / 9))
     }
 }

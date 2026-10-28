@@ -11,6 +11,7 @@ struct ReaderView: View {
     @Environment(ReaderPreferences.self) private var preferences
     @Environment(\.openURL) private var openURL
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.horizontalSizeClass) private var sizeClass
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Query(sort: \Article.savedAt, order: .reverse) private var articles: [Article]
@@ -108,9 +109,11 @@ struct ReaderView: View {
                 }
             }
         }
-        .toolbar(theater ? .hidden : .automatic, for: .navigationBar, .tabBar)
-        .statusBarHidden(theater)
-        .persistentSystemOverlays(theater ? .hidden : .automatic)
+        .toolbar(theater && sizeClass != .regular ? .hidden : .automatic, for: .navigationBar)
+        .toolbar(theater && sizeClass != .regular ? .hidden : .automatic, for: .tabBar)
+        // On a wide screen these leave the bars a little low when the lights return, and the status bar stays there anyway.
+        .statusBarHidden(theater && sizeClass != .regular)
+        .persistentSystemOverlays(theater && sizeClass != .regular ? .hidden : .automatic)
         .sensoryFeedback(.impact(weight: .light), trigger: theater)
         #endif
     }

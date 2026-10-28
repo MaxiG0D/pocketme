@@ -16,6 +16,8 @@ struct LibraryView: View {
     @State private var addLink = false
     @State private var selection: UUID?
     @State private var columns = NavigationSplitViewVisibility.doubleColumn
+    /// What the columns showed before theater mode folded them away, so they return as they were.
+    @State private var columnsBeforeTheater: NavigationSplitViewVisibility?
     @State private var toDelete: Article?
     @State private var compactColumn = NavigationSplitViewColumn.sidebar
     @AppStorage(LibraryLayout.storageKey) private var layout: LibraryLayout = .list
@@ -68,6 +70,14 @@ struct LibraryView: View {
             }
         }
         .sensoryFeedback(.selection, trigger: layout)
+        // Side by side, theater mode hands the whole screen to the reader so the video can center on it.
+        .onChange(of: store.theater) { _, on in
+            guard sizeClass == .regular else { return }
+            withAnimation(reduceMotion ? Theater.fade : Theater.spring) {
+                if on { columnsBeforeTheater = columns; columns = .detailOnly }
+                else if let before = columnsBeforeTheater { columns = before; columnsBeforeTheater = nil }
+            }
+        }
         .onChange(of: layout) { _, new in
             withAnimation(.easeIn(duration: 0.12)) { articlesHidden = true } completion: {
                 front = layout
@@ -196,9 +206,8 @@ struct LibraryView: View {
         } action: { _, new in heroSquish = new }
         .modifier(LibrarySearch(enabled: !articles.isEmpty, text: $search, isPresented: searchPresented(in: .list)))
         .toolbar { libraryToolbar(.list) }
-        // Side by side with a video in theater mode, the list dims with its bar out of the way.
+        // Side by side with a video in theater mode, the list dims as it slides away.
         .overlay { TheaterShade() }
-        .toolbar(store.theater ? .hidden : .automatic, for: .navigationBar)
         .refreshable { store.refresh(); await store.drainInbox() }
         .overlay(alignment: .bottom) { ToastView(store: store) }
         .animation(reduceMotion ? nil : .snappy(duration: 0.25), value: store.toast?.id)
