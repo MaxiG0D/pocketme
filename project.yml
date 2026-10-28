@@ -62,7 +62,7 @@ targets:
       - {path: Shared/Share}
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: $(BUNDLE_ID_PREFIX).share.ios
+        PRODUCT_BUNDLE_IDENTIFIER: $(BUNDLE_ID_PREFIX).shareios
         INFOPLIST_FILE: Config/Share-iOS-Info.plist
         CODE_SIGN_ENTITLEMENTS: Config/Share.entitlements
         APPLICATION_EXTENSION_API_ONLY: YES

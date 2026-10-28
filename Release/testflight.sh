@@ -34,6 +34,9 @@ key_path="${ASC_KEY_PATH:-${HOME}/.appstoreconnect/private_keys/AuthKey_${key_id
 [[ -f "${key_path}" ]] || fail "API key not found at ${key_path}."
 [[ -n "${ASC_ISSUER_ID:-}" ]] || fail 'Set ASC_ISSUER_ID (App Store Connect issuer id).'
 auth=(-authenticationKeyPath "${key_path}" -authenticationKeyID "${key_id}" -authenticationKeyIssuerID "${ASC_ISSUER_ID}")
+# ARCHIVE_WITH_ACCOUNT=1 archives with Xcode's signed-in Apple account (registers new App IDs); upload still uses the API key.
+archive_auth=("${auth[@]}")
+[[ -z "${ARCHIVE_WITH_ACCOUNT:-}" ]] || archive_auth=()
 generate
 if (( do_tests )); then run_tests; fi
 archive_root="${ROOT_DIR}/Release Archive"
@@ -42,7 +45,7 @@ archive_dir="$(mktemp -d "${archive_root}/TestFlight ${version} (${build}).XXXXX
 step "Archiving iOS ${version} (${build})"
 xcodebuild archive -quiet -project "${PROJECT_PATH}" -scheme PocketMe -configuration Release \
   -destination 'generic/platform=iOS' -derivedDataPath "${CACHE_DIR}/Archive-iOS" \
-  -archivePath "${archive_dir}/iOS.xcarchive" -allowProvisioningUpdates "${auth[@]}" \
+  -archivePath "${archive_dir}/iOS.xcarchive" -allowProvisioningUpdates "${archive_auth[@]}" \
   "MARKETING_VERSION=${version}" "CURRENT_PROJECT_VERSION=${build}"
 cat > "${archive_dir}/ExportOptions.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
