@@ -1,0 +1,10 @@
+#!/bin/zsh
+# Runs the same checks as GitHub before anything reaches main, so a push can't turn GitHub red.
+set -euo pipefail
+while read -r _ local_sha remote_ref _; do
+  [[ "${remote_ref}" == refs/heads/main && "${local_sha}" != 0000000000000000000000000000000000000000 ]] || continue
+  passed="$(git rev-parse --git-dir)/ci-passed"
+  [[ -f "${passed}" && "$(<"${passed}")" == "$(git rev-parse "${local_sha}^{tree}")" ]] && continue
+  echo 'pre-push: running Scripts/ci.sh before pushing main'
+  exec "$(git rev-parse --show-toplevel)/Scripts/ci.sh"
+done

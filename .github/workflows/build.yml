@@ -1,18 +1,19 @@
 name: Build and test
 on:
   push:
+    branches: [main]
   pull_request:
 permissions:
   contents: read
 jobs:
   build:
-    runs-on: macos-15
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
       - name: Install XcodeGen
         run: brew install xcodegen
-      - name: Pin Xcode
-        run: sudo xcode-select -s /Applications/Xcode_16.4.app
+      - name: Pin Xcode (.xcode-version)
+        run: sudo xcode-select -s "/Applications/Xcode_$(cat .xcode-version).app"
       - name: Build and test (Scripts/ci.sh)
         run: Scripts/ci.sh --ui
       - name: Build release applet (existing Carnet template)

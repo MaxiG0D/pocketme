@@ -22,4 +22,4 @@ xcodegen generate
 open PocketMe.xcodeproj
 ```
 
-Needs Xcode 16 and macOS 15. More in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
+Needs Xcode 26 and macOS 15. More in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).

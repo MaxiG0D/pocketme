@@ -7,7 +7,7 @@ A calm, warm, minimal read-it-later app for iPhone and Mac, synced with iCloud.
 
 ## Development
 
-Requires Xcode 16 or later with Swift 6, macOS 15 or later, and XcodeGen 2.42 or later. Deployment targets are iOS 18 and native macOS 15 (no Catalyst). There are no Swift package dependencies.
+Requires Xcode 26 or later with Swift 6, macOS 15 or later, and XcodeGen 2.42 or later. Deployment targets are iOS 18 and native macOS 15 (no Catalyst). There are no Swift package dependencies.
 
 ```sh
 brew install xcodegen

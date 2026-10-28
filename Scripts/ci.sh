@@ -1,9 +1,16 @@
 #!/bin/zsh
-# The exact build and test sequence GitHub Actions runs. Run it before every push to main.
+# The exact build and test sequence GitHub Actions runs. The pre-push hook runs it before every push to main.
 # Scripts/ci.sh        iOS build, macOS build, macOS unit tests
 # Scripts/ci.sh --ui   also the iPhone simulator UI tests (row tap, swipe)
 set -euo pipefail
 cd "$(dirname "$0")/.."
+git config core.hooksPath .githooks
+# GitHub builds with the Xcode in .xcode-version. Use it here too when installed; otherwise
+# check_sdk.sh catches code that only compiles with a newer SDK.
+pinned="/Applications/Xcode_$(<.xcode-version).app"
+[[ -d "${pinned}" ]] && export DEVELOPER_DIR="${pinned}/Contents/Developer"
+xcodebuild -version | head -1
+Scripts/check_sdk.sh
 build_dir="${TMPDIR:-/tmp}/pocketme-ci"
 project="${build_dir}/Project/PocketMe.xcodeproj"
 mkdir -p "${build_dir}/Project"
@@ -18,4 +25,6 @@ if [[ "${1:-}" == --ui ]]; then
   sim="$(xcrun simctl list devices available | sed -nE 's/^ *(iPhone [^(]*[^ (]) \(.*/\1/p' | head -1)"
   build test -destination "platform=iOS Simulator,name=${sim}" -only-testing:PocketMeUITests
 fi
+# Lets the pre-push hook skip a second run for a commit that already passed.
+git diff --quiet HEAD && git rev-parse 'HEAD^{tree}' > "$(git rev-parse --git-dir)/ci-passed" || true
 echo 'CI checks passed'

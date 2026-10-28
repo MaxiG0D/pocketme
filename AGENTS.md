@@ -13,4 +13,4 @@ Hard rules:
 
 Release applet exception: Max explicitly requires the existing Carnet de Recettes release applet template. `Release/PocketMeRelease` retains that separate developer tool’s UI; do not restyle it to match the product or invent a new UI. See `Release/TEMPLATE.md`.
 
-CI parity: before every push to main, run `Scripts/ci.sh --ui` on the Mac (it is the same command GitHub Actions runs, on a pinned Xcode 16.4). Fix any failure before pushing. Mac UI tests are excluded because the unsigned runner is blocked by Gatekeeper; the iPhone simulator runs them.
+CI parity: GitHub runs `Scripts/ci.sh --ui` on the Xcode named in `.xcode-version` (the newest GitHub offers), which can be older than the Mac's. Run `Scripts/ci.sh --ui` on the Mac before every push to main; the pre-push hook it installs runs `Scripts/ci.sh` automatically and blocks the push on failure. Any API newer than that Xcode's SDK goes inside `#if compiler(>=…)` as well as `#available`; `Scripts/check_sdk.sh` enforces this. Fix any failure before pushing. Mac UI tests are excluded because the unsigned runner is blocked by Gatekeeper; the iPhone simulator runs them.
