@@ -1,3 +1,6 @@
+// Where the hosted save page lives (Web/ deployed to Cloudflare Pages). Used where PocketMe isn't installed.
+const WEB_SAVE_URL = "";
+
 const card = document.getElementById("card");
 const label = document.getElementById("label");
 
@@ -26,6 +29,11 @@ async function save() {
       show("failed", "Couldn’t save");
     }
   } catch (error) {
+    if (!/Mac/.test(navigator.userAgent) && WEB_SAVE_URL) {
+      const target = WEB_SAVE_URL + "?url=" + encodeURIComponent(tab.url) + "&title=" + encodeURIComponent(tab.title || "");
+      await chrome.tabs.create({ url: target, active: true });
+      return window.close();
+    }
     // PocketMe isn't running: opening the link launches it and saves the page.
     show("saving", "Opening PocketMe…");
     await chrome.tabs.create({ url: "pocketme://save?url=" + encodeURIComponent(tab.url), active: false });
