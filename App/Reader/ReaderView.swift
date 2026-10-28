@@ -104,7 +104,7 @@ struct ReaderView: View {
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
                 if video == nil { Button("Reader settings", systemImage: "textformat.size") { settings = true } }
-                else { Button("Dim the lights", systemImage: "lightbulb.slash", action: dimLights) }
+                else { Button("Theater mode", systemImage: "popcorn", action: enterTheater) }
                 if let url = URL(string: article.url) {
                     Button("Open in Browser", systemImage: "safari") { openURL(url) }.keyboardShortcut("o", modifiers: [])
                     ShareLink(item: url) { Label("Share", systemImage: "square.and.arrow.up") }
@@ -124,7 +124,7 @@ struct ReaderView: View {
             Spacer()
             if isMac { Text(article.title).font(Typo.sans(13).weight(.semibold)).foregroundStyle(Theme.muted).lineLimit(1); Spacer() }
             if video == nil { Button { settings = true } label: { Text("Aa").font(Typo.serif(17)) }.buttonStyle(CircleIconButtonStyle()).accessibilityLabel("Reader settings") }
-            else { Button(action: dimLights) { Image(systemName: "lightbulb.slash") }.buttonStyle(CircleIconButtonStyle()).accessibilityLabel("Dim the lights").help("Theater mode (T)").keyboardShortcut("t", modifiers: []) }
+            else { Button(action: enterTheater) { Image(systemName: "popcorn") }.buttonStyle(CircleIconButtonStyle()).accessibilityLabel("Theater mode").help("Theater mode (T)").keyboardShortcut("t", modifiers: []) }
             if isMac { Button { store.favorite(article) } label: { Image(systemName: article.isFavorite ? "bookmark.fill" : "bookmark") }.buttonStyle(CircleIconButtonStyle()).accessibilityLabel("Toggle favorite") }
             if let url = URL(string: article.url) {
                 Button { openURL(url) } label: { Image(systemName: "safari") }.buttonStyle(CircleIconButtonStyle()).accessibilityLabel("Open in Browser").keyboardShortcut("o", modifiers: [])
@@ -170,15 +170,15 @@ struct ReaderView: View {
         .overlay(alignment: .topTrailing) {
             if theater {
                 Button { store.setTheater(false, reduceMotion: reduceMotion) } label: {
-                    Image(systemName: "lightbulb").font(.system(size: 15, weight: .medium)).foregroundStyle(Theater.ink.opacity(0.75))
+                    Image(systemName: "popcorn.fill").font(.system(size: isMac ? 13 : 15, weight: .medium)).foregroundStyle(Theater.ink.opacity(0.75))
                         .frame(width: isMac ? 30 : 36, height: isMac ? 30 : 36).background(Theater.ink.opacity(0.08), in: Circle()).contentShape(Circle())
                 }
-                .buttonStyle(.plain).accessibilityLabel("Lights on").keyboardShortcut(.cancelAction)
+                .buttonStyle(.plain).accessibilityLabel("Leave theater mode").keyboardShortcut(.cancelAction)
                 .padding(.top, isMac ? 0 : 8).padding(.trailing, 12).transition(.opacity)
             }
         }
     }
-    private func dimLights() {
+    private func enterTheater() {
         videoPlaying = true
         store.setTheater(true, reduceMotion: reduceMotion)
     }
