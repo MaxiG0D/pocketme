@@ -47,6 +47,8 @@ struct PocketMeApp: App {
                 Button("Search") { store.findToken += 1 }.keyboardShortcut("f")
             }
             CommandGroup(after: .toolbar) {
+                Button("as List") { store.requestedLayout = .list }.keyboardShortcut("1")
+                Button("as Grid") { store.requestedLayout = .grid }.keyboardShortcut("2")
                 Button("Show or Hide List") { store.toggleListToken += 1 }.keyboardShortcut("s", modifiers: [.command, .control])
                 Divider()
                 Button("Bigger Text") { store.readerPreferences.resize(1) }.keyboardShortcut("+")
