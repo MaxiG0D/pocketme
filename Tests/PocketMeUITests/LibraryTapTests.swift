@@ -27,13 +27,17 @@ final class LibraryTapTests: XCTestCase {
         #endif
     }
 
-    func testTheaterModeAndBack() {
+    private func openVideo() {
         let video = app.staticTexts["A short film about slow mornings"].firstMatch
         XCTAssertTrue(app.staticTexts[title].firstMatch.waitForExistence(timeout: 10))
         // The film is the oldest row, below the fold and not built until scrolled to.
         for _ in 0..<5 where !video.exists || !video.isHittable { app.swipeUp() }
         XCTAssertTrue(video.isHittable)
         video.tap()
+    }
+
+    func testTheaterModeAndBack() {
+        openVideo()
         let enter = app.buttons["Theater mode"].firstMatch
         XCTAssertTrue(enter.waitForExistence(timeout: 5))
         enter.tap()
@@ -41,6 +45,16 @@ final class LibraryTapTests: XCTestCase {
         XCTAssertTrue(leave.waitForExistence(timeout: 5))
         leave.tap()
         XCTAssertTrue(leave.waitForNonExistence(timeout: 5))
+    }
+
+    /// Theater mode on play is off by default, so Play just plays inline.
+    func testPlayStaysInlineByDefault() {
+        openVideo()
+        let play = app.buttons["Play video"]
+        XCTAssertTrue(play.waitForExistence(timeout: 5))
+        play.tap()
+        XCTAssertTrue(app.buttons["Leave theater mode"].waitForNonExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["Theater mode"].exists)
     }
 
     #if os(iOS)
@@ -56,6 +70,13 @@ final class LibraryTapTests: XCTestCase {
         XCTAssertTrue(card.waitForExistence(timeout: 5))
         card.tap()
         XCTAssertTrue(app.buttons["Reader settings"].waitForExistence(timeout: 5))
+    }
+
+    func testTheaterOnPlaySettingIsOffByDefault() {
+        app.tabBars.buttons["Settings"].tap()
+        let toggle = app.descendants(matching: .any)["Theater mode on play"].firstMatch
+        XCTAssertTrue(toggle.waitForExistence(timeout: 5))
+        XCTAssertEqual(toggle.value as? String, "Off")
     }
 
     func testSwipeRevealsButtonAndRowStillOpens() {

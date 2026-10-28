@@ -12,6 +12,8 @@ final class ReaderPreferences {
     var size: Double { didSet { defaults.set(size, forKey: "readerSize") } }
     var theme: ThemeChoice { didSet { defaults.set(theme.rawValue, forKey: "readerTheme") } }
     var sans: Bool { didSet { defaults.set(sans, forKey: "readerSans") } }
+    /// Off by default: the play button plays inline, and the theater button dims the lights on request.
+    var theaterOnPlay: Bool { didSet { defaults.set(theaterOnPlay, forKey: "theaterOnPlay") } }
     @ObservationIgnored private let defaults: UserDefaults
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -24,6 +26,7 @@ final class ReaderPreferences {
         size = stored == 0 ? defaultSize : min(max(stored, 15), 25)
         theme = ThemeChoice(rawValue: defaults.string(forKey: "readerTheme") ?? "auto") ?? .auto
         sans = defaults.bool(forKey: "readerSans")
+        theaterOnPlay = defaults.bool(forKey: "theaterOnPlay")
     }
     func resize(_ delta: Double) { size = min(max(size + delta, 15), 25) }
 }

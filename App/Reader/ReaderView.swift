@@ -151,7 +151,7 @@ struct ReaderView: View {
             let inset = stage.frame(in: .global).minX
             let screen = CGSize(width: stage.size.width + inset, height: stage.size.height)
             VStack(spacing: 20) {
-                VideoPlayerView(article: article, video: video, playing: $videoPlaying, play: { store.setTheater(true, reduceMotion: reduceMotion) })
+                VideoPlayerView(article: article, video: video, playing: $videoPlaying, play: { if preferences.theaterOnPlay { store.setTheater(true, reduceMotion: reduceMotion) } })
                     .frame(width: theater ? Theater.videoWidth(in: screen, mac: isMac) : nil)
                     .id(article.id)
                 if !theater {

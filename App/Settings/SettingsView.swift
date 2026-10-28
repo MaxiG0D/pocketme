@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @Environment(LibraryStore.self) private var store
+    @Environment(ReaderPreferences.self) private var preferences
     @State private var bytes: Int64 = 0
     @State private var clear = false
     var body: some View {
@@ -21,6 +22,18 @@ struct SettingsView: View {
                     Button("Clear downloaded images") { clear = true }.buttonStyle(SecondaryButtonStyle())
                 }
                 section("Reader defaults") { ReaderSettingsControls() }
+                section("Video") {
+                    Button { preferences.theaterOnPlay.toggle() } label: {
+                        HStack {
+                            Text("Theater mode on play").font(Typo.button).foregroundStyle(Theme.ink)
+                            Spacer()
+                            Capsule().fill(preferences.theaterOnPlay ? Theme.ink : Theme.chip).overlay(Capsule().stroke(Theme.hairline, lineWidth: 1)).frame(width: 51, height: 31)
+                                .overlay(alignment: preferences.theaterOnPlay ? .trailing : .leading) { Circle().fill(Theme.segmentSelected).frame(width: 27, height: 27).padding(2) }
+                                .animation(.snappy(duration: 0.2), value: preferences.theaterOnPlay)
+                        }.frame(minHeight: 44).contentShape(Rectangle())
+                    }.buttonStyle(.plain)
+                        .accessibilityValue(preferences.theaterOnPlay ? "On" : "Off").accessibilityAddTraits(.isToggle)
+                }
                 section("About") {
                     Text("PocketMe").font(Typo.cardTitleSerif).foregroundStyle(Theme.ink)
                     Text("Newsreader and Inter · SIL Open Font License\nReadability 0.6.0 · Apache License 2.0").font(Typo.meta).foregroundStyle(Theme.muted)
