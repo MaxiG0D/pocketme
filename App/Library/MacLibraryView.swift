@@ -261,20 +261,14 @@ struct MacLibraryView: View {
                 Text("Pocket Me").font(Typo.largeTitle).tracking(-0.5).foregroundStyle(Theme.ink)
                 Spacer(minLength: 0)
                 layoutButton
-            }.padding(.leading, 16).padding(.trailing, 12).padding(.top, 44).padding(.bottom, 10)
+            }.padding(.leading, 16).padding(.trailing, 6).padding(.top, 44).padding(.bottom, 10)
             HStack(spacing: 8) { addButton; Divider().frame(height: 16).padding(.horizontal, 4); tabs; Spacer(minLength: 0); searchButton }
                 .padding(.horizontal, 12).padding(.bottom, searching ? 6 : 10)
             if searching { searchField }
             if let message = store.errorMessage { Text(message).font(Typo.meta).foregroundStyle(Theme.muted).padding(.horizontal, 16).padding(.bottom, 8) }
         }
     }
-    private var layoutButton: some View {
-        Button { switchLayout(to: layout.other) } label: {
-            Image(systemName: layout.toggleSymbol).font(.system(size: 13, weight: .medium)).foregroundStyle(Theme.muted)
-                .frame(width: 28, height: 28).contentShape(Rectangle())
-                .contentTransition(.symbolEffect(.replace))
-        }.buttonStyle(.plain).accessibilityLabel(layout.toggleLabel).help(layout == .list ? "Show as Grid (⌘2)" : "Show as List (⌘1)")
-    }
+    private var layoutButton: some View { LayoutToggle(layout: layout) { switchLayout(to: layout.other) } }
     private var searchButton: some View {
         Button { searching.toggle(); searchFocused = searching; if !searching { search = "" } } label: {
             Image(systemName: "magnifyingglass").font(.system(size: 13, weight: .medium)).foregroundStyle(searching ? Theme.ink : Theme.muted)
@@ -396,6 +390,24 @@ private struct MacGridItem: View {
                 .frame(width: 28, height: 28).background(Theme.paper.opacity(0.94), in: Circle())
                 .shadow(color: Theme.ink.opacity(0.12), radius: 4, y: 1)
         }.buttonStyle(.plain).accessibilityLabel(label).help(label)
+    }
+}
+
+/// Sized to the title beside it, with a soft disc on hover so it reads as a target.
+private struct LayoutToggle: View {
+    let layout: LibraryLayout
+    let action: () -> Void
+    @State private var hover = false
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: layout.toggleSymbol).font(.system(size: 17, weight: .medium)).foregroundStyle(hover ? Theme.iconSelected : Theme.icon)
+                .frame(width: 40, height: 40)
+                .background(Theme.chip.opacity(hover ? 1 : 0), in: Circle())
+                .contentShape(Circle())
+                .contentTransition(.symbolEffect(.replace))
+        }.buttonStyle(.plain)
+            .onHover { inside in withAnimation(.easeOut(duration: 0.15)) { hover = inside } }
+            .accessibilityLabel(layout.toggleLabel).help(layout == .list ? "Show as Grid (⌘2)" : "Show as List (⌘1)")
     }
 }
 
