@@ -351,7 +351,7 @@ struct MacLibraryView: View {
 
 /// Where each grid card sits, kept out of SwiftUI state so scrolling the grid redraws nothing.
 @MainActor final class CardFrames {
-    static let space = "library"
+    nonisolated static let space = "library"
     private var frames: [UUID: CGRect] = [:]
     subscript(id: UUID) -> CGRect? {
         get { frames[id] }
