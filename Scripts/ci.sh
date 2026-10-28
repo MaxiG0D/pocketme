@@ -9,7 +9,7 @@ git config core.hooksPath .githooks
 # check_sdk.sh catches code that only compiles with a newer SDK.
 pinned="/Applications/Xcode_$(<.xcode-version).app"
 [[ -d "${pinned}" ]] && export DEVELOPER_DIR="${pinned}/Contents/Developer"
-xcodebuild -version | head -1
+version="$(xcodebuild -version)"; echo "${version%%$'\n'*}"
 Scripts/check_sdk.sh
 build_dir="${TMPDIR:-/tmp}/pocketme-ci"
 project="${build_dir}/Project/PocketMe.xcodeproj"
