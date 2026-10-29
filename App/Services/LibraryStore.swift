@@ -53,7 +53,10 @@ final class LibraryStore {
             #endif
             persistence = opened
             if let root = opened.container.configurations.first?.url.deletingLastPathComponent() {
-                processor = ProcessingCoordinator(context: opened.container.mainContext, root: root)
+                let processor = ProcessingCoordinator(context: opened.container.mainContext, root: root)
+                processor.shouldPause = { [weak self] in self?.listScrolling == true }
+                processor.requestSave = { [weak self] in self?.persistSoon(after: .seconds(2)) }
+                self.processor = processor
             }
             errorMessage = nil
             #if os(macOS)

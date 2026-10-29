@@ -2,10 +2,28 @@ import Foundation
 import SwiftData
 import Observation
 
+/// One article's offline state, observed on its own so that a download starting or finishing redraws that row only.
+/// A shared set would invalidate every row that reads it each time any article changed.
+@MainActor @Observable
+final class ArticleOfflineState {
+    fileprivate(set) var downloading = false
+    fileprivate(set) var ready = false
+}
+
 @MainActor @Observable
 final class ProcessingCoordinator {
-    private(set) var downloading: Set<UUID> = []
+    /// Read by the reader, which opens a single article; rows use `state(for:)`.
     private(set) var offlineReady: Set<UUID> = []
+    @ObservationIgnored private var states: [UUID: ArticleOfflineState] = [:]
+    /// Articles whose offline copy is verified and whose thumbnail has been dealt with: later passes skip them untouched.
+    @ObservationIgnored private var settled: Set<UUID> = []
+    @ObservationIgnored private var thumbnailTried: Set<UUID> = []
+    @ObservationIgnored private var assetFailures: [UUID: Int] = [:]
+    @ObservationIgnored private var knownIDs: Set<UUID> = []
+    /// Set by the store: true while the library is being scrolled, so background work waits for the finger.
+    @ObservationIgnored var shouldPause: () -> Bool = { false }
+    /// Set by the store: batches writes instead of saving after every article.
+    @ObservationIgnored var requestSave: (() -> Void)?
     let assets: OfflineAssetStore
     private let context: ModelContext
     private let extractor = ExtractionService()
@@ -16,6 +34,25 @@ final class ProcessingCoordinator {
     private var imageCandidates: [UUID: [String]] = [:]
     private var assetRetry: [UUID: Date] = [:]
     private var revisitedVideos = false
+
+    func state(for id: UUID) -> ArticleOfflineState {
+        if let state = states[id] { return state }
+        let state = ArticleOfflineState()
+        states[id] = state
+        return state
+    }
+    private func setDownloading(_ id: UUID, _ value: Bool) { if state(for: id).downloading != value { state(for: id).downloading = value } }
+    private func setReady(_ id: UUID, _ value: Bool) {
+        if state(for: id).ready != value { state(for: id).ready = value }
+        if value { offlineReady.insert(id) } else { offlineReady.remove(id) }
+    }
+    private func commit() { if let requestSave { requestSave() } else { try? context.save() } }
+    /// Lets the UI run between articles and holds still while the list is moving.
+    private func yieldToUI() async {
+        await Task.yield()
+        var waited = 0
+        while shouldPause(), waited < 120, !Task.isCancelled { try? await Task.sleep(for: .milliseconds(400)); waited += 1 }
+    }
 
     init(context: ModelContext, root: URL) {
         self.context = context
@@ -36,6 +73,8 @@ final class ProcessingCoordinator {
     func finishPendingWork() async {
         start()
         await work?.value
+        // A background run may be suspended soon after; do not leave batched writes waiting.
+        try? context.save()
     }
 
     func cancel() { work?.cancel(); retry?.cancel() }
@@ -50,10 +89,12 @@ final class ProcessingCoordinator {
             }
         }
         // Text first, newest save first: an article is readable before any image downloads start.
+        // Only articles that need extraction cost anything here; the rest are skipped before any await.
         for article in articles.reversed() {
             guard article.modelContext != nil else { continue }
             if Task.isCancelled { return }
-            await Task.yield()
+            guard article.status == .failed || article.status == .pending else { continue }
+            await yieldToUI()
             if article.status == .failed {
                 guard article.extractionAttempts <= 3,
                       await assets.retryDate(article.id, attempts: article.extractionAttempts, fallback: article.savedAt) <= .now else { continue }
@@ -61,46 +102,57 @@ final class ProcessingCoordinator {
             }
             if article.status == .pending { await extract(article) }
         }
+        // Then offline copies and thumbnails. An article settles once both are done and is never looked at again this
+        // launch, so repeat passes (every sync, every return to the app) cost a walk over the list and nothing more.
         for article in articles.reversed() {
             guard article.modelContext != nil else { continue }
             if Task.isCancelled { return }
-            // Each pass touches the article's stored content, so let the UI run between articles.
-            await Task.yield()
-            guard article.status == .ready, article.contentHTML != nil else { continue }
-            if article.thumbnailData == nil { await fillThumbnail(article) }
+            let id = article.id
+            guard article.status == .ready, !settled.contains(id) else { continue }
+            await yieldToUI()
+            guard article.contentHTML != nil else { settled.insert(id); continue }
+            if article.thumbnailData == nil, thumbnailTried.insert(id).inserted { await fillThumbnail(article) }
             let snapshot = ArticleContent(article)
-            if await assets.isReady(snapshot) { offlineReady.insert(article.id); continue }
-            guard (assetRetry[article.id] ?? .distantPast) <= .now else { continue }
-            downloading.insert(article.id)
+            if await assets.isReady(snapshot) { setReady(id, true); settled.insert(id); continue }
+            guard (assetRetry[id] ?? .distantPast) <= .now else { continue }
+            setDownloading(id, true)
             do {
                 try await assets.prepare(snapshot)
-                if article.modelContext != nil { offlineReady.insert(article.id) }
-                else { try? await assets.delete(article.id) }
-                assetRetry[article.id] = nil
-            } catch { assetRetry[article.id] = Date.now.addingTimeInterval(60) }
-            downloading.remove(article.id)
+                if article.modelContext != nil { setReady(id, true); settled.insert(id) }
+                else { try? await assets.delete(id) }
+                assetRetry[id] = nil; assetFailures[id] = nil
+            } catch {
+                // Back off 1, 2, 4 ... minutes up to an hour instead of retrying every minute forever.
+                let failures = assetFailures[id, default: 0]
+                assetFailures[id] = failures + 1
+                assetRetry[id] = Date.now.addingTimeInterval(min(3_600, 60 * pow(2, Double(min(failures, 6)))))
+            }
+            setDownloading(id, false)
         }
         // Reader/offline work finishes first; preview enrichment must not delay reading.
-        for article in articles where article.modelContext != nil && article.thumbnailData == nil {
+        for article in articles where article.modelContext != nil {
             if Task.isCancelled { return }
+            let id = article.id
+            guard !thumbnailTried.contains(id) else { continue }
+            if article.thumbnailData != nil { thumbnailTried.insert(id); continue }
+            thumbnailTried.insert(id)
+            await yieldToUI()
             await fillThumbnail(article)
         }
         imageCandidates.removeAll()
-        if let current = try? context.fetch(FetchDescriptor<Article>()) {
-            let ids = Set(current.map(\.id))
-            offlineReady.formIntersection(ids)
-            let ready = Set(current.filter { $0.status == .ready && $0.contentHTML != nil }.map(\.id))
-            assetRetry = assetRetry.filter { ready.contains($0.key) }
-            try? await assets.purgeOrphans(keeping: ids)
-        }
+        let ids = Set(articles.filter { $0.modelContext != nil }.map(\.id))
+        for id in offlineReady.subtracting(ids) { setReady(id, false) }
+        assetRetry = assetRetry.filter { ids.contains($0.key) }
+        // Removing files of deleted articles is only needed when the set of articles changed.
+        if ids != knownIDs { knownIDs = ids; try? await assets.purgeOrphans(keeping: ids) }
     }
 
     private func extract(_ article: Article) async {
         guard let url = URL(string: article.url) else { article.status = .failed; return }
-        downloading.insert(article.id)
-        defer { downloading.remove(article.id) }
+        setDownloading(article.id, true)
+        defer { setDownloading(article.id, false) }
         article.extractionAttempts += 1
-        try? context.save()
+        commit()
         do {
             let video = VideoLink(article.url)
             let result: ExtractedArticle
@@ -117,16 +169,18 @@ final class ProcessingCoordinator {
             article.wordCount = result.wordCount
             article.readingMinutes = result.isExternal == true ? 0 : result.readingMinutes
             article.status = .ready; article.failureReason = nil
-            try context.save()
+            // New content: the offline copy and the thumbnail check start again for this article.
+            settled.remove(article.id); setReady(article.id, false)
+            commit()
         } catch is CancellationError {
             article.extractionAttempts = max(0, article.extractionAttempts - 1)
-            try? context.save()
+            commit()
         }
         catch {
             guard article.modelContext != nil else { return }
             article.status = .failed
             article.failureReason = "This page couldn’t be loaded. Try again or open the original."
-            try? context.save()
+            commit()
             try? await assets.recordFailure(article.id)
         }
     }
@@ -145,7 +199,7 @@ final class ProcessingCoordinator {
             if let url = URL(string: candidate), let data = try? await thumbnails.thumbnail(from: url) {
                 article.thumbnailData = data
                 article.leadImageURL = candidate
-                try? context.save()
+                commit()
                 defaults.removeObject(forKey: key)
                 return
             }
@@ -155,7 +209,7 @@ final class ProcessingCoordinator {
         guard !Task.isCancelled, article.modelContext != nil else { return }
         if let metadata, let data = try? await thumbnails.downsample(metadata) {
             article.thumbnailData = data
-            try? context.save()
+            commit()
             defaults.removeObject(forKey: key)
         } else {
             defaults.set(Date.now, forKey: key)
@@ -163,9 +217,11 @@ final class ProcessingCoordinator {
     }
 
     private func scheduleRetry() async {
-        guard !Task.isCancelled, let articles = try? context.fetch(FetchDescriptor<Article>()) else { return }
+        let failed = ArticleStatus.failed.rawValue
+        let descriptor = FetchDescriptor<Article>(predicate: #Predicate { $0.statusRaw == failed && $0.extractionAttempts <= 3 })
+        guard !Task.isCancelled, let articles = try? context.fetch(descriptor) else { return }
         var dates = Array(assetRetry.values)
-        for article in articles where article.status == .failed && article.extractionAttempts <= 3 {
+        for article in articles {
             dates.append(await assets.retryDate(article.id, attempts: article.extractionAttempts, fallback: article.savedAt))
         }
         guard let next = dates.min() else { return }

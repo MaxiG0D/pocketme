@@ -6,6 +6,8 @@ struct ArticleMetaView: View {
     /// Promotes the site to a title when the article has no title of its own.
     var emphasizeSite = false
     var body: some View {
+        // This article's own flags: another article starting or finishing a download does not redraw this row.
+        let offline = store.processor?.state(for: article.id)
         VStack(alignment: .leading, spacing: 5) {
             Text(article.readingMinutes > 0 ? "\(article.siteName) · \(article.readingMinutes) min" : article.siteName)
                 .font(emphasizeSite ? Typo.sans(15).weight(.semibold) : Typo.meta).foregroundStyle(emphasizeSite ? Theme.ink : Theme.muted)
@@ -15,8 +17,7 @@ struct ArticleMetaView: View {
                     Button("Retry") { store.retry(article) }.buttonStyle(.plain).underline().foregroundStyle(Theme.ink)
                         .padding(.vertical, 12).contentShape(Rectangle()).padding(.vertical, -12)
                 }.font(Typo.meta)
-            } else if article.status == .pending || store.processor?.downloading.contains(article.id) == true ||
-                        (article.contentHTML != nil && store.processor != nil && store.processor?.offlineReady.contains(article.id) != true) {
+            } else if article.status == .pending || offline?.downloading == true || (offline != nil && offline?.ready != true && article.contentHTML != nil) {
                 HStack(spacing: 5) {
                     Circle().fill(Theme.pendingDot).frame(width: 6, height: 6)
                     Text("Downloading").font(Typo.meta).foregroundStyle(Theme.pending)

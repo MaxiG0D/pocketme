@@ -92,6 +92,9 @@ extension LibraryStore {
         pendingSave?.cancel()
         pendingSave = Task { [weak self] in
             try? await Task.sleep(for: delay)
+            // A save rebuilds every query in the library, so it waits for the list to stop moving.
+            var waited = 0
+            while let self, self.listScrolling, waited < 60, !Task.isCancelled { try? await Task.sleep(for: .milliseconds(500)); waited += 1 }
             guard !Task.isCancelled else { return }
             self?.persist()
         }
