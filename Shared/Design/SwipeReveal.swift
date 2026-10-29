@@ -88,14 +88,17 @@ private struct SwipeReveal: ViewModifier {
     let maxHeight: CGFloat
     let edge: CGFloat
     @State private var live: CGFloat?
+    /// Where this row rests, kept here and set in the same step as `live`. Read through `open` alone, the row would see
+    /// "closed" for one render after a release (the parent's state lands a pass later) and spring toward closed before opening.
+    @State private var restSide: SwipeSide?
     @State private var horizontal: Bool?
     @State private var hover = false
     @State private var monitor: Any?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var resting: CGFloat {
-        guard let open, open.id == id else { return 0 }
-        return SwipeGeometry.openOffset(open.side, inset: inset, gap: gap, edge: edge)
+        guard let restSide else { return 0 }
+        return SwipeGeometry.openOffset(restSide, inset: inset, gap: gap, edge: edge)
     }
     /// `live` is the raw drag; the row shows it rubber-banded.
     private var offset: CGFloat { live.map { SwipeGeometry.clamp($0, actions: actions, inset: inset, gap: gap, edge: edge) } ?? resting }
@@ -115,6 +118,11 @@ private struct SwipeReveal: ViewModifier {
             .onAppear { monitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { scroll($0) } }
             .onDisappear { if let monitor { NSEvent.removeMonitor(monitor) }; monitor = nil }
             #endif
+            // Another row opening (or the list closing everything) takes this one back to closed.
+            .onChange(of: open) { _, new in
+                guard new?.id != id, restSide != nil else { return }
+                withAnimation(reduceMotion ? nil : .interpolatingSpring(Spring(duration: 0.3, bounce: 0))) { restSide = nil }
+            }
             .accessibilityElement(children: .contain)
             .accessibilityActions { ForEach(actions.indices, id: \.self) { index in
                 Button(actions[index].label) { actions[index].perform() }
@@ -124,7 +132,10 @@ private struct SwipeReveal: ViewModifier {
     @ViewBuilder private func button(in size: CGSize) -> some View {
         let side: SwipeSide = offset < 0 ? .trailing : .leading
         if offset != 0, let action = actions.first(where: { $0.side == side }) {
-            let frame = SwipeGeometry.buttonFrame(rowWidth: size.width, rowHeight: size.height, offset: offset, inset: inset, gap: gap, edge: edge)
+            // Settling past the open position slides the tile along with the row instead of stretching it; only a finger stretches it.
+            let reveal = abs(SwipeGeometry.openOffset(side, inset: inset, gap: gap, edge: edge))
+            let tileOffset = live == nil ? (offset < 0 ? -min(-offset, reveal) : min(offset, reveal)) : offset
+            let frame = SwipeGeometry.buttonFrame(rowWidth: size.width, rowHeight: size.height, offset: tileOffset, inset: inset, gap: gap, edge: edge)
             Button {
                 close()
                 // Let the row spring shut before the action moves or removes it.
@@ -135,9 +146,8 @@ private struct SwipeReveal: ViewModifier {
                     .overlay {
                         // The icon pops on its own spring once the button is half out, so even a quick flick bounces.
                         Image(systemName: action.symbol).font(.system(size: 18, weight: .semibold)).foregroundStyle(.white)
-                            .scaleEffect(armed ? 1 : 0.3).opacity(armed ? 1 : 0)
-                            .rotationEffect(.degrees(armed || reduceMotion ? 0 : (side == .trailing ? 30 : -30)))
-                            .animation(reduceMotion ? nil : .spring(duration: 0.35, bounce: 0.5), value: armed)
+                            .scaleEffect(armed ? 1 : 0.6).opacity(armed ? 1 : 0)
+                            .animation(reduceMotion ? nil : .spring(duration: 0.3, bounce: 0.25), value: armed)
                     }
             }
             .buttonStyle(.plain).accessibilityLabel(action.label)
@@ -152,9 +162,14 @@ private struct SwipeReveal: ViewModifier {
     private func settle(_ side: SwipeSide?, velocity: CGFloat = 0) {
         let target = side.map { SwipeGeometry.openOffset($0, inset: inset, gap: gap, edge: edge) } ?? 0
         let distance = target - offset
-        let carried = abs(distance) > 1 ? min(30, max(-5, velocity / distance)) : 0
-        withAnimation(reduceMotion ? nil : .interpolatingSpring(duration: 0.45, bounce: 0.3, initialVelocity: carried)) {
+        // Only momentum toward the target counts, and a hard flick is capped so it cannot throw the row far past open and ring back.
+        let carried = abs(distance) > 1 ? min(6, max(0, velocity / distance)) : 0
+        // Opening gets one soft overshoot. Closing never crosses zero, which would flip the button to the other side mid-spring.
+        let spring: Animation = side == nil ? .interpolatingSpring(Spring(duration: 0.3, bounce: 0), initialVelocity: carried)
+                                            : .interpolatingSpring(Spring(duration: 0.42, bounce: 0.3), initialVelocity: carried)
+        withAnimation(reduceMotion ? nil : spring) {
             live = nil
+            restSide = side
             open = side.map { SwipeOpen(id: id, side: $0) }
         }
     }
