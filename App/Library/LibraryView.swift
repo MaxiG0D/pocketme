@@ -147,6 +147,7 @@ struct LibraryView: View {
         } detail: {
             detail
         }
+        .containerBackground(Theme.paper, for: .navigationSplitView)
     }
 
     /// Two columns folded, more as the screen widens. A card is one Button, with no swipe or extra gestures;
@@ -161,7 +162,7 @@ struct LibraryView: View {
                 Group {
                     if filtered.isEmpty {
                         if articles.isEmpty { EmptyStateView(paste: pasteOrAdd).frame(maxWidth: .infinity).padding(.top, 30) }
-                        else { Text(search.isEmpty ? "No articles here yet" : "No matching articles").font(Typo.meta).foregroundStyle(Theme.muted).padding(.top, 40) }
+                        else { Text(search.isEmpty ? "No articles here yet" : "No matching articles").font(Typo.meta).foregroundStyle(Theme.muted).frame(maxWidth: .infinity).padding(.top, 40) }
                     }
                     LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4, alignment: .top), count: gridColumns), spacing: 10) {
                         ForEach(filtered, id: \.id) { article in
@@ -174,7 +175,9 @@ struct LibraryView: View {
                 }.opacity(articlesShown(.grid) ? 1 : 0)
             }
             .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { gridWidth = $0 }
-            .scrollIndicators(.hidden).background(Theme.paper)
+            .scrollIndicators(.hidden)
+            .frame(maxWidth: .infinity, maxHeight: .infinity).background(Theme.paper)
+            .containerBackground(Theme.paper, for: .navigation)
             .onScrollPhaseChange { _, phase in store.listScrolling = phase != .idle }
             .navigationTitle(favoritesOnly ? "Favorites" : "Pocket Me")
             .modifier(LibrarySearch(enabled: !articles.isEmpty, text: $search, isPresented: searchPresented(in: .grid)))
@@ -209,7 +212,7 @@ struct LibraryView: View {
                 if all.isEmpty {
                     Group {
                         if articles.isEmpty { EmptyStateView(paste: pasteOrAdd).frame(maxWidth: .infinity).padding(.top, 30) }
-                        else { Text(search.isEmpty ? "No articles here yet" : "No matching articles").font(Typo.meta).foregroundStyle(Theme.muted).padding(.top, 40) }
+                        else { Text(search.isEmpty ? "No articles here yet" : "No matching articles").font(Typo.meta).foregroundStyle(Theme.muted).frame(maxWidth: .infinity).padding(.top, 40) }
                     }.opacity(articlesShown(.list) ? 1 : 0)
                 } else {
                     if let hero {
@@ -238,6 +241,7 @@ struct LibraryView: View {
                 }
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Theme.paper).scrollIndicators(.hidden)
         .onScrollPhaseChange { _, phase in store.listScrolling = phase != .idle }
         // Follows the finger only while the card is leaving; past it the value stops changing, so reading down sends no updates.
