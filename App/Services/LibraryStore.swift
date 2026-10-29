@@ -28,6 +28,7 @@ final class LibraryStore {
     #endif
     private var opening = false
     @ObservationIgnored private var remoteChanges: Task<Void, Never>?
+    @ObservationIgnored var pendingSave: Task<Void, Never>?
 
     init(persistence: AppPersistence? = nil) { self.persistence = persistence }
 

@@ -32,7 +32,7 @@ struct PocketMeApp: App {
                     if phase == .active {
                         store.refresh()
                         Task { await store.drainInbox() }
-                    } else if phase == .background { BackgroundRefresh.schedule() }
+                    } else if phase == .background { store.persist(); BackgroundRefresh.schedule() }
                 }
         }
         #if os(macOS)

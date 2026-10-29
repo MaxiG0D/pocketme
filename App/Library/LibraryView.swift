@@ -54,12 +54,6 @@ struct LibraryView: View {
         return filtered.filter { $0.lastOpenedAt != nil && $0.readingProgress < 0.95 }
             .max { ($0.lastOpenedAt ?? .distantPast) < ($1.lastOpenedAt ?? .distantPast) }
     }
-    /// Built from one pass over the library: asking `current` per element would re-filter everything for each row.
-    private var rows: [Article] {
-        let items = filtered
-        let heroID = sizeClass == .regular ? nil : inProgress(in: items)?.id
-        return heroID == nil ? items : items.filter { $0.id != heroID }
-    }
     private let rowInsets = EdgeInsets(top: 0, leading: Theme.gutter, bottom: 0, trailing: Theme.gutter)
     @State private var openSwipe: SwipeOpen?
     private func swipeActions(for article: Article) -> [SwipeAction] {[
@@ -200,8 +194,10 @@ struct LibraryView: View {
     /// grew by hundreds of points as the last rows appeared and the end of the list popped. A lazy stack averages
     /// the rows it has measured, so the extent stays close to the truth from the first screen.
     private var list: some View {
-        let items = rows
-        let hero = sizeClass == .regular ? nil : inProgress(in: filtered)
+        // One pass over the library for everything this list needs; each `filtered` is a walk of every article.
+        let all = filtered
+        let hero = sizeClass == .regular ? nil : inProgress(in: all)
+        let items = hero == nil ? all : all.filter { $0.id != hero?.id }
         return ScrollView {
             VStack(spacing: 0) {
                 filters.standIn(away: front != .list, id: "filters", heights: listHeights)
@@ -209,7 +205,7 @@ struct LibraryView: View {
                     Text(error).font(Typo.meta).foregroundStyle(Theme.muted)
                         .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, Theme.gutter)
                 }
-                if filtered.isEmpty {
+                if all.isEmpty {
                     Group {
                         if articles.isEmpty { EmptyStateView(paste: pasteOrAdd).frame(maxWidth: .infinity).padding(.top, 30) }
                         else { Text(search.isEmpty ? "No articles here yet" : "No matching articles").font(Typo.meta).foregroundStyle(Theme.muted).padding(.top, 40) }

@@ -4,6 +4,9 @@ import SwiftUI
 /// Latest scroll position. Deliberately not observable: the page draws its own bar, so a scroll never redraws the reader.
 @MainActor final class ReadingProgress {
     var value: Double = 0
+    /// False once the reader has left the screen: the page's last messages, and any save still queued, must not
+    /// write to the store while the list the user came back to is being scrolled.
+    var active = true
 }
 
 struct ReaderView: View {
@@ -93,13 +96,13 @@ struct ReaderView: View {
         .foregroundStyle(preferences.theme.ink).background(preferences.theme.paper)
         .preferredColorScheme(preferences.theme == .dark ? .dark : preferences.theme == .light ? .light : nil)
         .sheet(isPresented: $settings) { ReaderSettingsSheet() }
-        .onAppear { open(article) }
+        .onAppear { progress.active = true; open(article) }
         // The reader stays put when another article is picked beside it, so the page can fade across.
         .onChange(of: article) { old, new in saveProgress(old, force: true); open(new) }
-        .onDisappear { saveProgress(force: true); store.setTheater(false) }
+        .onDisappear { progress.active = false; saveProgress(force: true); store.setTheater(false) }
         .onChange(of: pip.isActive) { _, floating in if floating { store.setTheater(false, reduceMotion: reduceMotion) } }
         .onChange(of: scenePhase) { _, phase in
-            if phase != .active { saveProgress(force: true) }
+            if phase != .active { saveProgress(force: true, now: true) }
         }
         #if os(macOS)
         // The window has a hidden title bar; the header shares its row with the traffic lights.
@@ -233,28 +236,33 @@ struct ReaderView: View {
         saveTask?.cancel()
         startProgress = min(max(article.readingProgress, 0), 1)
         progress.value = startProgress
-        article.lastOpenedAt = .now; store.persist()
+        article.lastOpenedAt = .now; store.persistSoon()
         if article.status == .pending { store.processor?.start() }
     }
-    private func saveProgress(_ target: Article? = nil, force: Bool = false) {
+    /// A save invalidates every query in the library, so leaving the reader never does it in the middle of the pop or
+    /// of the first flick on the list: the value is set at once (the Continue card needs it) and written a beat later,
+    /// and not at all when nothing changed.
+    private func saveProgress(_ target: Article? = nil, force: Bool = false, now: Bool = false) {
         let target = target ?? article
         guard target.modelContext != nil else { return }
         saveTask?.cancel()
-        target.readingProgress = min(max(progress.value, 0), 1)
-        store.persist()
+        let value = min(max(progress.value, 0), 1)
+        guard abs(target.readingProgress - value) > 0.004 else { return }
+        target.readingProgress = value
+        if now { store.persist() } else { store.persistSoon() }
     }
     /// Saves well after scrolling stops, so the store write and the list updates it causes never land on a scroll bounce.
     private func saveSoon() {
         saveTask?.cancel()
         saveTask = Task {
             try? await Task.sleep(for: .seconds(4))
-            guard !Task.isCancelled else { return }
-            saveProgress(force: true)
+            guard !Task.isCancelled, progress.active else { return }
+            saveProgress(force: true, now: true)
         }
     }
     private func message(_ action: String, _ value: Double?) {
         switch action {
-        case "progress": if let value, value.isFinite { progress.value = min(max(value, 0), 1); saveSoon() }
+        case "progress": if let value, value.isFinite, progress.active { progress.value = min(max(value, 0), 1); saveSoon() }
         case "archive": store.archive(article); goBack()
         case "favorite": store.favorite(article)
         case "share": if let url = URL(string: article.url) { SharePresenter.share(url) }

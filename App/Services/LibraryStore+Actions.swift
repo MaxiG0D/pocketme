@@ -80,7 +80,17 @@ extension LibraryStore {
         Task { try? await processor?.assets.delete(id) }
     }
     func persist() {
+        pendingSave?.cancel()
         do { try persistence?.container.mainContext.save() }
         catch { errorMessage = "Your changes couldn’t be saved. Please try again." }
+    }
+    /// Writes a moment later, off the transition or scroll that asked for it. A later `persist()` makes it redundant.
+    func persistSoon(after delay: Duration = .seconds(1)) {
+        pendingSave?.cancel()
+        pendingSave = Task { [weak self] in
+            try? await Task.sleep(for: delay)
+            guard !Task.isCancelled else { return }
+            self?.persist()
+        }
     }
 }
