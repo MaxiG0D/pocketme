@@ -8,6 +8,8 @@ import Observation
 final class ArticleOfflineState {
     fileprivate(set) var downloading = false
     fileprivate(set) var ready = false
+    /// Verified incomplete: the offline copy is missing and waiting for (or between) download attempts. Unchecked articles are not flagged.
+    fileprivate(set) var missing = false
 }
 
 @MainActor @Observable
@@ -44,6 +46,7 @@ final class ProcessingCoordinator {
     private func setDownloading(_ id: UUID, _ value: Bool) { if state(for: id).downloading != value { state(for: id).downloading = value } }
     private func setReady(_ id: UUID, _ value: Bool) {
         if state(for: id).ready != value { state(for: id).ready = value }
+        if value, state(for: id).missing { state(for: id).missing = false }
         if value { offlineReady.insert(id) } else { offlineReady.remove(id) }
     }
     private func commit() { if let requestSave { requestSave() } else { try? context.save() } }
@@ -114,6 +117,7 @@ final class ProcessingCoordinator {
             if article.thumbnailData == nil, thumbnailTried.insert(id).inserted { await fillThumbnail(article) }
             let snapshot = ArticleContent(article)
             if await assets.isReady(snapshot) { setReady(id, true); settled.insert(id); continue }
+            if !state(for: id).missing { state(for: id).missing = true }
             guard (assetRetry[id] ?? .distantPast) <= .now else { continue }
             setDownloading(id, true)
             do {

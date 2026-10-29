@@ -17,7 +17,7 @@ struct ArticleMetaView: View {
                     Button("Retry") { store.retry(article) }.buttonStyle(.plain).underline().foregroundStyle(Theme.ink)
                         .padding(.vertical, 12).contentShape(Rectangle()).padding(.vertical, -12)
                 }.font(Typo.meta)
-            } else if article.status == .pending || offline?.downloading == true || (offline != nil && offline?.ready != true && article.contentHTML != nil) {
+            } else if article.status == .pending || offline?.downloading == true || offline?.missing == true {
                 HStack(spacing: 5) {
                     Circle().fill(Theme.pendingDot).frame(width: 6, height: 6)
                     Text("Downloading").font(Typo.meta).foregroundStyle(Theme.pending)
