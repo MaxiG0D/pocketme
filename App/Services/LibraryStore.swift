@@ -29,6 +29,9 @@ final class LibraryStore {
     private var opening = false
     @ObservationIgnored private var remoteChanges: Task<Void, Never>?
     @ObservationIgnored var pendingSave: Task<Void, Never>?
+    @ObservationIgnored private var maintenance: Task<Void, Never>?
+    /// True while a library list or grid is being scrolled; background bookkeeping waits for it to settle.
+    @ObservationIgnored var listScrolling = false
 
     init(persistence: AppPersistence? = nil) { self.persistence = persistence }
 
@@ -45,7 +48,6 @@ final class LibraryStore {
             }
             #endif
             let opened = try await AppPersistence.open()
-            try ArticleRepository(context: opened.container.mainContext).deduplicate()
             #if DEBUG && os(macOS)
             try DeveloperImport.runIfRequested(persistence: opened)
             #endif
@@ -59,6 +61,8 @@ final class LibraryStore {
             #endif
             inboxObserver = InboxObserver { [weak self] in Task { await self?.drainInbox() } }
             await drainInbox()
+            // De-duplication and the background pass both walk every article on the main actor; they wait for the first screen.
+            scheduleMaintenance()
             remoteChanges = Task { [weak self] in
                 for await _ in NotificationCenter.default.notifications(named: .NSPersistentStoreRemoteChange).map({ _ in () }) {
                     guard !Task.isCancelled else { return }
@@ -84,14 +88,26 @@ final class LibraryStore {
     }
     func dismissToast() { toastTask?.cancel(); toast = nil }
 
-    func refresh() {
-        guard let persistence else { return }
-        do {
-            try ArticleRepository(context: persistence.container.mainContext).deduplicate()
-            errorMessage = nil
-            processor?.start()
-        } catch { errorMessage = "Some articles couldn’t be updated. Please try again." }
+    /// Merges duplicates and restarts background processing a little later, once. Called at launch, whenever the app
+    /// becomes active and on every sync notification, so doing it inline put a full pass over the library into the
+    /// first seconds of scrolling; repeated calls now coalesce.
+    func scheduleMaintenance(after delay: Duration = .seconds(2.5)) {
+        maintenance?.cancel()
+        maintenance = Task { [weak self] in
+            try? await Task.sleep(for: delay)
+            // Never in the middle of a scroll: wait for the finger and the deceleration to finish, up to half a minute.
+            var waited = 0
+            while let self, self.listScrolling, waited < 60, !Task.isCancelled { try? await Task.sleep(for: .milliseconds(500)); waited += 1 }
+            guard !Task.isCancelled, let self, let persistence = self.persistence else { return }
+            do {
+                try ArticleRepository(context: persistence.container.mainContext).deduplicate()
+                self.errorMessage = nil
+                self.processor?.start()
+            } catch { self.errorMessage = "Some articles couldn’t be updated. Please try again." }
+        }
     }
+
+    func refresh() { scheduleMaintenance(after: .seconds(1.5)) }
 }
 
 struct Toast: Identifiable {

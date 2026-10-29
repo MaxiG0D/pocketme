@@ -53,6 +53,7 @@ final class ProcessingCoordinator {
         for article in articles.reversed() {
             guard article.modelContext != nil else { continue }
             if Task.isCancelled { return }
+            await Task.yield()
             if article.status == .failed {
                 guard article.extractionAttempts <= 3,
                       await assets.retryDate(article.id, attempts: article.extractionAttempts, fallback: article.savedAt) <= .now else { continue }
@@ -63,6 +64,8 @@ final class ProcessingCoordinator {
         for article in articles.reversed() {
             guard article.modelContext != nil else { continue }
             if Task.isCancelled { return }
+            // Each pass touches the article's stored content, so let the UI run between articles.
+            await Task.yield()
             guard article.status == .ready, article.contentHTML != nil else { continue }
             if article.thumbnailData == nil { await fillThumbnail(article) }
             let snapshot = ArticleContent(article)

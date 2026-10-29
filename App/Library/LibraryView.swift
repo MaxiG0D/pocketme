@@ -175,6 +175,7 @@ struct LibraryView: View {
             }
             .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { gridWidth = $0 }
             .scrollIndicators(.hidden).background(Theme.paper)
+            .onScrollPhaseChange { _, phase in store.listScrolling = phase != .idle }
             .navigationTitle(favoritesOnly ? "Favorites" : "Pocket Me")
             .modifier(LibrarySearch(enabled: !articles.isEmpty, text: $search, isPresented: searchPresented(in: .grid)))
             .toolbar { libraryToolbar(.grid) }
@@ -238,6 +239,7 @@ struct LibraryView: View {
             }
         }
         .background(Theme.paper).scrollIndicators(.hidden)
+        .onScrollPhaseChange { _, phase in store.listScrolling = phase != .idle }
         // Follows the finger only while the card is leaving; past it the value stops changing, so reading down sends no updates.
         .onScrollGeometryChange(for: CGFloat.self) { geometry in
             let offset = geometry.contentOffset.y + geometry.contentInsets.top

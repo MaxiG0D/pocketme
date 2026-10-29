@@ -29,6 +29,7 @@ extension LibraryStore {
                 // Links saved from the web; offline or signed-out iCloud just tries again next time.
                 _ = try? await webInbox.drain(into: queue)
             }
+            var imported = 0
             while true {
               let entries = try await queue.entries()
               if entries.isEmpty { break }
@@ -36,10 +37,12 @@ extension LibraryStore {
                 try ArticleRepository(context: persistence.container.mainContext).save(url: entry.url, title: entry.title, at: entry.savedAt)
                 try await queue.acknowledge([entry.id])
                 savedToken += 1
+                imported += 1
                 show("Saved")
               }
             }
-            processor?.start()
+            // Nothing new means nothing to start; the launch pass is scheduled separately.
+            if imported > 0 { processor?.start() }
         } catch { errorMessage = "Some shared links couldn’t be saved yet. They’ll stay in your inbox to try again." }
     }
 

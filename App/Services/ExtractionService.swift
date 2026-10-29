@@ -19,19 +19,18 @@ struct ExtractedArticle: Codable, Sendable {
 @MainActor
 final class ExtractionService: NSObject, WKNavigationDelegate {
     enum ExtractionError: Error { case timedOut, noArticle, resourceMissing }
-    private let webView: WKWebView
+    /// Created on first use: starting a web view spawns WebKit processes, which a launch with nothing to extract should not pay for.
+    private lazy var webView: WKWebView = {
+        let configuration = WKWebViewConfiguration()
+        configuration.websiteDataStore = .nonPersistent()
+        let webView = WKWebView(frame: .zero, configuration: configuration)
+        webView.navigationDelegate = self
+        webView.customUserAgent = Self.userAgent
+        return webView
+    }()
     private var continuation: CheckedContinuation<ExtractedArticle, Error>?
     private var timeout: Task<Void, Never>?
     private var requestID = UUID()
-
-    override init() {
-        let configuration = WKWebViewConfiguration()
-        configuration.websiteDataStore = .nonPersistent()
-        webView = WKWebView(frame: .zero, configuration: configuration)
-        super.init()
-        webView.navigationDelegate = self
-        webView.customUserAgent = Self.userAgent
-    }
 
     private static let userAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Version/18.0 Safari/605.1.15"
     private var quickMode = false
