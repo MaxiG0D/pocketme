@@ -58,6 +58,7 @@ private struct VideoEmbedView {
         configuration.allowsInlineMediaPlayback = true
         #endif
         pip.attach(to: configuration)
+        if video.provider == .youtube { configuration.userContentController.addUserScript(VideoQuality.script) }
         let web = WKWebView(frame: .zero, configuration: configuration)
         pip.web = web
         web.navigationDelegate = context.coordinator
