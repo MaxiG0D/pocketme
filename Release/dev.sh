@@ -3,6 +3,10 @@ set -euo pipefail
 source "$(dirname "$0")/common.sh"
 APP="/Applications/PocketMe.app"
 PREFIX="$(config_value BUNDLE_ID_PREFIX)"
+# Release by default: a Debug build is unoptimized and its SwiftUI overhead makes scrolling feel worse than what ships.
+# Pass --debug to install a Debug build instead.
+CONFIG=Release
+[[ " $* " == *' --debug '* ]] && CONFIG=Debug
 install_devices() {
   [[ -n "$(config_value DEVELOPMENT_TEAM)" ]] || fail 'Set DEVELOPMENT_TEAM in Config/Local.xcconfig before device installation.'
   local device_list
@@ -24,10 +28,10 @@ PY
   local derived="${CACHE_DIR}/Device"
   step 'Building for iPhone and iPad'
   xcodebuild build -quiet -project "${PROJECT_PATH}" -scheme PocketMe \
-    -configuration Debug -destination 'generic/platform=iOS' -derivedDataPath "${derived}" \
+    -configuration ${CONFIG} -destination 'generic/platform=iOS' -derivedDataPath "${derived}" \
     -allowProvisioningUpdates -allowProvisioningDeviceRegistration
   while IFS=$'\t' read -r device_id device_name; do
-    if xcrun devicectl device install app --device "${device_id}" "${derived}/Build/Products/Debug-iphoneos/PocketMe.app"; then
+    if xcrun devicectl device install app --device "${device_id}" "${derived}/Build/Products/${CONFIG}-iphoneos/PocketMe.app"; then
       results+=("OK      ${device_name}")
       installed=$((installed + 1))
     else
@@ -46,10 +50,10 @@ install_mac() {
   if [[ -n "$(config_value DEVELOPMENT_TEAM)" ]]; then
     mac_signing=(-allowProvisioningUpdates -allowProvisioningDeviceRegistration)
   fi
-  xcodebuild build -quiet -project "${PROJECT_PATH}" -scheme PocketMe -configuration Debug \
+  xcodebuild build -quiet -project "${PROJECT_PATH}" -scheme PocketMe -configuration ${CONFIG} \
     -destination 'platform=macOS' -derivedDataPath "${CACHE_DIR}/Mac" \
     "${mac_signing[@]}"
-  staged="${CACHE_DIR}/Mac/Build/Products/Debug/PocketMe.app"
+  staged="${CACHE_DIR}/Mac/Build/Products/${CONFIG}/PocketMe.app"
   # Keep the signed CloudKit entitlement when a development team is configured.
   # Without one, the local-only app remains runnable via an ad-hoc signature.
   if [[ -z "$(config_value DEVELOPMENT_TEAM)" ]]; then
@@ -88,5 +92,5 @@ case "${1:-}" in
     [[ "${device_status}" == OK && "${mac_status}" == OK ]] || fail 'One or more installs failed. See results above.'
     ;;
   test) run_tests ;;
-  *) fail 'Use Release/dev.sh build, open [--devices], devices, or test.' ;;
+  *) fail 'Use Release/dev.sh build, open [--devices], devices, or test. Add --debug for a Debug build (default is Release).' ;;
 esac
