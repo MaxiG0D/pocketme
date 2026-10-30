@@ -26,11 +26,11 @@ The full local `Scripts/ci.sh --ui` command completed successfully for 0.1.12 (1
 
 The exported Developer ID Mac app passes strict signature verification and carries both Production iCloud and production push entitlements. The signed iOS archive also carries Production iCloud. The version/build is 0.1.12 (15).
 
-## Required follow-up
+## TestFlight delivery and remaining verification
 
-1. **TestFlight is blocked by Apple's updated Program License Agreement.** The iOS archive built, but export/upload failed with `PLA Update available` and unavailable iOS Distribution signing credentials. The account holder must review and accept the agreement in [Apple Developer Account](https://developer.apple.com/account/); an agent cannot accept it for them. No upload completed. The prepared archive is in ignored `Release Archive/TestFlight 0.1.12 (15).Geqbuz/iOS.xcarchive`.
-2. After acceptance, retry `Release/testflight.sh --version 0.1.12 --build 15 --no-tests` for this unchanged source, or re-export the prepared archive with its adjacent `ExportOptions.plist` and the existing App Store Connect API credentials. Verify distribution entitlements and Apple's upload result. Resolve any remaining distribution certificate error after account access is restored.
-3. Complete the physical-device regression: verify article text, favorite/archive changes and reading progress in each direction between Mac and iPhone/iPad. The Mac exported and rendered the temporary `Announcing Swift 6` article, but paired devices were unavailable to `devicectl` and manual device confirmation remains outstanding. Do not describe that check as passed.
+1. **TestFlight upload succeeded on 2026-10-30 after the owner accepted Apple's updated Program License Agreement.** `Release/testflight.sh --version 0.1.12 --build 15 --no-tests` completed with `Upload succeeded` and `EXPORT SUCCEEDED`. App Store Connect subsequently confirmed build processing `VALID` and internal build state `IN_BETA_TESTING`; the build is available for internal TestFlight testing. External state is `READY_FOR_BETA_SUBMISSION`; external beta review was not submitted during this work. The successful archive is in ignored `Release Archive/TestFlight 0.1.12 (15).VpJPP8/iOS.xcarchive`. Signing/export access is restored. Do not upload build 15 again; use a higher build number for a subsequent binary.
+2. The owner confirmed the local iPhone installation succeeded through the existing release applet. Earlier automated wireless attempts did not complete an installation.
+3. Complete the physical-device sync regression: verify article text, favorite/archive changes and reading progress in each direction between Mac and iPhone/iPad. The Mac exported and rendered the temporary `Announcing Swift 6` article; manual cross-device sync confirmation remains outstanding. Do not describe that check as passed.
 
 Existing personal articles and the unrelated untracked `.build-diag/` directory were left intact. Two temporary URLs with `pocketme_sync_check=20261030` were saved: the initial `/blog/swift-6-released/` URL returned 404 and was archived; the verified `/blog/announcing-swift-6/` URL extracted successfully and remains available for the manual sync check. No personal article was deleted.
 
@@ -40,6 +40,7 @@ Existing personal articles and the unrelated untracked `.build-diag/` directory 
 - `Scripts/check_sdk.sh`, iOS Simulator build and macOS build passed via `Scripts/ci.sh --ui`.
 - macOS unit tests passed: 34 tests, including parameterized cases (56 individual runs).
 - [GitHub CI for the reviewed commit](https://github.com/MaxiG0D/pocketme/actions/runs/40982312005) passed on pinned Xcode 26.6, including `Scripts/ci.sh --ui` and the release applet build.
+- [GitHub CI for release commit `afc8e3e`](https://github.com/MaxiG0D/pocketme/actions/runs/41041618271) also passed.
 - Earlier local runs stalled while Xcode collected simulator diagnostics. A process sample identified `collectSimulatorDiagnostics`, and stopping the optional `simctl diagnose` child let one run finalize successfully. The final 0.1.12 run completed normally, superseding the earlier interrupted attempts. Xcode 27.1's `invalidDigitCount` simulator warnings remain nonfatal.
 
 Apple documents the environment entitlement [here](https://developer.apple.com/documentation/bundleresources/entitlements/com.apple.developer.icloud-container-environment) and schema deployment [here](https://developer.apple.com/documentation/cloudkit/deploying-an-icloud-container-s-schema).
