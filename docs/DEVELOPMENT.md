@@ -27,6 +27,10 @@ Before installing on a device, the owner must:
 
 Platform-specific entitlements configure CloudKit, push notifications and the shared App Group for the apps. Extensions have only the App Group (plus sandbox/network access on Mac); they will never write directly to CloudKit.
 
+Debug builds use the Development CloudKit database. Release builds, including local installs from `Release/dev.sh`, use Production to match Sparkle and TestFlight. Verify `com.apple.developer.icloud-container-environment` in the signed app with `codesign -d --entitlements - <app-path>`; a successful unsigned build cannot verify live sync.
+
+Production must contain the complete Development schema, including the asset fields SwiftData creates for externally stored article content and thumbnails. In CloudKit Console, select `iCloud.com.maxigariepy.pocketme`, review the Development schema changes, then deploy them to Production before shipping. An export error such as `Cannot create or modify field 'CD_contentHTML_ckAsset' in record 'CD_Article' in production schema` requires deploying the schema; changing app entitlements alone cannot fix it. Do not reset a database or delete the local store to work around this error. See [the Production sync review](qa/icloud-production/README.md) for deployment evidence and remaining manual checks.
+
 ## Build and test
 
 ```sh

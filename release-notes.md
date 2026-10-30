@@ -1,3 +1,9 @@
+# 0.1.12
+
+- Fixed iCloud sync between local installs, TestFlight and the Mac app by using the same Production library.
+- Smoother library scrolling, layout changes and reader transitions, with quieter background downloads.
+- Added library grid view and improved video theater mode, Picture in Picture and playback quality.
+
 # 0.1.10
 
 - The Safari button now pops a small “Saved!” confirmation under the icon.
