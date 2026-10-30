@@ -6,6 +6,9 @@ APP_GROUP_IDENTIFIER = group.$(BUNDLE_ID_PREFIX)
 INBOX_GROUP_IDENTIFIER = $(APP_GROUP_IDENTIFIER)
 INBOX_GROUP_IDENTIFIER[sdk=macosx*] = $(TeamIdentifierPrefix)$(APP_GROUP_IDENTIFIER)
 ICLOUD_CONTAINER_IDENTIFIER = iCloud.$(BUNDLE_ID_PREFIX)
+// Locally signed Release builds use CloudKit Production, like Sparkle and TestFlight builds, so every install shares one library. Debug stays on Development.
+ICLOUD_CONTAINER_ENVIRONMENT = Development
+ICLOUD_CONTAINER_ENVIRONMENT[config=Release] = Production
 SWIFT_VERSION = 6.0
 SWIFT_STRICT_CONCURRENCY = complete
 IPHONEOS_DEPLOYMENT_TARGET = 18.0
