@@ -150,7 +150,7 @@ struct ReaderView: View {
             backButton
             Spacer()
             if isMac { Text(article.title).font(Typo.sans(13).weight(.semibold)).foregroundStyle(Theme.muted).lineLimit(1); Spacer() }
-            if video == nil { Button { settings = true } label: { Text("Aa").font(Typo.serif(17)) }.buttonStyle(CircleIconButtonStyle()).accessibilityLabel("Reader settings") }
+            if video == nil { Button { settings = true } label: { Image(systemName: "textformat.size") }.buttonStyle(CircleIconButtonStyle()).accessibilityLabel("Reader settings") }
             else {
                 if canFloat { Button(action: enterPiP) { Image(systemName: "pip.enter") }.buttonStyle(CircleIconButtonStyle()).accessibilityLabel("Picture in Picture").help("Picture in Picture") }
                 Button(action: enterTheater) { Image(systemName: "popcorn") }.buttonStyle(CircleIconButtonStyle()).accessibilityLabel("Theater mode").help("Theater mode (T)").keyboardShortcut("t", modifiers: [])
