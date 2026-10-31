@@ -1,4 +1,5 @@
 import Foundation
+import ImageIO
 import LinkPresentation
 import Observation
 import UniformTypeIdentifiers
@@ -28,7 +29,7 @@ final class ShareFlow {
             title = Self.hostTitle(from: context) ?? site
             hasHostTitle = title != site
             fetchMetadata(link)
-            fetchQuickTitle(link)
+            fetchQuickPage(link)
             let queue = try SaveQueue()
             try await queue.append(url: link.absoluteString, title: hasHostTitle ? title : nil)
             saved = true
@@ -56,16 +57,20 @@ final class ShareFlow {
             let imageProvider = metadata?.imageProvider
             if let imageProvider {
                 imageProvider.loadDataRepresentation(forTypeIdentifier: UTType.image.identifier) { data, _ in
-                    Task { @MainActor in self?.thumbnail = data }
+                    let small = data.flatMap { Self.downsample($0) }
+                    Task { @MainActor in if self?.thumbnail == nil { self?.thumbnail = small } }
                 }
             }
             Task { @MainActor in if let title, !title.isEmpty, self?.hasHostTitle == false, self?.errorMessage == nil { self?.title = title; self?.hasFetchedTitle = true } }
         }
     }
 
-    /// A plain request for the first part of the page, which shows the title long before LinkPresentation finishes.
-    private func fetchQuickTitle(_ url: URL) {
-        guard !hasHostTitle else { return }
+    /// A plain request for the first part of the page: the title shows long before LinkPresentation finishes, and so can the image.
+    private func fetchQuickPage(_ url: URL) {
+        if let video = VideoLink(url.absoluteString), video.provider == .youtube,
+           let poster = URL(string: "https://i.ytimg.com/vi/\(video.id)/mqdefault.jpg") {
+            fetchThumbnail(poster)
+        }
         Task { [weak self] in
             var request = URLRequest(url: url, timeoutInterval: 4)
             request.setValue("bytes=0-65535", forHTTPHeaderField: "Range")
@@ -74,9 +79,45 @@ final class ShareFlow {
                   let http = response as? HTTPURLResponse, http.statusCode == 200 || http.statusCode == 206,
                   http.mimeType == "text/html" else { return }
             let html = Self.decodeHTML(data.prefix(65536), charset: http.textEncodingName)
-            guard let found = Self.pageTitle(in: html), let self, !self.hasHostTitle, !self.hasFetchedTitle, self.errorMessage == nil else { return }
-            self.title = found
+            guard let self, self.errorMessage == nil else { return }
+            if let found = Self.pageTitle(in: html), !self.hasHostTitle, !self.hasFetchedTitle { self.title = found }
+            if self.thumbnail == nil, let image = Self.pageImage(in: html, base: http.url ?? url) { self.fetchThumbnail(image) }
         }
+    }
+
+    private func fetchThumbnail(_ imageURL: URL) {
+        guard imageURL.scheme == "https" || imageURL.scheme == "http" else { return }
+        Task { [weak self] in
+            let request = URLRequest(url: imageURL, timeoutInterval: 4)
+            guard let (data, response) = try? await URLSession.shared.data(for: request),
+                  (response as? HTTPURLResponse)?.statusCode == 200, data.count < 4_000_000,
+                  let small = Self.downsample(data), let self, self.thumbnail == nil else { return }
+            self.thumbnail = small
+        }
+    }
+
+    /// A small JPEG: the bar shows at most 84pt, and the extension has little memory.
+    nonisolated static func downsample(_ data: Data, maxPixel: Int = 252) -> Data? {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
+              let image = CGImageSourceCreateThumbnailAtIndex(source, 0, [
+                kCGImageSourceCreateThumbnailFromImageAlways: true, kCGImageSourceCreateThumbnailWithTransform: true,
+                kCGImageSourceThumbnailMaxPixelSize: maxPixel] as CFDictionary) else { return nil }
+        let output = NSMutableData()
+        guard let destination = CGImageDestinationCreateWithData(output, UTType.jpeg.identifier as CFString, 1, nil) else { return nil }
+        CGImageDestinationAddImage(destination, image, [kCGImageDestinationLossyCompressionQuality: 0.8] as CFDictionary)
+        return CGImageDestinationFinalize(destination) ? output as Data : nil
+    }
+
+    nonisolated static func pageImage(in html: String, base: URL) -> URL? {
+        for (pattern, group) in [("<meta[^>]+(?:property|name)=([\"'])(?:og:image|twitter:image)(?::src)?\\1[^>]+content=([\"'])(.*?)\\2", 3),
+                                 ("<meta[^>]+content=([\"'])(.*?)\\1[^>]+(?:property|name)=([\"'])(?:og:image|twitter:image)(?::src)?\\3", 2)] {
+            guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive, .dotMatchesLineSeparators]),
+                  let match = regex.firstMatch(in: html, range: NSRange(html.startIndex..., in: html)),
+                  let range = Range(match.range(at: group), in: html) else { continue }
+            let raw = decodeEntities(String(html[range])).trimmingCharacters(in: .whitespacesAndNewlines)
+            if !raw.isEmpty, let url = URL(string: raw, relativeTo: base)?.absoluteURL { return url }
+        }
+        return nil
     }
 
     /// Uses the page's declared charset; otherwise lossy UTF-8, so a cut in the middle of a character never turns into Latin-1 garble.

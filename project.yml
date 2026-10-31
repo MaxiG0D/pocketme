@@ -59,6 +59,7 @@ targets:
       - {path: Shared/Services/SaveQueue.swift}
       - {path: Shared/Model/AppIdentity.swift}
       - {path: Shared/Util/URLNormalizer.swift}
+      - {path: Shared/Util/VideoLink.swift}
       - {path: Shared/Share}
     settings:
       base:
@@ -78,6 +79,7 @@ targets:
       - {path: Shared/Services/SaveQueue.swift}
       - {path: Shared/Model/AppIdentity.swift}
       - {path: Shared/Util/URLNormalizer.swift}
+      - {path: Shared/Util/VideoLink.swift}
       - {path: Shared/Share}
     settings:
       base:

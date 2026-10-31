@@ -91,7 +91,9 @@ struct SavedSheetView: View {
         #endif
     }
 
-    @ViewBuilder private var thumbnail: some View {
+    private var thumbnail: some View { thumbnailImage.animation(.easeInOut(duration: 0.2), value: flow.thumbnail) }
+
+    @ViewBuilder private var thumbnailImage: some View {
         #if os(iOS)
         if let data = flow.thumbnail, let image = UIImage(data: data) {
             Image(uiImage: image).resizable().aspectRatio(contentMode: .fill)
