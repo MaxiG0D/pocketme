@@ -91,17 +91,23 @@ struct SavedSheetView: View {
         #endif
     }
 
-    private var thumbnail: some View { thumbnailImage.animation(.easeInOut(duration: 0.2), value: flow.thumbnail) }
+    /// The generated cover stays underneath, so the photo fades in over it instead of replacing it.
+    private var thumbnail: some View {
+        ZStack {
+            GeneratedCoverView(siteName: flow.site)
+            if let image = loadedImage {
+                image.resizable().aspectRatio(contentMode: .fill).transition(.opacity)
+            }
+        }
+        .animation(.easeInOut(duration: 0.3), value: flow.thumbnail)
+    }
 
-    @ViewBuilder private var thumbnailImage: some View {
+    private var loadedImage: Image? {
+        guard let data = flow.thumbnail else { return nil }
         #if os(iOS)
-        if let data = flow.thumbnail, let image = UIImage(data: data) {
-            Image(uiImage: image).resizable().aspectRatio(contentMode: .fill)
-        } else { GeneratedCoverView(siteName: flow.site) }
+        return UIImage(data: data).map { Image(uiImage: $0) }
         #else
-        if let data = flow.thumbnail, let image = NSImage(data: data) {
-            Image(nsImage: image).resizable().aspectRatio(contentMode: .fill)
-        } else { GeneratedCoverView(siteName: flow.site) }
+        return NSImage(data: data).map { Image(nsImage: $0) }
         #endif
     }
 }
