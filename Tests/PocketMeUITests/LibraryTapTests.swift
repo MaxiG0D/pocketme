@@ -95,7 +95,7 @@ final class LibraryTapTests: XCTestCase {
         // Narrow bars fold the overflow into the system's More menu.
         if !delete.waitForExistence(timeout: 5) { app.buttons["More"].firstMatch.tap() }
         delete.tap()
-        XCTAssertTrue(app.staticTexts["Delete this article?"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Delete this article?"].waitForExistence(timeout: 5), "Hierarchy: \(app.debugDescription)")
         // The dialog's button is drawn above the toolbar's, which stays in the tree behind it.
         app.buttons.matching(identifier: "Delete").allElementsBoundByIndex.last!.tap()
         XCTAssertTrue(app.buttons["Reader settings"].waitForNonExistence(timeout: 5))
@@ -125,7 +125,7 @@ final class LibraryTapTests: XCTestCase {
         }
         app.staticTexts[title].firstMatch.tap()
         XCTAssertTrue(app.staticTexts[title].firstMatch.waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["Reader settings"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Reader settings"].waitForExistence(timeout: 5), "Hierarchy: \(app.debugDescription)")
     }
 
     func testSwipeRevealsButtonAndRowStillOpens() {

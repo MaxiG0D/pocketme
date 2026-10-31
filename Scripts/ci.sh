@@ -23,7 +23,12 @@ build build -destination 'platform=macOS'
 build test -destination 'platform=macOS' -skip-testing:PocketMeUITests
 if [[ "${1:-}" == --ui ]]; then
   sim="$(xcrun simctl list devices available | sed -nE 's/^ *(iPhone [^(]*[^ (]) \(.*/\1/p' | head -1)"
-  build test -destination "platform=iOS Simulator,name=${sim}" -only-testing:PocketMeUITests
+  # Not -quiet: on failure GitHub's log must show which assertion failed (and the hierarchy), not only the test's name.
+  log="${build_dir}/ui-tests.log"
+  xcodebuild test -project "${project}" -scheme PocketMe -derivedDataPath "${build_dir}/Derived" CODE_SIGNING_ALLOWED=NO \
+    -destination "platform=iOS Simulator,name=${sim}" -only-testing:PocketMeUITests > "${log}" 2>&1 || {
+    grep -A60 -E 'error: -\[|error:.*XCT|Test Case .* failed' "${log}" | cut -c1-600 | head -400; tail -30 "${log}"; exit 65
+  }
 fi
 # Lets the pre-push hook skip a second run for a commit that already passed.
 git diff --quiet HEAD && git rev-parse 'HEAD^{tree}' > "$(git rev-parse --git-dir)/ci-passed" || true
