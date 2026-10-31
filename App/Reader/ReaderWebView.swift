@@ -11,6 +11,8 @@ struct ReaderWebView {
     let saveLink: @MainActor (URL) -> Void
 
     let reduceMotion: Bool
+    /// Told once a page has appeared, so the reader can stop showing its stand-in.
+    var onRevealed: @MainActor () -> Void = {}
 
     @MainActor func makeWebView(coordinator: Coordinator) -> WKWebView {
         let configuration = WKWebViewConfiguration()
@@ -81,6 +83,10 @@ struct ReaderWebView {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self, weak web] in
                 if let web { self?.reveal(web) }
             }
+            // The stand-in stays until the page says it is on screen; a page that never says so (an original site) lets it go early,
+            // and nothing keeps it for long.
+            let original = parent.fileURL == nil && parent.article.contentHTML == nil
+            DispatchQueue.main.asyncAfter(deadline: .now() + (original ? 1 : 5)) { [weak self] in self?.parent.onRevealed() }
         }
         private func reveal(_ web: WKWebView) {
             guard web === incoming else { return }
@@ -140,7 +146,7 @@ struct ReaderWebView {
                   let body = message.body as? [String: Any], let action = body["action"] as? String else { return }
             switch action {
             case "ready": sentNextKey = nil; configure(web, force: true)
-            case "shown": reveal(web)
+            case "shown": reveal(web); parent.onRevealed()
             default: if web === current { parent.onMessage(action, body["value"] as? Double) }
             }
         }

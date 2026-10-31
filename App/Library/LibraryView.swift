@@ -30,6 +30,8 @@ struct LibraryView: View {
     /// in that empty moment, then the new articles fade in, so the two never show through each other.
     @State private var front: LibraryLayout
     @State private var articlesHidden = false
+    /// Side by side the reader pane and its toolbar fade with the articles when the layout changes, instead of vanishing at once.
+    @State private var readerFade: Double = 1
     @State private var listHeights = RowHeights()
     /// Side by side, the sidebar's header (bar and filters) stays on screen in both layouts and the grid starts below it, as on the Mac.
     @State private var headerBottom: CGFloat = 0
@@ -126,17 +128,22 @@ struct LibraryView: View {
             if new == .detailOnly && sideBySide && !store.theater && columnsBeforeTheater == nil { columns = .doubleColumn }
         }
         .onChange(of: layout) { _, new in
-            withAnimation(.easeIn(duration: 0.12)) { articlesHidden = true } completion: {
+            let paneFades = sizeClass == .regular
+            // Side by side the reader pane fades out with the articles and unmounts once hidden, so no reader (or playing video)
+            // stays open behind the grid; coming back, it mounts hidden and fades in with the articles.
+            if paneFades {
+                if new == .grid { parkedSelection = selection } else { selection = parkedSelection }
+            }
+            withAnimation(.easeIn(duration: 0.12)) { articlesHidden = true; if paneFades { readerFade = 0 } } completion: {
                 front = layout
-                withAnimation(.easeOut(duration: 0.22)) { articlesHidden = false }
+                if paneFades && layout == .grid { selection = nil }
+                withAnimation(.easeOut(duration: 0.22)) { articlesHidden = false; if paneFades && layout == .list { readerFade = 1 } }
             }
             gridOpen = nil
-            // Side by side, the hidden list must not keep a reader (or a playing video) open behind the grid.
-            if sizeClass == .regular {
-                if new == .grid { parkedSelection = selection; selection = nil } else { selection = parkedSelection }
-            }
             ensureSelection()
         }
+        // The fade only exists side by side; anywhere else, and in the list, the reader is fully shown.
+        .onChange(of: sizeClass) { _, _ in if sizeClass != .regular || layout == .list && front == .list { readerFade = 1 } }
         .tint(Theme.icon)
         .sheet(isPresented: $addLink) { AddLinkSheet() }
         .confirmationDialog("Delete this article?", isPresented: Binding(get: { toDelete != nil }, set: { if !$0 { toDelete = nil } }), titleVisibility: .visible) {
@@ -384,6 +391,9 @@ struct LibraryView: View {
     @ViewBuilder private var detail: some View {
         if let selection, let article = articles.first(where: { $0.id == selection }) {
             ReaderView(article: article, close: { self.selection = nil })
+                .opacity(sideBySide ? readerFade : 1)
+                .environment(\.readerChromeOpacity, sideBySide ? readerFade : 1)
+                .background(Theme.paper.ignoresSafeArea())
         } else {
             Theme.paper.ignoresSafeArea()
         }

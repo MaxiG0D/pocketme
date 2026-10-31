@@ -15,6 +15,7 @@ struct ReaderView: View {
     @Environment(\.openURL) private var openURL
     @Environment(\.dismiss) private var dismiss
     @Environment(\.horizontalSizeClass) private var sizeClass
+    @Environment(\.readerChromeOpacity) private var chromeOpacity
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Query(sort: \Article.savedAt, order: .reverse) private var articles: [Article]
@@ -31,6 +32,8 @@ struct ReaderView: View {
     @State private var settings = false
     @State private var confirmDelete = false
     @State private var videoPlaying = false
+    /// A fresh reader (a cover or a push from the grid) has no page to keep on screen while the first one loads, so it shows the title meanwhile.
+    @State private var pageShown = false
     @State private var pip = VideoPiP()
     private var video: VideoLink? { VideoLink(article.url) }
     private var theater: Bool { store.theater && video != nil }
@@ -90,7 +93,11 @@ struct ReaderView: View {
                 }
                 if let video { videoPage(video) } else {
                     ReaderWebView(article: article, fileURL: fileURL, configurationJSON: config, next: next, onMessage: message,
-                                  openLink: { openURL($0) }, saveLink: { _ = store.saveLink($0.absoluteString) }, reduceMotion: reduceMotion)
+                                  openLink: { openURL($0) }, saveLink: { _ = store.saveLink($0.absoluteString) }, reduceMotion: reduceMotion,
+                                  onRevealed: { withAnimation(.easeOut(duration: 0.2)) { pageShown = true } })
+                        #if os(iOS)
+                        .overlay(alignment: .top) { loadingStandIn }
+                        #endif
                 }
             }
         }
@@ -119,23 +126,7 @@ struct ReaderView: View {
         .toolbarBackground(preferences.theme.paper, for: .navigationBar)
         // Softened so the bar glyphs sit gently on every reader paper.
         .tint(preferences.theme.ink.opacity(0.6))
-        .toolbar {
-            ToolbarItemGroup(placement: .topBarTrailing) {
-                // Articles lead with Share and end with the reader settings; a video has no settings, so Share stays last.
-                if video == nil, let url = URL(string: article.url) { ShareLink(item: url) { Label("Share", systemImage: "square.and.arrow.up") } }
-                if video != nil {
-                    if canFloat { Button("Picture in Picture", systemImage: "pip.enter", action: enterPiP) }
-                    Button("Theater mode", systemImage: "popcorn", action: enterTheater)
-                }
-                Button(article.archivedAt == nil ? "Archive" : "Unarchive", systemImage: article.archivedAt == nil ? "archivebox" : "tray.and.arrow.up", action: archiveArticle)
-                if let url = URL(string: article.url) {
-                    Button("Open in Browser", systemImage: "safari") { openURL(url) }.keyboardShortcut("o", modifiers: [])
-                    if video != nil { ShareLink(item: url) { Label("Share", systemImage: "square.and.arrow.up") } }
-                }
-                if video == nil { Button("Reader settings", systemImage: "textformat.size") { settings = true } }
-                Button("Delete", systemImage: "trash", role: .destructive) { confirmDelete = true }
-            }
-        }
+        .toolbar { trailingToolbar }
         .toolbar(theater && sizeClass != .regular ? .hidden : .automatic, for: .navigationBar)
         .toolbar(theater && sizeClass != .regular ? .hidden : .automatic, for: .tabBar)
         // On a wide screen these leave the bars a little low when the lights return, and the status bar stays there anyway.
@@ -307,3 +298,70 @@ struct ReaderView: View {
 #Preview("Light") { PreviewHost { store, articles in if let a = articles.first { ReaderView(article: a).frame(width: 390, height: 844) } }.preferredColorScheme(.light) }
 #Preview("Dark") { PreviewHost { store, articles in if let a = articles.first { ReaderView(article: a).frame(width: 390, height: 844) } }.preferredColorScheme(.dark) }
 #endif
+
+#if os(iOS)
+extension ReaderView {
+    /// Side by side the library fades the whole group with the articles, so the capsule is drawn here rather than by the system
+    /// glass, which cannot fade and would pop in and out around the buttons.
+    @ToolbarContentBuilder fileprivate var trailingToolbar: some ToolbarContent {
+        // `sharedBackgroundVisibility` only exists in the Swift 6.2 (Xcode 26) SDKs; CI's pinned Xcode 16.4 must not see it.
+        #if compiler(>=6.2)
+        if #available(iOS 26, *), sizeClass == .regular {
+            ToolbarItemGroup(placement: .topBarTrailing) { fadingButtons }.sharedBackgroundVisibility(.hidden)
+        } else {
+            ToolbarItemGroup(placement: .topBarTrailing) { trailingButtons }
+        }
+        #else
+        ToolbarItemGroup(placement: .topBarTrailing) { trailingButtons }
+        #endif
+    }
+
+    private var fadingButtons: some View {
+        HStack(spacing: 4) { trailingButtons }
+            .padding(.horizontal, 8).frame(height: 44)
+            .background(preferences.theme.paper, in: Capsule()).overlay(Capsule().strokeBorder(Theme.hairline))
+            .opacity(chromeOpacity)
+    }
+
+    @ViewBuilder fileprivate var trailingButtons: some View {
+        // Articles lead with Share and end with the reader settings; a video has no settings, so Share stays last.
+        if video == nil, let url = URL(string: article.url) { ShareLink(item: url) { Label("Share", systemImage: "square.and.arrow.up") } }
+        if video != nil {
+            if canFloat { Button("Picture in Picture", systemImage: "pip.enter", action: enterPiP) }
+            Button("Theater mode", systemImage: "popcorn", action: enterTheater)
+        }
+        Button(article.archivedAt == nil ? "Archive" : "Unarchive", systemImage: article.archivedAt == nil ? "archivebox" : "tray.and.arrow.up", action: archiveArticle)
+        if let url = URL(string: article.url) {
+            Button("Open in Browser", systemImage: "safari") { openURL(url) }.keyboardShortcut("o", modifiers: [])
+            if video != nil { ShareLink(item: url) { Label("Share", systemImage: "square.and.arrow.up") } }
+        }
+        if video == nil { Button("Reader settings", systemImage: "textformat.size") { settings = true } }
+        Button("Delete", systemImage: "trash", role: .destructive) { confirmDelete = true }
+    }
+}
+#endif
+
+#if os(iOS)
+extension ReaderView {
+    /// The title, site and length on the reader paper, so a card opens onto something at once; it fades out under the page.
+    fileprivate var loadingStandIn: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(article.siteName.uppercased()).font(Typo.meta).tracking(0.6).foregroundStyle(preferences.theme.ink.opacity(0.55))
+            Text(article.title).font(Typo.sheetTitle).foregroundStyle(preferences.theme.ink)
+            Text("\(article.readingMinutes) min").font(Typo.meta).foregroundStyle(preferences.theme.ink.opacity(0.55))
+        }
+        .frame(maxWidth: 640, alignment: .leading).padding(.horizontal, 28).padding(.top, 56)
+        .frame(maxWidth: .infinity, alignment: .top)
+        .opacity(pageShown ? 0 : 1).allowsHitTesting(false).accessibilityHidden(true)
+    }
+}
+#endif
+
+/// How visible the reader's toolbar is; the library fades it with the articles when it swaps list and grid side by side.
+private struct ReaderChromeOpacityKey: EnvironmentKey { static let defaultValue: Double = 1 }
+extension EnvironmentValues {
+    var readerChromeOpacity: Double {
+        get { self[ReaderChromeOpacityKey.self] }
+        set { self[ReaderChromeOpacityKey.self] = newValue }
+    }
+}
