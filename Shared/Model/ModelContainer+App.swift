@@ -15,8 +15,9 @@ struct AppPersistence {
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         let storeURL = root.appending(path: "Library.store")
         let schema = Schema([Article.self])
+        // The identity token is a local check; awaiting CKContainer.accountStatus() cost a network round trip on every launch.
         if AppIdentity.canUseCloudKit, let cloudID = AppIdentity.cloudIdentifier,
-           (try? await CKContainer(identifier: cloudID).accountStatus()) == .available {
+           FileManager.default.ubiquityIdentityToken != nil {
             let configuration = ModelConfiguration("Library", schema: schema, url: storeURL, cloudKitDatabase: .private(cloudID))
             if let container = try? ModelContainer(for: schema, configurations: [configuration]) {
                 return AppPersistence(container: container, mode: .cloud)

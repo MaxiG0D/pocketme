@@ -2,7 +2,7 @@ import SwiftUI
 
 @main
 struct PocketMeApp: App {
-    @State private var store = LibraryStore()
+    @State private var store: LibraryStore
     @Environment(\.scenePhase) private var scenePhase
     #if os(macOS)
     @State private var updater = AppUpdater()
