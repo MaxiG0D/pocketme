@@ -29,6 +29,7 @@ struct ReaderView: View {
     @State private var startProgress: Double = 0
     @State private var saveTask: Task<Void, Never>?
     @State private var settings = false
+    @State private var confirmDelete = false
     @State private var videoPlaying = false
     @State private var pip = VideoPiP()
     private var video: VideoLink? { VideoLink(article.url) }
@@ -76,7 +77,7 @@ struct ReaderView: View {
                     Text(article.title).font(Typo.sheetTitle)
                     Text("This link opens in your browser.").font(Typo.meta).foregroundStyle(Theme.muted)
                     originalButton
-                    Button(article.archivedAt == nil ? "Archive" : "Unarchive") { store.archive(article); goBack() }.buttonStyle(SecondaryButtonStyle()).frame(maxWidth: 300)
+                    Button(article.archivedAt == nil ? "Archive" : "Unarchive", action: archiveArticle).buttonStyle(SecondaryButtonStyle()).frame(maxWidth: 300)
                 }.padding(32).frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 if article.status == .failed && video == nil {
@@ -101,6 +102,10 @@ struct ReaderView: View {
         .onChange(of: article) { old, new in saveProgress(old, force: true); open(new) }
         .onDisappear { progress.active = false; saveProgress(force: true); store.setTheater(false) }
         .onChange(of: pip.isActive) { _, floating in if floating { store.setTheater(false, reduceMotion: reduceMotion) } }
+        .confirmationDialog("Delete this article?", isPresented: $confirmDelete, titleVisibility: .visible) {
+            Button("Delete", role: .destructive, action: deleteArticle)
+            Button("Cancel", role: .cancel) {}
+        }
         .onChange(of: scenePhase) { _, phase in
             if phase != .active { saveProgress(force: true, now: true) }
         }
@@ -121,9 +126,13 @@ struct ReaderView: View {
                     if canFloat { Button("Picture in Picture", systemImage: "pip.enter", action: enterPiP) }
                     Button("Theater mode", systemImage: "popcorn", action: enterTheater)
                 }
+                Button(article.archivedAt == nil ? "Archive" : "Unarchive", systemImage: article.archivedAt == nil ? "archivebox" : "tray.and.arrow.up", action: archiveArticle)
                 if let url = URL(string: article.url) {
                     Button("Open in Browser", systemImage: "safari") { openURL(url) }.keyboardShortcut("o", modifiers: [])
                     ShareLink(item: url) { Label("Share", systemImage: "square.and.arrow.up") }
+                }
+                Menu("More", systemImage: "ellipsis") {
+                    Button("Delete", systemImage: "trash", role: .destructive) { confirmDelete = true }
                 }
             }
         }
@@ -147,6 +156,10 @@ struct ReaderView: View {
                 Button(action: enterTheater) { Image(systemName: "popcorn") }.buttonStyle(CircleIconButtonStyle()).accessibilityLabel("Theater mode").help("Theater mode (T)").keyboardShortcut("t", modifiers: [])
             }
             if isMac { Button { store.favorite(article) } label: { Image(systemName: article.isFavorite ? "bookmark.fill" : "bookmark") }.buttonStyle(CircleIconButtonStyle()).accessibilityLabel("Toggle favorite") }
+            if isMac {
+                Button(action: archiveArticle) { Image(systemName: article.archivedAt == nil ? "archivebox" : "tray.and.arrow.up") }.buttonStyle(CircleIconButtonStyle()).accessibilityLabel(article.archivedAt == nil ? "Archive" : "Unarchive").help(article.archivedAt == nil ? "Archive" : "Unarchive")
+                Button { confirmDelete = true } label: { Image(systemName: "trash") }.buttonStyle(CircleIconButtonStyle()).accessibilityLabel("Delete").help("Delete")
+            }
             if let url = URL(string: article.url) {
                 Button { openURL(url) } label: { Image(systemName: "safari") }.buttonStyle(CircleIconButtonStyle()).accessibilityLabel("Open in Browser").keyboardShortcut("o", modifiers: [])
                 ShareLink(item: url) { Image(systemName: "square.and.arrow.up") }.buttonStyle(CircleIconButtonStyle()).accessibilityLabel("Share article")
@@ -229,6 +242,17 @@ struct ReaderView: View {
         saveProgress(force: true)
         if let close { close() } else if !besideList { dismiss() }
     }
+    private func archiveArticle() { store.archive(article); goBack() }
+    private func deleteArticle() {
+        let target = article
+        goBack()
+        #if os(iOS)
+        // Deleting under the pop would pull the article out from the screen that is still leaving.
+        Task { try? await Task.sleep(for: .milliseconds(450)); store.delete(target) }
+        #else
+        store.delete(target)
+        #endif
+    }
     private func open(_ article: Article) {
         videoPlaying = false
         pip.reset()
@@ -263,7 +287,7 @@ struct ReaderView: View {
     private func message(_ action: String, _ value: Double?) {
         switch action {
         case "progress": if let value, value.isFinite, progress.active { progress.value = min(max(value, 0), 1); saveSoon() }
-        case "archive": store.archive(article); goBack()
+        case "archive": archiveArticle()
         case "favorite": store.favorite(article)
         case "share": if let url = URL(string: article.url) { SharePresenter.share(url) }
         case "next": if let next { saveProgress(force: true); store.requestedArticleID = next.id }

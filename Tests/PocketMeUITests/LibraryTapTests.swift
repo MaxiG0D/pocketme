@@ -76,6 +76,31 @@ final class LibraryTapTests: XCTestCase {
         XCTAssertTrue(app.buttons["Reader settings"].waitForExistence(timeout: 5))
     }
 
+    func testArchiveFromReaderReturnsToList() {
+        let row = app.staticTexts[title].firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 10))
+        row.tap()
+        let archive = app.buttons["Archive"].firstMatch
+        XCTAssertTrue(archive.waitForExistence(timeout: 5))
+        archive.tap()
+        XCTAssertTrue(app.buttons["Reader settings"].waitForNonExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts[title].firstMatch.waitForNonExistence(timeout: 5))
+    }
+
+    func testDeleteFromReaderAsksFirst() {
+        let row = app.staticTexts[title].firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 10))
+        row.tap()
+        let more = app.buttons["More"].firstMatch
+        XCTAssertTrue(more.waitForExistence(timeout: 5))
+        more.tap()
+        app.buttons["Delete"].firstMatch.tap()
+        XCTAssertTrue(app.staticTexts["Delete this article?"].waitForExistence(timeout: 5))
+        app.buttons["Delete"].firstMatch.tap()
+        XCTAssertTrue(app.buttons["Reader settings"].waitForNonExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts[title].firstMatch.waitForNonExistence(timeout: 5))
+    }
+
     func testTheaterOnPlaySettingIsOffByDefault() {
         app.tabBars.buttons["Settings"].tap()
         let toggle = app.descendants(matching: .any)["Theater mode on play"].firstMatch
