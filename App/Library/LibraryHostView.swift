@@ -23,6 +23,10 @@ struct LibraryHostView: View {
         // Theater mode dims this too, so the strip under the status bar goes dark with everything else.
         .background { (store.theater ? Theater.shade : Theme.paper).ignoresSafeArea() }
         .environment(store).environment(store.readerPreferences)
+        .overlay {
+            if store.openingLink { Theme.paper.ignoresSafeArea().transition(.opacity) }
+        }
+        .animation(.easeOut(duration: 0.15), value: store.openingLink)
         #if os(macOS)
         .frame(minWidth: 900, minHeight: 600)
         #endif

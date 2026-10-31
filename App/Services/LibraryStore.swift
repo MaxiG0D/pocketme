@@ -13,6 +13,8 @@ final class LibraryStore {
     var findToken = 0
     var processor: ProcessingCoordinator?
     var requestedArticleID: UUID?
+    /// A link from the share sheet is on its way to the reader; a veil hides the library meanwhile.
+    var openingLink = false
     /// Set from the View menu; the library applies it with its own animation.
     var requestedLayout: LibraryLayout?
     var savedToken = 0

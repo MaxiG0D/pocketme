@@ -52,11 +52,15 @@ extension LibraryStore {
         if url.host == "save", let queue = try? SaveQueue(directory: AppIdentity.inboxURL) {
             try? await queue.append(url: raw)
         }
+        openingLink = true
         await drainInbox()
         if let normalized = try? URLNormalizer.normalize(raw), let context = persistence?.container.mainContext,
            let article = try? context.fetch(FetchDescriptor<Article>(predicate: #Predicate { $0.normalizedURL == normalized })).first {
             requestedArticleID = article.id
+            // The reader finishes opening under the veil, then the veil lifts straight onto it.
+            try? await Task.sleep(for: .milliseconds(450))
         }
+        openingLink = false
     }
 
     func archive(_ article: Article) {
