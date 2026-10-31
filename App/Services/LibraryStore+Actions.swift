@@ -79,12 +79,19 @@ extension LibraryStore {
         openingLink = true
         linkInFlight = true
         AppIdentity.openRequest?.removeObject(forKey: AppIdentity.openRequestKey)
-        await importLocalInbox()
-        if let normalized = try? URLNormalizer.normalize(raw), let context = persistence?.container.mainContext,
-           let article = try? context.fetch(FetchDescriptor<Article>(predicate: #Predicate { $0.normalizedURL == normalized })).first {
+        // Cold launch: the library may still be opening.
+        var waited = 0
+        while persistence == nil, waited < 60 { try? await Task.sleep(for: .milliseconds(50)); waited += 1 }
+        // Save the link right here (it de-duplicates) so opening never waits on the inbox or the network; the drain runs after.
+        if let context = persistence?.container.mainContext,
+           let article = try? ArticleRepository(context: context).save(url: raw) {
             requestedArticleID = article.id
+            processor?.start()
+            Task { await drainInbox() }
             // The reader finishes opening under the veil, then the veil lifts straight onto it.
-            try? await Task.sleep(for: .milliseconds(450))
+            try? await Task.sleep(for: .milliseconds(200))
+        } else {
+            await drainInbox()
         }
         linkInFlight = false
         openingLink = false
