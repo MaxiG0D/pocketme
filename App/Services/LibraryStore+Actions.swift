@@ -19,16 +19,29 @@ extension LibraryStore {
     }
 
     func drainInbox() async {
-        guard let persistence, !draining else { return }
+        guard let persistence else { return }
+        await importLocalInbox()
+        guard persistence.mode == .cloud, !drainingWeb, let webInbox = WebSaveInbox(), let queue = try? localQueue(persistence) else { return }
+        drainingWeb = true
+        defer { drainingWeb = false }
+        // Links saved from the web; offline or signed-out iCloud just tries again next time.
+        if let moved = try? await webInbox.drain(into: queue), moved > 0 { await importLocalInbox() }
+    }
+
+    private func localQueue(_ persistence: AppPersistence) throws -> SaveQueue {
+        let root = persistence.container.configurations.first?.url.deletingLastPathComponent()
+        return try SaveQueue(directory: AppIdentity.inboxURL ?? root)
+    }
+
+    /// Imports what the share sheet already wrote to disk. Never touches the network, so opening a shared link can await it.
+    func importLocalInbox() async {
+        guard let persistence else { return }
+        // Another import is already reading the same files; wait for it instead of racing it.
+        if draining { while draining { try? await Task.sleep(for: .milliseconds(25)) }; return }
         draining = true
         defer { draining = false }
         do {
-            let root = persistence.container.configurations.first?.url.deletingLastPathComponent()
-            let queue = try SaveQueue(directory: AppIdentity.inboxURL ?? root)
-            if persistence.mode == .cloud, let webInbox = WebSaveInbox() {
-                // Links saved from the web; offline or signed-out iCloud just tries again next time.
-                _ = try? await webInbox.drain(into: queue)
-            }
+            let queue = try localQueue(persistence)
             var imported = 0
             while true {
               let entries = try await queue.entries()
@@ -66,7 +79,7 @@ extension LibraryStore {
         openingLink = true
         linkInFlight = true
         AppIdentity.openRequest?.removeObject(forKey: AppIdentity.openRequestKey)
-        await drainInbox()
+        await importLocalInbox()
         if let normalized = try? URLNormalizer.normalize(raw), let context = persistence?.container.mainContext,
            let article = try? context.fetch(FetchDescriptor<Article>(predicate: #Predicate { $0.normalizedURL == normalized })).first {
             requestedArticleID = article.id

@@ -23,6 +23,7 @@ final class LibraryStore {
     /// A video is playing in theater mode; everything around it dims.
     var theater = false
     var draining = false
+    var drainingWeb = false
     private(set) var toast: Toast?
     @ObservationIgnored private var toastTask: Task<Void, Never>?
     @ObservationIgnored private var inboxObserver: InboxObserver?
