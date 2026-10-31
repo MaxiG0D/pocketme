@@ -343,14 +343,15 @@ extension ReaderView {
 
 #if os(iOS)
 extension ReaderView {
-    /// The title, site and length on the reader paper, so a card opens onto something at once; it fades out under the page.
+    /// The title, site and length laid out as the page lays them, so a card opens onto something at once and the page fades in over it
+    /// without the title moving: the same 34rem column, 26 and 22 pt padding, kicker above the title.
     fileprivate var loadingStandIn: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(article.siteName.uppercased()).font(Typo.meta).tracking(0.6).foregroundStyle(preferences.theme.ink.opacity(0.55))
-            Text(article.title).font(Typo.sheetTitle).foregroundStyle(preferences.theme.ink)
-            Text("\(article.readingMinutes) min").font(Typo.meta).foregroundStyle(preferences.theme.ink.opacity(0.55))
+        VStack(alignment: .leading, spacing: 0) {
+            Text("\(article.siteName) · \(article.readingMinutes) min").textCase(.uppercase).font(Typo.kicker).tracking(0.4)
+                .foregroundStyle(preferences.theme.ink.opacity(0.6)).padding(.bottom, 16.5)
+            Text(article.title).font(Typo.readerH1).tracking(-0.3).foregroundStyle(preferences.theme.ink)
         }
-        .frame(maxWidth: 640, alignment: .leading).padding(.horizontal, 28).padding(.top, 56)
+        .frame(maxWidth: 544, alignment: .leading).padding(.horizontal, 26).padding(.top, 23.5)
         .frame(maxWidth: .infinity, alignment: .top)
         .opacity(pageShown ? 0 : 1).allowsHitTesting(false).accessibilityHidden(true)
     }
