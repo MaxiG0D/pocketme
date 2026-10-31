@@ -13,6 +13,7 @@ final class ShareFlow {
     private(set) var url: URL?
     @ObservationIgnored private var dismissal: Task<Void, Never>?
     @ObservationIgnored private var hasHostTitle = false
+    @ObservationIgnored private var hasFetchedTitle = false
     @ObservationIgnored private var provider: LPMetadataProvider?
     @ObservationIgnored private var context: NSExtensionContext?
     /// Host-specific opener. Share extensions can't use `NSExtensionContext.open`, so iOS supplies one.
@@ -58,7 +59,7 @@ final class ShareFlow {
                     Task { @MainActor in self?.thumbnail = data }
                 }
             }
-            Task { @MainActor in if let title, !title.isEmpty, self?.hasHostTitle == false, self?.errorMessage == nil { self?.title = title } }
+            Task { @MainActor in if let title, !title.isEmpty, self?.hasHostTitle == false, self?.errorMessage == nil { self?.title = title; self?.hasFetchedTitle = true } }
         }
     }
 
@@ -68,42 +69,64 @@ final class ShareFlow {
         Task { [weak self] in
             var request = URLRequest(url: url, timeoutInterval: 4)
             request.setValue("bytes=0-65535", forHTTPHeaderField: "Range")
-            request.setValue("Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148", forHTTPHeaderField: "User-Agent")
-            guard let (data, _) = try? await URLSession.shared.data(for: request),
-                  case let html = String(decoding: data.prefix(65536), as: UTF8.self),
-                  let found = Self.pageTitle(in: html), let self, !self.hasHostTitle, self.errorMessage == nil else { return }
+            request.setValue("Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1", forHTTPHeaderField: "User-Agent")
+            guard let (data, response) = try? await URLSession.shared.data(for: request),
+                  let http = response as? HTTPURLResponse, http.statusCode == 200 || http.statusCode == 206,
+                  http.mimeType == "text/html" else { return }
+            let html = Self.decodeHTML(data.prefix(65536), charset: http.textEncodingName)
+            guard let found = Self.pageTitle(in: html), let self, !self.hasHostTitle, !self.hasFetchedTitle, self.errorMessage == nil else { return }
             self.title = found
         }
     }
 
+    /// Uses the page's declared charset; otherwise lossy UTF-8, so a cut in the middle of a character never turns into Latin-1 garble.
+    nonisolated static func decodeHTML(_ data: Data, charset: String?) -> String {
+        if let charset {
+            let cf = CFStringConvertIANACharSetNameToEncoding(charset as CFString)
+            if cf != kCFStringEncodingInvalidId {
+                let encoding = String.Encoding(rawValue: CFStringConvertEncodingToNSStringEncoding(cf))
+                if encoding != .utf8, let text = String(data: data, encoding: encoding) { return text }
+            }
+        }
+        return String(decoding: data, as: UTF8.self)
+    }
+
+    private static let interstitialTitles = ["just a moment", "access denied", "attention required", "403 forbidden", "404", "are you a robot",
+                                              "please wait", "checking your browser", "before you continue", "one more step"]
+
     nonisolated static func pageTitle(in html: String) -> String? {
-        for pattern in ["<meta[^>]+property=[\"']og:title[\"'][^>]+content=[\"']([^\"']+)[\"']",
-                        "<meta[^>]+content=[\"']([^\"']+)[\"'][^>]+property=[\"']og:title[\"']",
-                        "<title[^>]*>([^<]+)</title>"] {
-            guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]),
+        for (pattern, group) in [("<meta[^>]+property=([\"'])og:title\\1[^>]+content=([\"'])(.*?)\\2", 3),
+                                 ("<meta[^>]+content=([\"'])(.*?)\\1[^>]+property=([\"'])og:title\\3", 2),
+                                 ("<title[^>]*>([^<]+)</title>", 1)] {
+            guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive, .dotMatchesLineSeparators]),
                   let match = regex.firstMatch(in: html, range: NSRange(html.startIndex..., in: html)),
-                  let range = Range(match.range(at: 1), in: html) else { continue }
-            let text = decodeEntities(String(html[range])).trimmingCharacters(in: .whitespacesAndNewlines)
-            if !text.isEmpty { return text }
+                  let range = Range(match.range(at: group), in: html) else { continue }
+            let text = decodeEntities(String(html[range]))
+                .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            if text.isEmpty || interstitialTitles.contains(where: { text.lowercased().hasPrefix($0) }) { continue }
+            return text
         }
         return nil
     }
 
-    /// Page titles arrive HTML-escaped: numeric (`&#8217;`, `&#x2019;`) and the common named entities.
     nonisolated static func decodeEntities(_ text: String) -> String {
-        guard text.contains("&") else { return text }
         var result = text
-        if let regex = try? NSRegularExpression(pattern: "&#(x[0-9a-fA-F]+|[0-9]+);") {
-            for match in regex.matches(in: text, range: NSRange(text.startIndex..., in: text)).reversed() {
-                guard let whole = Range(match.range, in: result), let digits = Range(match.range(at: 1), in: text) else { continue }
-                let code = text[digits]
-                let value = code.hasPrefix("x") || code.hasPrefix("X") ? UInt32(code.dropFirst(), radix: 16) : UInt32(code)
-                if let value, let scalar = Unicode.Scalar(value) { result.replaceSubrange(whole, with: String(Character(scalar))) }
+        let named = ["&quot;": "\"", "&apos;": "'", "&lt;": "<", "&gt;": ">", "&nbsp;": " ", "&rsquo;": "’", "&lsquo;": "‘",
+                     "&rdquo;": "”", "&ldquo;": "“", "&ndash;": "–", "&mdash;": "—", "&hellip;": "…", "&raquo;": "»", "&laquo;": "«",
+                     "&middot;": "·", "&bull;": "•", "&copy;": "©", "&trade;": "™", "&eacute;": "é", "&egrave;": "è", "&agrave;": "à",
+                     "&ccedil;": "ç", "&ecirc;": "ê", "&ocirc;": "ô", "&icirc;": "î", "&ucirc;": "û", "&acirc;": "â"]
+        for (entity, value) in named { result = result.replacingOccurrences(of: entity, with: value) }
+        if let regex = try? NSRegularExpression(pattern: "&#([xX][0-9a-fA-F]+|[0-9]+);") {
+            let matches = regex.matches(in: result, range: NSRange(result.startIndex..., in: result)).reversed()
+            for match in matches {
+                guard let whole = Range(match.range, in: result), let code = Range(match.range(at: 1), in: result) else { continue }
+                let digits = result[code]
+                let value = digits.first == "x" || digits.first == "X" ? UInt32(digits.dropFirst(), radix: 16) : UInt32(digits)
+                if let value, value >= 0x20, let scalar = Unicode.Scalar(value) { result.replaceSubrange(whole, with: String(Character(scalar))) }
             }
         }
-        let named = ["quot": "\"", "apos": "'", "lt": "<", "gt": ">", "nbsp": " ", "rsquo": "’", "lsquo": "‘", "rdquo": "”", "ldquo": "“",
-                     "ndash": "–", "mdash": "—", "hellip": "…", "middot": "·", "bull": "•", "copy": "©", "reg": "®", "trade": "™"]
-        for (name, value) in named { result = result.replacingOccurrences(of: "&\(name);", with: value) }
+        // Ampersand last, so "&amp;#8217;" stays literal text.
         return result.replacingOccurrences(of: "&amp;", with: "&")
     }
 
