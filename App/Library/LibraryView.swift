@@ -31,6 +31,8 @@ struct LibraryView: View {
     @State private var front: LibraryLayout
     @State private var articlesHidden = false
     @State private var listHeights = RowHeights()
+    /// Side by side, the sidebar's header (bar and filters) stays on screen in both layouts and the grid starts below it, as on the Mac.
+    @State private var headerBottom: CGFloat = 0
 
     init(favoritesOnly: Bool = false) {
         self.favoritesOnly = favoritesOnly
@@ -61,6 +63,7 @@ struct LibraryView: View {
         SwipeAction(side: .trailing, symbol: "archivebox", color: Theme.swipeArchive, label: article.archivedAt == nil ? "Archive" : "Unarchive") { store.archive(article) },
     ]}
 
+    private var sideBySide: Bool { sizeClass == .regular }
     private var gridBuilt: Bool { layout == .grid || front == .grid }
     private var gridFront: Bool { front == .grid }
 
@@ -103,10 +106,10 @@ struct LibraryView: View {
         // The list stays built underneath, so it keeps its scroll spot and hidden search field for the way back.
         // The bars and pills match in both, so only the articles change; every step is a plain fade, which also suits Reduce Motion.
         ZStack {
-            split.layoutLayer(shown: layout == .list)
+            split.layoutLayer(shown: layout == .list || sideBySide)
             if gridBuilt {
                 // Never faded as a whole: UIKit fades each piece on its own, so the matching bars and pills would dip grey.
-                gridStack.layoutLayer(shown: layout == .grid).opacity(gridFront ? 1.0 : 0.0)
+                gridLayer.layoutLayer(shown: layout == .grid).opacity(gridFront ? 1.0 : 0.0)
             }
         }
         .sensoryFeedback(.selection, trigger: layout)
@@ -117,6 +120,10 @@ struct LibraryView: View {
                 if on { columnsBeforeTheater = columns; columns = .detailOnly }
                 else if let before = columnsBeforeTheater { columns = before; columnsBeforeTheater = nil }
             }
+        }
+        // Side by side the sidebar carries the header in both layouts, so a collapse that is not theater mode is undone.
+        .onChange(of: columns) { _, new in
+            if new == .detailOnly && sideBySide && !store.theater && columnsBeforeTheater == nil { columns = .doubleColumn }
         }
         .onChange(of: layout) { _, new in
             withAnimation(.easeIn(duration: 0.12)) { articlesHidden = true } completion: {
@@ -144,10 +151,63 @@ struct LibraryView: View {
             list
                 .navigationTitle(favoritesOnly ? "Favorites" : "Pocket Me")
                 .navigationSplitViewColumnWidth(min: 300, ideal: 360, max: 420)
+                .toolbar(removing: .sidebarToggle)
         } detail: {
             detail
         }
         .containerBackground(Theme.paper, for: .navigationSplitView)
+        // The sidebar carries the title, + and layout toggle in both layouts, so it stays; collapsing it left no way to switch.
+        .toolbar(removing: .sidebarToggle)
+    }
+
+    @ViewBuilder private var gridLayer: some View {
+        if sideBySide { gridSideBySide } else { gridStack }
+    }
+
+    /// Side by side the sidebar keeps its own header, so the title and buttons never move; the grid fills the window below it
+    /// and a card opens the reader over the whole screen, as on the Mac.
+    private var gridSideBySide: some View {
+        VStack(spacing: 0) {
+            Color.clear.frame(height: headerBottom).allowsHitTesting(false)
+            ScrollView {
+                if let error = store.errorMessage {
+                    Text(error).font(Typo.meta).foregroundStyle(Theme.muted).frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, Theme.gutter)
+                }
+                gridCards
+            }
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { gridWidth = $0 }
+            .scrollIndicators(.hidden)
+            .frame(maxWidth: .infinity, maxHeight: .infinity).background(Theme.paper)
+            .onScrollPhaseChange { _, phase in store.listScrolling = phase != .idle }
+            .refreshable { store.refresh(); await store.drainInbox() }
+        }
+        .ignoresSafeArea(.container, edges: .top)
+        .fullScreenCover(isPresented: Binding(get: { gridOpen != nil && sideBySide }, set: { if !$0 { gridOpen = nil } })) {
+            if let id = gridOpen, let article = articles.first(where: { $0.id == id }) {
+                NavigationStack {
+                    ReaderView(article: article, close: { gridOpen = nil })
+                        .toolbar { ToolbarItem(placement: .topBarLeading) { Button("Back to library", systemImage: "chevron.left") { gridOpen = nil } } }
+                }
+                    .modifier(ZoomFromCard(id: id, namespace: zoom, enabled: !reduceMotion))
+            }
+        }
+    }
+
+    private var gridCards: some View {
+        Group {
+            if filtered.isEmpty {
+                if articles.isEmpty { EmptyStateView(paste: pasteOrAdd).frame(maxWidth: .infinity).padding(.top, 30) }
+                else { Text(search.isEmpty ? "No articles here yet" : "No matching articles").font(Typo.meta).foregroundStyle(Theme.muted).frame(maxWidth: .infinity).padding(.top, 40) }
+            }
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4, alignment: .top), count: gridColumns), spacing: 10) {
+                ForEach(filtered, id: \.id) { article in
+                    Button { gridOpen = article.id } label: { ArticleGridCard(article: article) }
+                        .buttonStyle(GridCardButtonStyle())
+                        .matchedTransitionSource(id: article.id, in: zoom)
+                        .contextMenu { articleMenu(article) }
+                }
+            }.padding(.horizontal, Theme.gutter - 8).padding(.bottom, 24)
+        }.opacity(articlesShown(.grid) ? 1 : 0)
     }
 
     /// Two columns folded, more as the screen widens. A card is one Button, with no swipe or extra gestures;
@@ -159,20 +219,7 @@ struct LibraryView: View {
                 if let error = store.errorMessage {
                     Text(error).font(Typo.meta).foregroundStyle(Theme.muted).frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, Theme.gutter)
                 }
-                Group {
-                    if filtered.isEmpty {
-                        if articles.isEmpty { EmptyStateView(paste: pasteOrAdd).frame(maxWidth: .infinity).padding(.top, 30) }
-                        else { Text(search.isEmpty ? "No articles here yet" : "No matching articles").font(Typo.meta).foregroundStyle(Theme.muted).frame(maxWidth: .infinity).padding(.top, 40) }
-                    }
-                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4, alignment: .top), count: gridColumns), spacing: 10) {
-                        ForEach(filtered, id: \.id) { article in
-                            Button { gridOpen = article.id } label: { ArticleGridCard(article: article) }
-                                .buttonStyle(GridCardButtonStyle())
-                                .matchedTransitionSource(id: article.id, in: zoom)
-                                .contextMenu { articleMenu(article) }
-                        }
-                    }.padding(.horizontal, Theme.gutter - 8).padding(.bottom, 24)
-                }.opacity(articlesShown(.grid) ? 1 : 0)
+                gridCards
             }
             .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { gridWidth = $0 }
             .scrollIndicators(.hidden)
@@ -204,7 +251,7 @@ struct LibraryView: View {
         let items = hero == nil ? all : all.filter { $0.id != hero?.id }
         return ScrollView {
             VStack(spacing: 0) {
-                filters.standIn(away: front != .list, id: "filters", heights: listHeights)
+                if !sideBySide { filters.standIn(away: front != .list, id: "filters", heights: listHeights) }
                 if let error = store.errorMessage {
                     Text(error).font(Typo.meta).foregroundStyle(Theme.muted)
                         .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, Theme.gutter)
@@ -243,6 +290,7 @@ struct LibraryView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Theme.paper).scrollIndicators(.hidden)
+        .safeAreaInset(edge: .top, spacing: 0) { pinnedFilters }
         .onScrollPhaseChange { _, phase in store.listScrolling = phase != .idle }
         // Follows the finger only while the card is leaving; past it the value stops changing, so reading down sends no updates.
         .onScrollGeometryChange(for: CGFloat.self) { geometry in
@@ -315,6 +363,14 @@ struct LibraryView: View {
         .buttonStyle(.plain).barLabel("Save a link", reachable: reachable)
     }
 
+    /// Side by side the filters stay pinned under the bar, so the header is the same whichever layout is in front.
+    @ViewBuilder private var pinnedFilters: some View {
+        if sideBySide {
+            VStack(spacing: 0) { filters }.frame(maxWidth: .infinity)
+                .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).maxY } action: { headerBottom = $0 }
+        }
+    }
+
     @ViewBuilder private var filters: some View {
         if !favoritesOnly && !articles.isEmpty {
             HStack(spacing: 6) {
@@ -341,11 +397,14 @@ struct LibraryView: View {
     }
     /// The list's bar behind the grid keeps its buttons drawn, since removing them re-forms the glass bar on the way back,
     /// but they go unlabeled and hidden so VoiceOver finds one of each. The grid is only built while it is (nearly) in front.
-    private func reachable(_ layer: LibraryLayout) -> Bool { layer == .grid || front == .list }
+    private func reachable(_ layer: LibraryLayout) -> Bool {
+        if sideBySide { return layer == .list }
+        return layer == .grid || front == .list
+    }
     private func articlesShown(_ layer: LibraryLayout) -> Bool { front == layer && !articlesHidden }
     /// Only the layout on screen shows the search field; the hidden one would steal its focus.
     private func searchPresented(in shown: LibraryLayout) -> Binding<Bool> {
-        layout == shown ? $showSearch : .constant(false)
+        (layout == shown || (sideBySide && shown == .list)) ? $showSearch : .constant(false)
     }
     private func pasteOrAdd() { if let link = Clipboard.link { _ = store.saveLink(link) } else { addLink = true } }
     @ViewBuilder private func articleMenu(_ article: Article) -> some View {
