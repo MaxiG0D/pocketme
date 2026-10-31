@@ -12,6 +12,7 @@ final class ShareFlow {
     private(set) var errorMessage: String?
     private(set) var url: URL?
     @ObservationIgnored private var dismissal: Task<Void, Never>?
+    @ObservationIgnored private var hasHostTitle = false
     @ObservationIgnored private var provider: LPMetadataProvider?
     @ObservationIgnored private var context: NSExtensionContext?
     /// Host-specific opener. Share extensions can't use `NSExtensionContext.open`, so iOS supplies one.
@@ -23,10 +24,11 @@ final class ShareFlow {
             let link = try await ShareInput.link(from: context?.inputItems as? [NSExtensionItem] ?? [])
             url = link
             site = link.host()?.replacingOccurrences(of: "www.", with: "") ?? "Website"
-            title = site
+            title = Self.hostTitle(from: context) ?? site
+            hasHostTitle = title != site
             fetchMetadata(link)
             let queue = try SaveQueue()
-            try await queue.append(url: link.absoluteString)
+            try await queue.append(url: link.absoluteString, title: hasHostTitle ? title : nil)
             saved = true
             dismissal = Task { [weak self] in
                 #if os(macOS)
@@ -55,8 +57,19 @@ final class ShareFlow {
                     Task { @MainActor in self?.thumbnail = data }
                 }
             }
-            Task { @MainActor in if let title, !title.isEmpty, self?.errorMessage == nil { self?.title = title } }
+            Task { @MainActor in if let title, !title.isEmpty, self?.hasHostTitle == false, self?.errorMessage == nil { self?.title = title } }
         }
+    }
+
+    /// Safari hands over the page title with the link, so the bar can show it at once instead of waiting on the web.
+    private static func hostTitle(from context: NSExtensionContext?) -> String? {
+        for item in context?.inputItems as? [NSExtensionItem] ?? [] {
+            for candidate in [item.attributedTitle?.string, item.attributedContentText?.string] {
+                let text = candidate?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                if !text.isEmpty, text.count < 300, URL(string: text)?.scheme == nil { return text }
+            }
+        }
+        return nil
     }
 
     func keepOpen() { dismissal?.cancel() }
