@@ -91,7 +91,7 @@ final class ShareFlow {
         return String(decoding: data, as: UTF8.self)
     }
 
-    private static let interstitialTitles = ["just a moment", "access denied", "attention required", "403 forbidden", "404", "are you a robot",
+    private nonisolated static let interstitialTitles = ["just a moment", "access denied", "attention required", "403 forbidden", "404", "are you a robot",
                                               "please wait", "checking your browser", "before you continue", "one more step"]
 
     nonisolated static func pageTitle(in html: String) -> String? {
