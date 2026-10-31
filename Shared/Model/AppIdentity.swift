@@ -29,6 +29,10 @@ enum AppIdentity {
         #endif
     }
 
+    /// Set by the share sheet just before it opens the app, so the app can cover the library from its first frame.
+    static var openRequest: UserDefaults? { inboxIdentifier.flatMap { UserDefaults(suiteName: $0) } }
+    static let openRequestKey = "openRequestedAt"
+
     static var groupURL: URL? { container(groupIdentifier) }
     static var inboxURL: URL? { container(inboxIdentifier) }
 

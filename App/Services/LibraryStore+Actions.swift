@@ -46,6 +46,17 @@ extension LibraryStore {
         } catch { errorMessage = "Some shared links couldn’t be saved yet. They’ll stay in your inbox to try again." }
     }
 
+    /// The share sheet leaves a timestamp just before opening the app; cover the library before the link arrives.
+    func coverIfOpeningShared() {
+        guard let defaults = AppIdentity.openRequest,
+              let at = defaults.object(forKey: AppIdentity.openRequestKey) as? Date, -at.timeIntervalSinceNow < 10 else { return }
+        openingLink = true
+        Task { [weak self] in
+            try? await Task.sleep(for: .seconds(4))
+            if let self, !self.linkInFlight { self.openingLink = false }
+        }
+    }
+
     func openLink(_ url: URL) async {
         guard url.scheme == "pocketme", url.host == "open" || url.host == "save",
               let raw = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first(where: { $0.name == "url" })?.value else { return }
@@ -53,6 +64,8 @@ extension LibraryStore {
             try? await queue.append(url: raw)
         }
         openingLink = true
+        linkInFlight = true
+        AppIdentity.openRequest?.removeObject(forKey: AppIdentity.openRequestKey)
         await drainInbox()
         if let normalized = try? URLNormalizer.normalize(raw), let context = persistence?.container.mainContext,
            let article = try? context.fetch(FetchDescriptor<Article>(predicate: #Predicate { $0.normalizedURL == normalized })).first {
@@ -60,6 +73,7 @@ extension LibraryStore {
             // The reader finishes opening under the veil, then the veil lifts straight onto it.
             try? await Task.sleep(for: .milliseconds(450))
         }
+        linkInFlight = false
         openingLink = false
     }
 

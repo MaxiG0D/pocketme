@@ -26,10 +26,11 @@ struct PocketMeApp: App {
                 .font(Typo.meta)
                 .foregroundStyle(Theme.ink)
                 .tint(Theme.accent)
-                .task { await store.open() }
+                .task { store.coverIfOpeningShared(); await store.open() }
                 .onOpenURL { url in Task { await store.openLink(url) } }
                 .onChange(of: scenePhase) { _, phase in
                     if phase == .active {
+                        store.coverIfOpeningShared()
                         store.refresh()
                         Task { await store.drainInbox() }
                     } else if phase == .background { store.persist(); BackgroundRefresh.schedule() }

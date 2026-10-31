@@ -87,6 +87,7 @@ final class ShareFlow {
         deepLink.scheme = "pocketme"; deepLink.host = "open"
         deepLink.queryItems = [URLQueryItem(name: "url", value: url.absoluteString)]
         guard let link = deepLink.url else { finish(); return }
+        AppIdentity.openRequest?.set(Date(), forKey: AppIdentity.openRequestKey)
         if opener?(link) == true { finish(); return }
         context?.open(link) { [weak self] _ in Task { @MainActor in self?.finish() } }
     }
