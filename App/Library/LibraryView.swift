@@ -271,9 +271,12 @@ struct LibraryView: View {
                 } else {
                     if let hero {
                         ContinueReadingCard(article: hero, squish: reduceMotion ? 0 : heroSquish) { selection = hero.id }
+                            .padding(.horizontal, Theme.gutter)
+                            .swipeReveal(id: hero.id, open: $openSwipe, actions: swipeActions(for: hero), inset: Theme.gutter, gap: 12, cornerRadius: Theme.radiusHero + 10, verticalInset: 10)
+                            .contextMenu { articleMenu(hero) }
                             .opacity(articlesShown(.list) ? 1 : 0)
                             .standIn(away: front != .list, id: "hero", heights: listHeights)
-                            .padding(.horizontal, Theme.gutter).padding(.bottom, 22)
+                            .padding(.bottom, 22)
                     }
                     // Only the rows are lazy: with the filters and the hero card in the same stack their very different
                     // heights skewed the stack's estimate of the rows it had not built.

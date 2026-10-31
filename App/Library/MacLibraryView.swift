@@ -217,6 +217,8 @@ struct MacLibraryView: View {
                 LazyVStack(spacing: 10) {
                     if let current = inProgress {
                         ContinueReadingCard(article: current, squish: reduceMotion ? 0 : heroSquish) { readerID = current.id }
+                            .swipeReveal(id: current.id, open: $openSwipe, actions: swipeActions(for: current), cornerRadius: Theme.radiusHero + 10, verticalInset: 10)
+                            .contextMenu { menu(current) }
                             .padding(.bottom, 4)
                     }
                     ForEach(filtered.filter { $0.id != inProgress?.id }) { article in

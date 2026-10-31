@@ -97,9 +97,16 @@ final class LibraryTapTests: XCTestCase {
         delete.tap()
         XCTAssertTrue(app.staticTexts["Delete this article?"].waitForExistence(timeout: 5), "Hierarchy: \(app.debugDescription)")
         // The dialog's button is drawn above the toolbar's, which stays in the tree behind it.
-        app.buttons.matching(identifier: "Delete").allElementsBoundByIndex.last!.tap()
-        XCTAssertTrue(app.buttons["Reader settings"].waitForNonExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts[title].firstMatch.waitForNonExistence(timeout: 5))
+        // Which "Delete" is the dialog's differs between iOS versions (the toolbar's stays in the tree), so try them from the top down until the reader closes.
+        let deletes = app.buttons.matching(identifier: "Delete")
+        for index in stride(from: deletes.count - 1, through: 0, by: -1) {
+            let candidate = deletes.element(boundBy: index)
+            guard candidate.exists, candidate.isHittable else { continue }
+            candidate.tap()
+            if app.buttons["Reader settings"].waitForNonExistence(timeout: 3) { break }
+        }
+        XCTAssertTrue(app.buttons["Reader settings"].waitForNonExistence(timeout: 5), "Hierarchy: \(app.debugDescription)")
+        XCTAssertTrue(app.staticTexts[title].firstMatch.waitForNonExistence(timeout: 5), "Hierarchy: \(app.debugDescription)")
     }
 
     func testTheaterOnPlaySettingIsOffByDefault() {
@@ -146,6 +153,32 @@ final class LibraryTapTests: XCTestCase {
         app.swipeUp()
         app.swipeDown()
         row.tap()
+        XCTAssertTrue(app.buttons["Reader settings"].waitForExistence(timeout: 5))
+    }
+
+    /// The Continue reading card swipes like a row and still opens on tap.
+    func testHeroCardSwipesAndStillOpens() {
+        let hero = app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Continue reading")).firstMatch
+        XCTAssertTrue(hero.waitForExistence(timeout: 10))
+        let favorite = app.buttons.matching(NSPredicate(format: "label == %@", "Favorite"))
+        let archive = app.buttons.matching(NSPredicate(format: "label == %@", "Archive"))
+        let resting = (favorite.count, archive.count)
+        func wait(_ query: XCUIElementQuery, _ count: Int) -> Bool {
+            let end = Date().addingTimeInterval(5)
+            while query.count != count && Date() < end { RunLoop.current.run(until: Date().addingTimeInterval(0.1)) }
+            return query.count == count
+        }
+        hero.swipeRight()
+        XCTAssertTrue(wait(favorite, resting.0 + 1), "Hierarchy: \(app.debugDescription)")
+        hero.swipeLeft()
+        XCTAssertTrue(wait(favorite, resting.0))
+        // Let the closing spring finish before swiping the other way.
+        Thread.sleep(forTimeInterval: 1)
+        hero.swipeLeft()
+        XCTAssertTrue(wait(archive, resting.1 + 1), "Hierarchy: \(app.debugDescription)")
+        hero.swipeRight()
+        XCTAssertTrue(wait(archive, resting.1))
+        hero.tap()
         XCTAssertTrue(app.buttons["Reader settings"].waitForExistence(timeout: 5))
     }
     #endif
