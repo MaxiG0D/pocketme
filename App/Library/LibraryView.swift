@@ -272,7 +272,7 @@ struct LibraryView: View {
                     if let hero {
                         ContinueReadingCard(article: hero, squish: reduceMotion ? 0 : heroSquish) { selection = hero.id }
                             .padding(.horizontal, Theme.gutter)
-                            .swipeReveal(id: hero.id, open: $openSwipe, actions: swipeActions(for: hero), inset: Theme.gutter, gap: 12, cornerRadius: Theme.radiusHero + 10, verticalInset: 10)
+                            .swipeReveal(id: hero.id, open: $openSwipe, actions: swipeActions(for: hero), inset: Theme.gutter, gap: 12, cornerRadius: Theme.radiusHero + 10)
                             .contextMenu { articleMenu(hero) }
                             .opacity(articlesShown(.list) ? 1 : 0)
                             .standIn(away: front != .list, id: "hero", heights: listHeights)
