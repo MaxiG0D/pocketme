@@ -133,9 +133,7 @@ struct ReaderView: View {
                     if video != nil { ShareLink(item: url) { Label("Share", systemImage: "square.and.arrow.up") } }
                 }
                 if video == nil { Button("Reader settings", systemImage: "textformat.size") { settings = true } }
-                Menu("More", systemImage: "ellipsis") {
-                    Button("Delete", systemImage: "trash", role: .destructive) { confirmDelete = true }
-                }
+                Button("Delete", systemImage: "trash", role: .destructive) { confirmDelete = true }
             }
         }
         .toolbar(theater && sizeClass != .regular ? .hidden : .automatic, for: .navigationBar)
