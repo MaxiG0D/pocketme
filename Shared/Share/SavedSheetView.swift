@@ -4,6 +4,52 @@ struct SavedSheetView: View {
     let flow: ShareFlow
 
     var body: some View {
+        #if os(iOS)
+        compact
+        #else
+        regular
+        #endif
+    }
+
+    #if os(iOS)
+    private var compact: some View {
+        VStack {
+            Color.clear.contentShape(Rectangle()).onTapGesture { flow.finish() }
+            HStack(spacing: 12) {
+                thumbnail.frame(width: 52, height: 52)
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                VStack(alignment: .leading, spacing: 3) {
+                    if let message = flow.errorMessage {
+                        Text(message).font(Typo.sans(13).weight(.medium)).foregroundStyle(Theme.muted).lineLimit(3)
+                    } else {
+                        HStack(spacing: 5) {
+                            Image(systemName: flow.saved ? "checkmark.circle.fill" : "circle.dotted")
+                                .foregroundStyle(flow.saved ? Theme.success : Theme.muted)
+                            Text(flow.saved ? "Saved" : "Saving").foregroundStyle(Theme.muted)
+                        }.font(Typo.sans(12.5).weight(.semibold))
+                        Text(flow.title).font(Typo.sans(15).weight(.medium)).lineLimit(1)
+                    }
+                }
+                Spacer(minLength: 8)
+                if flow.errorMessage == nil {
+                    Button("Read") { flow.readNow() }
+                        .font(Typo.sans(14).weight(.semibold)).foregroundStyle(Theme.onAccent)
+                        .padding(.horizontal, 18).frame(height: 36)
+                        .background(Theme.accent, in: Capsule())
+                        .disabled(!flow.saved).opacity(flow.saved ? 1 : 0.5)
+                }
+            }
+            .foregroundStyle(Theme.ink).padding(12)
+            .background(Theme.paper, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).stroke(Theme.hairline, lineWidth: 1))
+            .padding(.horizontal, 12).padding(.bottom, 12)
+        }
+        .simultaneousGesture(TapGesture().onEnded { flow.keepOpen() })
+        .sensoryFeedback(.success, trigger: flow.saved)
+    }
+    #endif
+
+    private var regular: some View {
         VStack {
             Spacer(minLength: 0)
             VStack(alignment: .leading, spacing: 18) {

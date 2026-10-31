@@ -14,6 +14,8 @@ final class ShareFlow {
     @ObservationIgnored private var dismissal: Task<Void, Never>?
     @ObservationIgnored private var provider: LPMetadataProvider?
     @ObservationIgnored private var context: NSExtensionContext?
+    /// Host-specific opener. Share extensions can't use `NSExtensionContext.open`, so iOS supplies one.
+    @ObservationIgnored var opener: ((URL) -> Bool)?
 
     func start(context: NSExtensionContext?) async {
         self.context = context
@@ -72,6 +74,7 @@ final class ShareFlow {
         deepLink.scheme = "pocketme"; deepLink.host = "open"
         deepLink.queryItems = [URLQueryItem(name: "url", value: url.absoluteString)]
         guard let link = deepLink.url else { finish(); return }
+        if opener?(link) == true { finish(); return }
         context?.open(link) { [weak self] _ in Task { @MainActor in self?.finish() } }
     }
 }

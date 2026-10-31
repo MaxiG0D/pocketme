@@ -7,6 +7,7 @@ final class ShareViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         Fonts.register()
+        flow.opener = { [weak self] url in self?.openInHostApp(url) ?? false }
         let host = UIHostingController(rootView: SavedSheetView(flow: flow))
         addChild(host)
         host.view.backgroundColor = .clear
@@ -18,5 +19,18 @@ final class ShareViewController: UIViewController {
         ])
         host.didMove(toParent: self)
         Task { await flow.start(context: extensionContext) }
+    }
+
+    /// Share extensions can't call `extensionContext.open`; the responder chain reaches the host's UIApplication.
+    private func openInHostApp(_ url: URL) -> Bool {
+        var responder: UIResponder? = self
+        while let current = responder {
+            if let application = current as? UIApplication {
+                application.open(url, options: [:], completionHandler: nil)
+                return true
+            }
+            responder = current.next
+        }
+        return false
     }
 }
