@@ -27,7 +27,7 @@ struct SavedSheetView: View {
                                 .foregroundStyle(flow.saved ? Theme.success : Theme.muted)
                             Text(flow.saved ? "Saved" : "Saving").foregroundStyle(Theme.muted)
                         }.font(Typo.sans(12.5).weight(.semibold))
-                        Text(flow.title).font(Typo.sans(15).weight(.medium)).lineLimit(1)
+                        Text(flow.title).font(Typo.sans(15).weight(.medium)).lineLimit(3).fixedSize(horizontal: false, vertical: true)
                     }
                 }
                 Spacer(minLength: 8)
