@@ -121,16 +121,18 @@ struct ReaderView: View {
         .tint(preferences.theme.ink.opacity(0.6))
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
-                if video == nil { Button("Reader settings", systemImage: "textformat.size") { settings = true } }
-                else {
+                // Articles lead with Share and end with the reader settings; a video has no settings, so Share stays last.
+                if video == nil, let url = URL(string: article.url) { ShareLink(item: url) { Label("Share", systemImage: "square.and.arrow.up") } }
+                if video != nil {
                     if canFloat { Button("Picture in Picture", systemImage: "pip.enter", action: enterPiP) }
                     Button("Theater mode", systemImage: "popcorn", action: enterTheater)
                 }
                 Button(article.archivedAt == nil ? "Archive" : "Unarchive", systemImage: article.archivedAt == nil ? "archivebox" : "tray.and.arrow.up", action: archiveArticle)
                 if let url = URL(string: article.url) {
                     Button("Open in Browser", systemImage: "safari") { openURL(url) }.keyboardShortcut("o", modifiers: [])
-                    ShareLink(item: url) { Label("Share", systemImage: "square.and.arrow.up") }
+                    if video != nil { ShareLink(item: url) { Label("Share", systemImage: "square.and.arrow.up") } }
                 }
+                if video == nil { Button("Reader settings", systemImage: "textformat.size") { settings = true } }
                 Menu("More", systemImage: "ellipsis") {
                     Button("Delete", systemImage: "trash", role: .destructive) { confirmDelete = true }
                 }
