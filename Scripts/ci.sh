@@ -27,7 +27,7 @@ if [[ "${1:-}" == --ui ]]; then
   log="${build_dir}/ui-tests.log"
   xcodebuild test -project "${project}" -scheme PocketMe -derivedDataPath "${build_dir}/Derived" CODE_SIGNING_ALLOWED=NO \
     -destination "platform=iOS Simulator,name=${sim}" -only-testing:PocketMeUITests > "${log}" 2>&1 || {
-    grep -A60 -E 'error: -\[|error:.*XCT|Test Case .* failed' "${log}" | cut -c1-600 | head -400; tail -30 "${log}"; exit 65
+    grep -A60 -E 'error: -\[|error:.*XCT|Test Case .* failed' "${log}" | cut -c1-600 | head -400 || true; tail -30 "${log}"; exit 65
   }
 fi
 # Lets the pre-push hook skip a second run for a commit that already passed.
