@@ -70,7 +70,7 @@ final class ShareFlow {
             request.setValue("bytes=0-65535", forHTTPHeaderField: "Range")
             request.setValue("Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148", forHTTPHeaderField: "User-Agent")
             guard let (data, _) = try? await URLSession.shared.data(for: request),
-                  let html = String(data: data.prefix(65536), encoding: .utf8) ?? String(data: data.prefix(65536), encoding: .isoLatin1),
+                  case let html = String(decoding: data.prefix(65536), as: UTF8.self),
                   let found = Self.pageTitle(in: html), let self, !self.hasHostTitle, self.errorMessage == nil else { return }
             self.title = found
         }
@@ -83,14 +83,28 @@ final class ShareFlow {
             guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]),
                   let match = regex.firstMatch(in: html, range: NSRange(html.startIndex..., in: html)),
                   let range = Range(match.range(at: 1), in: html) else { continue }
-            let text = String(html[range])
-                .replacingOccurrences(of: "&amp;", with: "&").replacingOccurrences(of: "&quot;", with: "\"")
-                .replacingOccurrences(of: "&#39;", with: "'").replacingOccurrences(of: "&#x27;", with: "'")
-                .replacingOccurrences(of: "&rsquo;", with: "’").replacingOccurrences(of: "&lt;", with: "<").replacingOccurrences(of: "&gt;", with: ">")
-                .trimmingCharacters(in: .whitespacesAndNewlines)
+            let text = decodeEntities(String(html[range])).trimmingCharacters(in: .whitespacesAndNewlines)
             if !text.isEmpty { return text }
         }
         return nil
+    }
+
+    /// Page titles arrive HTML-escaped: numeric (`&#8217;`, `&#x2019;`) and the common named entities.
+    nonisolated static func decodeEntities(_ text: String) -> String {
+        guard text.contains("&") else { return text }
+        var result = text
+        if let regex = try? NSRegularExpression(pattern: "&#(x[0-9a-fA-F]+|[0-9]+);") {
+            for match in regex.matches(in: text, range: NSRange(text.startIndex..., in: text)).reversed() {
+                guard let whole = Range(match.range, in: result), let digits = Range(match.range(at: 1), in: text) else { continue }
+                let code = text[digits]
+                let value = code.hasPrefix("x") || code.hasPrefix("X") ? UInt32(code.dropFirst(), radix: 16) : UInt32(code)
+                if let value, let scalar = Unicode.Scalar(value) { result.replaceSubrange(whole, with: String(Character(scalar))) }
+            }
+        }
+        let named = ["quot": "\"", "apos": "'", "lt": "<", "gt": ">", "nbsp": " ", "rsquo": "’", "lsquo": "‘", "rdquo": "”", "ldquo": "“",
+                     "ndash": "–", "mdash": "—", "hellip": "…", "middot": "·", "bull": "•", "copy": "©", "reg": "®", "trade": "™"]
+        for (name, value) in named { result = result.replacingOccurrences(of: "&\(name);", with: value) }
+        return result.replacingOccurrences(of: "&amp;", with: "&")
     }
 
     /// Safari hands over the page title with the link, so the bar can show it at once instead of waiting on the web.
