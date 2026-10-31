@@ -45,6 +45,11 @@ private struct TabBarTint: UIViewControllerRepresentable {
         override func viewDidAppear(_ animated: Bool) { super.viewDidAppear(animated); apply() }
 
         func apply() {
+            // The window and tab controller sit behind the SwiftUI content. Left unset they are pure black in dark
+            // mode, which shows as a black strip under the status bar wherever the content stops short of it.
+            let paper = UIColor(named: "Paper")
+            view.window?.backgroundColor = paper
+            view.window?.rootViewController?.view.backgroundColor = paper
             guard let root = view.window?.rootViewController, let tabs = tabBarController(in: root) else { return }
             if selection == nil {
                 selection = tabs.observe(\.selectedIndex) { [weak self] _, _ in
