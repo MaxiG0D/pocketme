@@ -24,6 +24,7 @@ final class ShareFlow {
             url = link
             site = link.host()?.replacingOccurrences(of: "www.", with: "") ?? "Website"
             title = site
+            fetchMetadata(link)
             let queue = try SaveQueue()
             try await queue.append(url: link.absoluteString)
             saved = true
@@ -36,7 +37,6 @@ final class ShareFlow {
                 guard !Task.isCancelled else { return }
                 self?.finish()
             }
-            fetchMetadata(link)
         } catch {
             errorMessage = "This link couldn’t be saved. Open PocketMe and paste it there."
             title = "Couldn’t save this link"
@@ -55,7 +55,7 @@ final class ShareFlow {
                     Task { @MainActor in self?.thumbnail = data }
                 }
             }
-            Task { @MainActor in if let title, !title.isEmpty { self?.title = title } }
+            Task { @MainActor in if let title, !title.isEmpty, self?.errorMessage == nil { self?.title = title } }
         }
     }
 
