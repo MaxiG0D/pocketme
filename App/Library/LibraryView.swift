@@ -396,8 +396,8 @@ struct LibraryView: View {
                     Spacer(minLength: 0)
                     if !articles.isEmpty { headerLayoutButton }
                 }
-                .padding(.leading, 16).padding(.trailing, 10).padding(.top, 8).padding(.bottom, 6)
-                // Tight enough that + , both pills and search fit the narrowest (320 pt) sidebar on one line.
+                .padding(.leading, 16).padding(.trailing, 8).padding(.top, 8).padding(.bottom, 6)
+                // Tight enough that +, both pills and search fit the narrowest (320 pt) sidebar on one line with 44 pt targets.
                 HStack(spacing: 6) {
                     headerAddButton
                     if !favoritesOnly && !articles.isEmpty {
@@ -407,7 +407,7 @@ struct LibraryView: View {
                     Spacer(minLength: 0)
                     if !articles.isEmpty { headerSearchButton }
                 }
-                .padding(.leading, 8).padding(.trailing, 10).padding(.bottom, searching ? 4 : 8)
+                .padding(.leading, 6).padding(.trailing, 8).padding(.bottom, searching ? 4 : 8)
                 if searching { searchField }
             }
             .frame(maxWidth: .infinity).background(Theme.paper)
@@ -422,17 +422,17 @@ struct LibraryView: View {
                     Image(systemName: mode.toggleSymbol).opacity(layout == mode ? 1 : 0)
                 }
             }
-            .font(.system(size: 18)).animation(.easeInOut(duration: 0.16), value: layout)
-            .foregroundStyle(Theme.icon).frame(width: 40, height: 44).contentShape(Rectangle())
+            .font(.system(size: 20)).animation(.easeInOut(duration: 0.16), value: layout)
+            .foregroundStyle(Theme.icon).frame(width: 44, height: 44).contentShape(Rectangle())
         }
         .buttonStyle(.plain).accessibilityLabel(layout.toggleLabel)
     }
 
     private var headerAddButton: some View {
         Button { addLink = true } label: {
-            Image(systemName: "plus").font(.system(size: 15, weight: .bold)).foregroundStyle(Theme.onAccent)
-                .frame(width: 32, height: 32).background(Theme.accent, in: Circle())
-                .frame(width: 40, height: 44).contentShape(Rectangle())
+            Image(systemName: "plus").font(.system(size: 16, weight: .bold)).foregroundStyle(Theme.onAccent)
+                .frame(width: 34, height: 34).background(Theme.accent, in: Circle())
+                .frame(width: 44, height: 44).contentShape(Rectangle())
         }
         .buttonStyle(.plain).accessibilityLabel("Save a link")
     }
@@ -443,8 +443,8 @@ struct LibraryView: View {
             searchFocused = searching
             if !searching { search = "" }
         } label: {
-            Image(systemName: "magnifyingglass").font(.system(size: 18))
-                .foregroundStyle(searching ? Theme.iconSelected : Theme.icon).frame(width: 40, height: 44).contentShape(Rectangle())
+            Image(systemName: "magnifyingglass").font(.system(size: 20))
+                .foregroundStyle(searching ? Theme.iconSelected : Theme.icon).frame(width: 44, height: 44).contentShape(Rectangle())
         }
         .buttonStyle(.plain).accessibilityLabel("Search")
     }

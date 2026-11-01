@@ -46,6 +46,8 @@ private struct TabBarTint: UIViewControllerRepresentable {
         private var glyphs: [String: UIImage] = [:]
         private weak var bar: UITabBar?
         private var painting = false
+        /// Tabs whose top inset UIKit has worked out with their content already built (see `settleInsets`).
+        private var settled: Set<ObjectIdentifier> = []
 
         override func viewDidLoad() {
             super.viewDidLoad()
@@ -57,8 +59,10 @@ private struct TabBarTint: UIViewControllerRepresentable {
         func apply() {
             guard let root = view.window?.rootViewController, let tabs = tabBarController(in: root) else { return }
             if selection == nil {
+                // The tab on screen at launch is laid out again as the window settles, so its inset is already right.
+                if let first = tabs.selectedViewController { settled.insert(ObjectIdentifier(first)) }
                 selection = tabs.observe(\.selectedIndex) { [weak self] _, _ in
-                    DispatchQueue.main.async { self?.apply() }
+                    DispatchQueue.main.async { self?.apply(); self?.settleInsets() }
                 }
             }
             bar = tabs.tabBar
@@ -74,6 +78,21 @@ private struct TabBarTint: UIViewControllerRepresentable {
                     item.observe(\.selectedImage) { [weak self] item, _ in MainActor.assumeIsolated { self?.paint(item) } },
                 ] }
             }
+        }
+
+        /// On a wide screen the tab bar floats at the top, and a tab whose content is a split view lets that view's
+        /// navigation bars make room for it. UIKit asks the tab whether it does so when the tab is first put on screen,
+        /// before SwiftUI has built the split view inside it, so a tab opened later (Favorites) was also inset below the
+        /// tab bar and its header sat 64 pt lower than Library's. Putting the tab's view back in its place makes UIKit ask
+        /// again now that the split view exists, as a rotation would. Once per tab; the tab stays selected throughout.
+        private func settleInsets() {
+            guard let tabs = view.window?.rootViewController.flatMap(tabBarController(in:)),
+                  tabs.traitCollection.horizontalSizeClass == .regular,
+                  let shown = tabs.selectedViewController, !shown.children.isEmpty,
+                  settled.insert(ObjectIdentifier(shown)).inserted,
+                  let content = shown.viewIfLoaded, let holder = content.superview else { return }
+            content.removeFromSuperview()
+            holder.addSubview(content)
         }
 
         func fade(away: Bool) {

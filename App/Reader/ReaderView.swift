@@ -136,24 +136,28 @@ struct ReaderView: View {
         #endif
     }
 
+    /// The Mac header's icons, sized like the list toggle beside the window buttons. At the iOS 20 pt they filled the
+    /// 40 pt title bar to within 9 pt of the window's top edge.
+    private static let macGlyph: CGFloat = 16
+
     private var header: some View {
         HStack(spacing: 0) {
             backButton
             Spacer()
             if isMac { Text(article.title).font(Typo.sans(13).weight(.semibold)).foregroundStyle(Theme.muted).lineLimit(1); Spacer() }
-            if video == nil { Button { settings = true } label: { Image(systemName: "textformat.size") }.buttonStyle(CircleIconButtonStyle()).accessibilityLabel("Reader settings") }
+            if video == nil { Button { settings = true } label: { Image(systemName: "textformat.size") }.buttonStyle(CircleIconButtonStyle(glyph: Self.macGlyph)).accessibilityLabel("Reader settings") }
             else {
-                if canFloat { Button(action: enterPiP) { Image(systemName: "pip.enter") }.buttonStyle(CircleIconButtonStyle()).accessibilityLabel("Picture in Picture").help("Picture in Picture") }
-                Button(action: enterTheater) { Image(systemName: "popcorn") }.buttonStyle(CircleIconButtonStyle()).accessibilityLabel("Theater mode").help("Theater mode (T)").keyboardShortcut("t", modifiers: [])
+                if canFloat { Button(action: enterPiP) { Image(systemName: "pip.enter") }.buttonStyle(CircleIconButtonStyle(glyph: Self.macGlyph)).accessibilityLabel("Picture in Picture").help("Picture in Picture") }
+                Button(action: enterTheater) { Image(systemName: "popcorn") }.buttonStyle(CircleIconButtonStyle(glyph: Self.macGlyph)).accessibilityLabel("Theater mode").help("Theater mode (T)").keyboardShortcut("t", modifiers: [])
             }
-            if isMac { Button { store.favorite(article) } label: { Image(systemName: article.isFavorite ? "bookmark.fill" : "bookmark") }.buttonStyle(CircleIconButtonStyle()).accessibilityLabel("Toggle favorite") }
+            if isMac { Button { store.favorite(article) } label: { Image(systemName: article.isFavorite ? "bookmark.fill" : "bookmark") }.buttonStyle(CircleIconButtonStyle(glyph: Self.macGlyph)).accessibilityLabel("Toggle favorite") }
             if isMac {
-                Button(action: archiveArticle) { Image(systemName: article.archivedAt == nil ? "archivebox" : "tray.and.arrow.up") }.buttonStyle(CircleIconButtonStyle()).accessibilityLabel(article.archivedAt == nil ? "Archive" : "Unarchive").help(article.archivedAt == nil ? "Archive" : "Unarchive")
-                Button { confirmDelete = true } label: { Image(systemName: "trash") }.buttonStyle(CircleIconButtonStyle()).accessibilityLabel("Delete").help("Delete")
+                Button(action: archiveArticle) { Image(systemName: article.archivedAt == nil ? "archivebox" : "tray.and.arrow.up") }.buttonStyle(CircleIconButtonStyle(glyph: Self.macGlyph)).accessibilityLabel(article.archivedAt == nil ? "Archive" : "Unarchive").help(article.archivedAt == nil ? "Archive" : "Unarchive")
+                Button { confirmDelete = true } label: { Image(systemName: "trash") }.buttonStyle(CircleIconButtonStyle(glyph: Self.macGlyph)).accessibilityLabel("Delete").help("Delete")
             }
             if let url = URL(string: article.url) {
-                Button { openURL(url) } label: { Image(systemName: "safari") }.buttonStyle(CircleIconButtonStyle()).accessibilityLabel("Open in Browser").keyboardShortcut("o", modifiers: [])
-                ShareLink(item: url) { Image(systemName: "square.and.arrow.up") }.buttonStyle(CircleIconButtonStyle()).accessibilityLabel("Share article")
+                Button { openURL(url) } label: { Image(systemName: "safari") }.buttonStyle(CircleIconButtonStyle(glyph: Self.macGlyph)).accessibilityLabel("Open in Browser").keyboardShortcut("o", modifiers: [])
+                ShareLink(item: url) { Image(systemName: "square.and.arrow.up") }.buttonStyle(CircleIconButtonStyle(glyph: Self.macGlyph)).accessibilityLabel("Share article")
             }
         // On the Mac the row is as tall as the compact title bar, so its icons share the window buttons' center line.
         }.padding(.horizontal, 12).padding(.leading, !isMac ? 0 : !besideList ? 72 : clearsTrafficLights ? 118 : 0).frame(height: isMac ? 40 : 44).background(preferences.theme.paper)
@@ -316,9 +320,11 @@ extension ReaderView {
         #endif
     }
 
+    /// Each button gets its own 44 pt target and a fixed glyph size: a short landscape bar (iPhone Duo unfolded, a Pro Max on
+    /// its side) otherwise draws them smaller than on the iPad.
     private var fadingButtons: some View {
-        HStack(spacing: 4) { trailingButtons }
-            .padding(.horizontal, 8).frame(height: 44)
+        HStack(spacing: 0) { trailingButtons }.buttonStyle(ReaderBarButtonStyle())
+            .padding(.horizontal, 4).frame(height: 44)
             .background(preferences.theme.paper, in: Capsule()).overlay(Capsule().strokeBorder(Theme.hairline))
             .opacity(chromeOpacity)
     }
@@ -342,6 +348,15 @@ extension ReaderView {
 #endif
 
 #if os(iOS)
+/// A reader bar button in the side-by-side capsule: the icon alone (its title still names it for VoiceOver), tinted like the bar.
+private struct ReaderBarButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label.labelStyle(.iconOnly).font(.system(size: 14)).foregroundStyle(.tint)
+            .frame(width: 44, height: 44).contentShape(Rectangle())
+            .opacity(configuration.isPressed ? 0.5 : 1)
+    }
+}
+
 extension ReaderView {
     /// The title, site and length laid out as the page lays them, so a card opens onto something at once and the page fades in over it
     /// without the title moving: the same 34rem column, 26 and 22 pt padding, kicker above the title.

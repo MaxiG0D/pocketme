@@ -42,9 +42,10 @@ struct SecondaryButtonStyle: ButtonStyle {
 struct CircleIconButtonStyle: ButtonStyle {
     enum Kind { case plain, accent }
     var kind: Kind = .plain
+    var glyph: CGFloat = 20
 
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label.font(.system(size: 20, weight: .regular))
+        configuration.label.font(.system(size: glyph, weight: .regular))
             .frame(width: 44, height: 44)
             .background(kind == .accent ? Theme.accent : Theme.accent.opacity(0), in: Circle())
             .foregroundStyle(kind == .accent ? Theme.onAccent : Theme.icon)
