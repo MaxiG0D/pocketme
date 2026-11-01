@@ -35,6 +35,9 @@ struct LibraryView: View {
     @State private var listHeights = RowHeights()
     /// Side by side, the sidebar's header (bar and filters) stays on screen in both layouts and the grid starts below it, as on the Mac.
     @State private var headerBottom: CGFloat = 0
+    /// Side by side the header draws its own search field, as on the Mac; the system one lives in the bar the sidebar hides there.
+    @State private var searching = false
+    @FocusState private var searchFocused: Bool
 
     init(favoritesOnly: Bool = false) {
         self.favoritesOnly = favoritesOnly
@@ -76,7 +79,7 @@ struct LibraryView: View {
             .onChange(of: selection) { _, new in selectionChanged(to: new) }
             .onChange(of: compactColumn) { _, column in compactColumnChanged(to: column) }
             .onChange(of: filtered.map(\.id)) { _, _ in ensureSelection() }
-            .onChange(of: sizeClass) { _, _ in ensureSelection() }
+            .onChange(of: sizeClass) { _, _ in ensureSelection(); leaveHeaderSearch() }
             .onChange(of: store.requestedArticleID) { _, id in openRequested(id) }
             .sensoryFeedback(.success, trigger: store.savedToken)
             .sensoryFeedback(.success, trigger: store.actionToken)
@@ -92,6 +95,13 @@ struct LibraryView: View {
             let target: NavigationSplitViewColumn = new == nil ? .sidebar : .detail
             compactColumn = target
         }
+    }
+
+    /// Folded, the system search field takes over; the header's own field closes and takes its search with it.
+    private func leaveHeaderSearch() {
+        guard !sideBySide, searching else { return }
+        searching = false
+        search = ""
     }
 
     private func compactColumnChanged(to column: NavigationSplitViewColumn) {
@@ -159,6 +169,8 @@ struct LibraryView: View {
                 .navigationTitle(favoritesOnly ? "Favorites" : "Pocket Me")
                 .navigationSplitViewColumnWidth(min: 300, ideal: 360, max: 420)
                 .toolbar(removing: .sidebarToggle)
+                // Side by side the sidebar draws the Mac's header instead, so no system title squeezes in between the buttons.
+                .toolbar(sideBySide ? .hidden : .automatic, for: .navigationBar)
         } detail: {
             detail
         }
@@ -300,14 +312,14 @@ struct LibraryView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Theme.paper).scrollIndicators(.hidden)
-        .safeAreaInset(edge: .top, spacing: 0) { pinnedFilters }
+        .safeAreaInset(edge: .top, spacing: 0) { sideHeader }
         .onScrollPhaseChange { _, phase in store.listScrolling = phase != .idle }
         // Follows the finger only while the card is leaving; past it the value stops changing, so reading down sends no updates.
         .onScrollGeometryChange(for: CGFloat.self) { geometry in
             let offset = geometry.contentOffset.y + geometry.contentInsets.top
             return min(max(offset / 320, 0), 1)
         } action: { _, new in heroSquish = new }
-        .modifier(LibrarySearch(enabled: !articles.isEmpty, text: $search, isPresented: searchPresented(in: .list)))
+        .modifier(LibrarySearch(enabled: !articles.isEmpty && !sideBySide, text: $search, isPresented: searchPresented(in: .list)))
         .toolbar { libraryToolbar(.list) }
         // Side by side with a video in theater mode, the list dims as it slides away.
         .overlay { TheaterShade() }
@@ -373,19 +385,95 @@ struct LibraryView: View {
         .buttonStyle(.plain).barLabel("Save a link", reachable: reachable)
     }
 
-    /// Side by side the filters stay pinned under the bar, so the header is the same whichever layout is in front.
-    @ViewBuilder private var pinnedFilters: some View {
+    /// Side by side the sidebar carries the Mac's header: the serif title with the layout toggle at the end of its line,
+    /// then +, the pills and search. It stays pinned in both layouts, and the grid starts below it, so no control moves.
+    @ViewBuilder private var sideHeader: some View {
         if sideBySide {
-            VStack(spacing: 0) { filters }.frame(maxWidth: .infinity)
-                .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).maxY } action: { headerBottom = $0 }
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(spacing: 0) {
+                    Text(favoritesOnly ? "Favorites" : "Pocket Me").font(Typo.largeTitle).tracking(-0.5).foregroundStyle(Theme.ink)
+                        .lineLimit(1).minimumScaleFactor(0.7).accessibilityAddTraits(.isHeader)
+                    Spacer(minLength: 0)
+                    if !articles.isEmpty { headerLayoutButton }
+                }
+                .padding(.leading, 16).padding(.trailing, 10).padding(.top, 8).padding(.bottom, 6)
+                // Tight enough that + , both pills and search fit the narrowest (320 pt) sidebar on one line.
+                HStack(spacing: 6) {
+                    headerAddButton
+                    if !favoritesOnly && !articles.isEmpty {
+                        Theme.hairline.frame(width: 1, height: 16)
+                        pills.fixedSize()
+                    }
+                    Spacer(minLength: 0)
+                    if !articles.isEmpty { headerSearchButton }
+                }
+                .padding(.leading, 8).padding(.trailing, 10).padding(.bottom, searching ? 4 : 8)
+                if searching { searchField }
+            }
+            .frame(maxWidth: .infinity).background(Theme.paper)
+            .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).maxY } action: { headerBottom = $0 }
+        }
+    }
+
+    private var headerLayoutButton: some View {
+        Button { layout = layout.other } label: {
+            ZStack {
+                ForEach([LibraryLayout.list, .grid], id: \.self) { mode in
+                    Image(systemName: mode.toggleSymbol).opacity(layout == mode ? 1 : 0)
+                }
+            }
+            .font(.system(size: 18)).animation(.easeInOut(duration: 0.16), value: layout)
+            .foregroundStyle(Theme.icon).frame(width: 40, height: 44).contentShape(Rectangle())
+        }
+        .buttonStyle(.plain).accessibilityLabel(layout.toggleLabel)
+    }
+
+    private var headerAddButton: some View {
+        Button { addLink = true } label: {
+            Image(systemName: "plus").font(.system(size: 15, weight: .bold)).foregroundStyle(Theme.onAccent)
+                .frame(width: 32, height: 32).background(Theme.accent, in: Circle())
+                .frame(width: 40, height: 44).contentShape(Rectangle())
+        }
+        .buttonStyle(.plain).accessibilityLabel("Save a link")
+    }
+
+    private var headerSearchButton: some View {
+        Button {
+            searching.toggle()
+            searchFocused = searching
+            if !searching { search = "" }
+        } label: {
+            Image(systemName: "magnifyingglass").font(.system(size: 18))
+                .foregroundStyle(searching ? Theme.iconSelected : Theme.icon).frame(width: 40, height: 44).contentShape(Rectangle())
+        }
+        .buttonStyle(.plain).accessibilityLabel("Search")
+    }
+
+    private var searchField: some View {
+        HStack(spacing: 6) {
+            TextField("Title or site", text: $search).font(Typo.sans(15)).foregroundStyle(Theme.ink)
+                .focused($searchFocused).submitLabel(.search).onSubmit { searchFocused = false }
+            if !search.isEmpty {
+                Button { search = "" } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(Theme.muted) }
+                    .buttonStyle(.plain).accessibilityLabel("Clear")
+            }
+        }
+        .padding(.horizontal, 12).frame(height: 36)
+        .background(Theme.chip, in: Capsule())
+        .padding(.horizontal, 12).padding(.bottom, 10)
+    }
+
+    private var pills: some View {
+        HStack(spacing: 6) {
+            Button("Unread · \(articles.filter { $0.archivedAt == nil }.count)") { archive = false }.buttonStyle(PillButtonStyle(selected: !archive))
+            Button("Archive") { archive = true }.buttonStyle(PillButtonStyle(selected: archive))
         }
     }
 
     @ViewBuilder private var filters: some View {
         if !favoritesOnly && !articles.isEmpty {
             HStack(spacing: 6) {
-                Button("Unread · \(articles.filter { $0.archivedAt == nil }.count)") { archive = false }.buttonStyle(PillButtonStyle(selected: !archive))
-                Button("Archive") { archive = true }.buttonStyle(PillButtonStyle(selected: archive))
+                pills
                 Spacer(minLength: 0)
             }.padding(.horizontal, Theme.gutter).padding(.vertical, 10).background(Theme.paper)
         }

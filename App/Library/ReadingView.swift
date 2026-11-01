@@ -7,9 +7,9 @@ struct ReadingView: View {
         MacLibraryView()
         #else
         TabView {
-            LibraryView().tabItem { Label("Library", systemImage: "book") }
-            LibraryView(favoritesOnly: true).tabItem { Label("Favorites", systemImage: "bookmark") }
-            SettingsView().tabItem { Label("Settings", systemImage: "gearshape") }
+            LibraryView().tabBackdrop(theater: store.theater).tabItem { Label("Library", systemImage: "book") }
+            LibraryView(favoritesOnly: true).tabBackdrop(theater: store.theater).tabItem { Label("Favorites", systemImage: "bookmark") }
+            SettingsView().tabBackdrop(theater: store.theater).tabItem { Label("Settings", systemImage: "gearshape") }
         }
         .tint(Theme.iconSelected)
         .background(TabBarTint(theater: store.theater))
@@ -18,6 +18,16 @@ struct ReadingView: View {
 }
 
 #if os(iOS)
+private extension View {
+    /// Each tab is hosted in a UIKit view filled with the system background: pure black in dark mode, white in light.
+    /// On iPad the split view is laid out below the status bar (on a later tab, below the tab bar too), so that fill showed
+    /// as a band above it, darker than Paper. Painting each tab's own backdrop Paper (dimmed with the rest in theater mode)
+    /// leaves no system color behind; the window's color never showed there, as it sits under the tab's fill.
+    func tabBackdrop(theater: Bool) -> some View {
+        background { (theater ? Theater.shade : Theme.paper).ignoresSafeArea() }
+    }
+}
+
 /// The iOS 26 glass bar ignores tint for unselected tabs and draws them stark black or white, even through
 /// `unselectedItemTintColor`. Glyphs set as original-rendering images keep their color, so the bar's items
 /// get warm pre-colored images, redone whenever the appearance changes.
@@ -45,11 +55,6 @@ private struct TabBarTint: UIViewControllerRepresentable {
         override func viewDidAppear(_ animated: Bool) { super.viewDidAppear(animated); apply() }
 
         func apply() {
-            // The window and tab controller sit behind the SwiftUI content. Left unset they are pure black in dark
-            // mode, which shows as a black strip under the status bar wherever the content stops short of it.
-            let paper = UIColor(named: "Paper")
-            view.window?.backgroundColor = paper
-            view.window?.rootViewController?.view.backgroundColor = paper
             guard let root = view.window?.rootViewController, let tabs = tabBarController(in: root) else { return }
             if selection == nil {
                 selection = tabs.observe(\.selectedIndex) { [weak self] _, _ in
