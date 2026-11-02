@@ -29,6 +29,9 @@ struct WebSaveInbox: Sendable {
         do {
             await prepare()
             let changes = try await database.recordZoneChanges(inZoneWith: zoneID, since: nil)
+            if let user = try? await CKContainer(identifier: AppIdentity.cloudIdentifier ?? "").userRecordID() {
+                Self.log.info("signed in as …\(String(user.recordName.suffix(6)), privacy: .public)")
+            }
             Self.log.info("fetched \(changes.modificationResultsByID.count) web save request(s)")
             var handled: [CKRecord.ID] = []
             for (id, result) in changes.modificationResultsByID {

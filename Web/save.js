@@ -41,7 +41,9 @@ async function save(database) {
     if (code === "ZONE_NOT_FOUND") return show("failed", "Open PocketMe once, then try again");
     return show("failed", "Couldn’t save", reason(response.errors[0].serverErrorCode + " " + (response.errors[0].reason || "")));
   }
-  show("saved", "Saved!");
+  const saved = response.records && response.records[0];
+  const who = saved && saved.created && saved.created.userRecordName;
+  show("saved", "Saved!", saved ? `${saved.recordName.slice(0, 8)} · ${saved.zoneID.zoneName} · ${(who || "").slice(-6)}` : "");
   if (!params.get("embed") && history.length <= 1) setTimeout(() => window.close(), 1400);
 }
 
