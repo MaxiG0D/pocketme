@@ -2,6 +2,6 @@
 // Create it in CloudKit Dashboard > API Access > API Tokens, with the page's address as an allowed origin.
 window.POCKETME = {
   container: "iCloud.com.maxigariepy.pocketme",
-  environment: "development", // switch to "production" once the SaveRequest type is deployed
-  apiToken: "c360450254153d651e93f9de1a5cf2ff4b97112d76e3075a521903aa829c0328"
+  environment: "production"
+  apiToken: "50192d0e5b5d71b2d648db712f040dec907bba2ca6e5e987843bde52c715b2f3"
 };
