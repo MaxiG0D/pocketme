@@ -7,9 +7,13 @@ const params = new URLSearchParams(location.search);
 const link = params.get("url");
 const title = params.get("title") || "";
 const ZONE = "WebSaves";
+// Inside the Chrome extension's popup the page is a compact frame that tells the popup when it is done.
+if (params.get("embed")) document.body.classList.add("embed");
+const tell = (state) => { if (params.get("embed")) parent.postMessage({ pocketme: state }, "*"); };
 
 function show(state, text, detail) {
   card.className = state;
+  tell(state);
   label.textContent = text;
   detailEl.textContent = detail || "";
 }
@@ -38,7 +42,7 @@ async function save(database) {
     return show("failed", "Couldn’t save", reason(response.errors[0].serverErrorCode + " " + (response.errors[0].reason || "")));
   }
   show("saved", "Saved!");
-  if (history.length <= 1) setTimeout(() => window.close(), 1400);
+  if (!params.get("embed") && history.length <= 1) setTimeout(() => window.close(), 1400);
 }
 
 async function start() {

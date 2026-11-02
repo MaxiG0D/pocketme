@@ -30,9 +30,17 @@ async function save() {
     }
   } catch (error) {
     if (!/Mac/.test(navigator.userAgent) && WEB_SAVE_URL) {
-      const target = WEB_SAVE_URL + "?url=" + encodeURIComponent(tab.url) + "&title=" + encodeURIComponent(tab.title || "");
-      await chrome.tabs.create({ url: target, active: true });
-      return window.close();
+      // No PocketMe app here (Windows, Linux): the hosted save page runs inside this popup, no new tab.
+      const frame = document.getElementById("web");
+      frame.src = WEB_SAVE_URL + "?embed=1&url=" + encodeURIComponent(tab.url) + "&title=" + encodeURIComponent(tab.title || "");
+      frame.hidden = false;
+      card.hidden = true;
+      document.body.classList.add("web");
+      window.addEventListener("message", (event) => {
+        if (event.source !== frame.contentWindow || !event.data) return;
+        if (event.data.pocketme === "saved") setTimeout(() => window.close(), 1200);
+      });
+      return;
     }
     // PocketMe isn't running: opening the link launches it and saves the page.
     show("saving", "Opening PocketMe…");

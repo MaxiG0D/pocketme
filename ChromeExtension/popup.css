@@ -14,3 +14,6 @@ body { display: inline-flex; overflow: hidden; }
 @keyframes pop { from { transform: scale(.88); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { #card, .saving #mark { animation: none; } }
+body.web { display: block; }
+#web { width: 280px; height: 190px; border: 0; display: block; }
+#web[hidden] { display: none; }

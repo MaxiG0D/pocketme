@@ -25,3 +25,8 @@ body { margin:0; min-height:100vh; display:grid; place-items:center; background:
 #sign-out { display:none; }
 /* CloudKit positions the button's label from the left edge; inherited centering would push it off. */
 #sign-in .apple-auth-button { text-align:left; }
+.embed { min-height:0; display:block; }
+.embed #card { padding:14px 12px; gap:8px; }
+.embed #mark { width:44px; height:44px; border-radius:11px; }
+.embed #name { font-size:20px; }
+.embed #label { margin-top:0; font-size:15px; }
