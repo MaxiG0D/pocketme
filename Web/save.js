@@ -42,8 +42,13 @@ async function save(database) {
     return show("failed", "Couldn’t save", reason(response.errors[0].serverErrorCode + " " + (response.errors[0].reason || "")));
   }
   const saved = response.records && response.records[0];
-  const who = saved && saved.created && saved.created.userRecordName;
-  show("saved", "Saved!", saved ? `${saved.recordName.slice(0, 8)} · ${saved.zoneID.zoneName} · ${(who || "").slice(-6)}` : "");
+  // A record that came back without an id was not stored, whatever hasErrors says.
+  if (!saved || !saved.recordName || saved.serverErrorCode) {
+    return show("failed", "Couldn’t save", reason(JSON.stringify(saved || response).slice(0, 160)));
+  }
+  const zone = saved.zoneID && saved.zoneID.zoneName;
+  const who = saved.created && saved.created.userRecordName;
+  show("saved", "Saved!", `${saved.recordName.slice(0, 8)} · ${zone || "?"} · ${(who || "").slice(-6)}`);
   if (!params.get("embed") && history.length <= 1) setTimeout(() => window.close(), 1400);
 }
 
