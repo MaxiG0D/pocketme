@@ -30,11 +30,12 @@ function validLink(value) {
 
 async function save(database) {
   const zoneID = { zoneName: ZONE };
+  // CloudKit JS reads the zone from the options argument; a zoneID on the record itself is ignored and
+  // lands the record in the default zone, where the app never looks.
   const response = await database.saveRecords({
     recordType: "SaveRequest",
-    zoneID,
     fields: { url: { value: link }, title: { value: title }, savedAt: { value: Date.now() } }
-  });
+  }, { zoneID });
   if (response.hasErrors) {
     const code = response.errors[0].serverErrorCode;
     // The zone is created by the app; until PocketMe has run once with this update there is nowhere to write.
