@@ -12,6 +12,14 @@ body { margin:0; min-height:100vh; display:grid; place-items:center; background:
 .saving #mark { animation: pulse 1.2s ease-in-out infinite; }
 @keyframes pulse { 50% { opacity:.45; } }
 @media (prefers-reduced-motion: reduce) { .saving #mark { animation:none; } }
-#sign-in, #sign-out { min-height:44px; display:flex; justify-content:center; width:100%; }
-#sign-in > *, #sign-out > * { margin:0 auto !important; }
 #detail { color:var(--muted); font-size:13px; max-width:320px; word-break:break-word; }
+#name { margin:0; font:600 28px/1.1 "Newsreader", Georgia, "Times New Roman", serif; letter-spacing:-.01em; }
+#card { gap:12px; }
+#label { margin-top:8px; }
+#sign-in-wrap { position:relative; width:240px; height:48px; margin-top:8px; }
+#sign-in-wrap[hidden] { display:none; }
+#sign-in-face { position:absolute; inset:0; display:grid; place-items:center; border-radius:12px; background:#000; color:#fff; font-weight:600; font-size:17px; pointer-events:none; }
+/* Apple's own button sits invisibly on top so the click is a genuine one. */
+#sign-in { position:absolute; inset:0; opacity:0; overflow:hidden; cursor:pointer; }
+#sign-in > * { width:100% !important; height:100% !important; margin:0 !important; display:block !important; }
+#sign-out { display:none; }

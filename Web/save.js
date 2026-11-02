@@ -1,6 +1,6 @@
 const card = document.getElementById("card");
 const label = document.getElementById("label");
-const signIn = document.getElementById("sign-in");
+const signIn = document.getElementById("sign-in-wrap");
 const detailEl = document.getElementById("detail");
 const signOut = document.getElementById("sign-out");
 const params = new URLSearchParams(location.search);
