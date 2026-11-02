@@ -47,9 +47,7 @@ async function save(database) {
   if (!saved || !saved.recordName || saved.serverErrorCode) {
     return show("failed", "Couldn’t save", reason(JSON.stringify(saved || response).slice(0, 160)));
   }
-  const zone = saved.zoneID && saved.zoneID.zoneName;
-  const who = saved.created && saved.created.userRecordName;
-  show("saved", "Saved!", `${saved.recordName.slice(0, 8)} · ${zone || "?"} · ${(who || "").slice(-6)} · ${Object.keys(saved).join(",")}`);
+  show("saved", "Saved!");
   if (!params.get("embed") && history.length <= 1) setTimeout(() => window.close(), 1400);
 }
 
