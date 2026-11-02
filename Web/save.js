@@ -59,7 +59,7 @@ async function start() {
       show("saving", "Saving…");
       try { await save(database); } catch (error) { show("failed", "Couldn’t save", reason(error)); }
     } else {
-      show("saving", "Sign in to save");
+      show("idle", "Sign in to save");
       signIn.hidden = false;
     }
   };
