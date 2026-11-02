@@ -5,6 +5,9 @@ export PATH="/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin:/usr/local/bin"
 # Keep build products outside Documents: iCloud attributes can break signing.
 CACHE_DIR="${POCKETME_BUILD_ROOT:-${HOME}/Library/Caches/PocketMe}"
 mkdir -p "${CACHE_DIR}"
+# Drop one-off build folders (Diag*, SimUI, ...) the scripts never reuse once they are a week old.
+/usr/bin/find "${CACHE_DIR}" -mindepth 1 -maxdepth 1 -type d -mtime +7 \
+  ! -name Project ! -name Packages ! -name Mac ! -name Device ! -name Tests ! -name 'Archive-*' -exec /bin/rm -rf {} + 2>/dev/null || true
 # Download this checkout's evicted iCloud files before Xcode or config reads can stall.
 /usr/bin/python3 - "${ROOT_DIR}" <<'MATERIALIZE'
 from pathlib import Path
