@@ -1,5 +1,6 @@
 import CloudKit
 import Foundation
+import OSLog
 
 /// Links saved from the web (Windows, Chrome) arrive as small `SaveRequest` records in a dedicated zone of the
 /// private database. They never touch the library's own mirrored records: each one is moved into the local
@@ -7,6 +8,7 @@ import Foundation
 struct WebSaveInbox: Sendable {
     static let zoneName = "WebSaves"
     static let recordType = "SaveRequest"
+    private static let log = Logger(subsystem: "com.maxigariepy.pocketme", category: "WebSave")
     private let database: CKDatabase
     private let zoneID: CKRecordZone.ID
 
@@ -18,23 +20,30 @@ struct WebSaveInbox: Sendable {
 
     /// Creates the zone on first use so the web page has somewhere to write.
     func prepare() async {
-        _ = try? await database.modifyRecordZones(saving: [CKRecordZone(zoneID: zoneID)], deleting: [])
+        do { _ = try await database.modifyRecordZones(saving: [CKRecordZone(zoneID: zoneID)], deleting: []) }
+        catch { Self.log.error("zone setup failed: \(error.localizedDescription, privacy: .public)") }
     }
 
     /// Moves every pending request into `queue`. A record is deleted only after its link is safely queued.
     func drain(into queue: SaveQueue) async throws -> Int {
-        await prepare()
-        let changes = try await database.recordZoneChanges(inZoneWith: zoneID, since: nil)
-        var handled: [CKRecord.ID] = []
-        for (id, result) in changes.modificationResultsByID {
-            guard let record = try? result.get().record, record.recordType == Self.recordType else { continue }
-            if let url = record["url"] as? String {
-                try await queue.append(url: url, title: record["title"] as? String, at: record["savedAt"] as? Date ?? .now)
+        do {
+            await prepare()
+            let changes = try await database.recordZoneChanges(inZoneWith: zoneID, since: nil)
+            Self.log.info("fetched \(changes.modificationResultsByID.count) web save request(s)")
+            var handled: [CKRecord.ID] = []
+            for (id, result) in changes.modificationResultsByID {
+                guard let record = try? result.get().record, record.recordType == Self.recordType else { continue }
+                if let url = record["url"] as? String {
+                    try await queue.append(url: url, title: record["title"] as? String, at: record["savedAt"] as? Date ?? .now)
+                }
+                handled.append(id)
             }
-            handled.append(id)
+            guard !handled.isEmpty else { return 0 }
+            _ = try await database.modifyRecords(saving: [], deleting: handled)
+            return handled.count
+        } catch {
+            Self.log.error("web save import failed: \(error.localizedDescription, privacy: .public)")
+            throw error
         }
-        guard !handled.isEmpty else { return 0 }
-        _ = try await database.modifyRecords(saving: [], deleting: handled)
-        return handled.count
     }
 }
