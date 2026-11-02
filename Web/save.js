@@ -49,7 +49,7 @@ async function save(database) {
   }
   const zone = saved.zoneID && saved.zoneID.zoneName;
   const who = saved.created && saved.created.userRecordName;
-  show("saved", "Saved!", `${saved.recordName.slice(0, 8)} · ${zone || "?"} · ${(who || "").slice(-6)}`);
+  show("saved", "Saved!", `${saved.recordName.slice(0, 8)} · ${zone || "?"} · ${(who || "").slice(-6)} · ${Object.keys(saved).join(",")}`);
   if (!params.get("embed") && history.length <= 1) setTimeout(() => window.close(), 1400);
 }
 
@@ -65,9 +65,12 @@ async function start() {
   });
   const container = CloudKit.getDefaultContainer();
   const database = container.privateCloudDatabase;
+  let started = false;
   const proceed = async (user) => {
     if (user && user.hasSignedIn !== false && user.userRecordName) {
       signIn.hidden = true;
+      if (started) return;
+      started = true;
       show("saving", "Saving…");
       try { await save(database); } catch (error) { show("failed", "Couldn’t save", reason(error)); }
     } else {
