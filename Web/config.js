@@ -3,5 +3,5 @@
 window.POCKETME = {
   container: "iCloud.com.maxigariepy.pocketme",
   environment: "development", // switch to "production" once the SaveRequest type is deployed
-  apiToken: ""
+  apiToken: "c360450254153d651e93f9de1a5cf2ff4b97112d76e3075a521903aa829c0328"
 };

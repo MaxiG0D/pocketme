@@ -1,5 +1,5 @@
 // Where the hosted save page lives (Web/ deployed to Cloudflare Pages). Used where PocketMe isn't installed.
-const WEB_SAVE_URL = "";
+const WEB_SAVE_URL = "https://maxig0d.github.io/pocketme/";
 
 const card = document.getElementById("card");
 const label = document.getElementById("label");
