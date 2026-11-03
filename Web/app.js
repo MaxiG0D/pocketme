@@ -29,15 +29,19 @@
   // Links just saved from this page, shown until the app has fetched them and published the article.
   let saving = [];
   const origin = (value) => { try { const u = new URL(value); return u.host.replace(/^www\./, "") + u.pathname.replace(/\/$/, ""); } catch { return value; } };
+  // A saved link counts as arrived only when the library holds that page saved after this save: a page that was
+  // already in the library keeps its old row until the app has bumped it, so it must not clear the placeholder early.
+  const arrived = (item) => articles.some((a) => origin(a.url) === origin(item.url) && a.savedAt >= item.at - 120000);
   async function watchSaves() {
-    for (let tries = 0; tries < 60 && saving.length; tries++) {
+    for (let tries = 0; tries < 100 && saving.length; tries++) {
       await new Promise((resolve) => setTimeout(resolve, 3000));
       try { await loadLibrary(); } catch (error) { console.error(error); continue; }
-      const known = new Set(articles.map((a) => origin(a.url)));
-      saving = saving.filter((item) => !known.has(origin(item.url)) && Date.now() - item.at < 180000);
+      saving = saving.filter(item => !arrived(item));
       render();
     }
+    if (saving.length) toast("Still saving. It will appear in your library soon.");
     saving = [];
+    try { await loadLibrary(); } catch (error) { console.error(error); }
     render();
   }
   // Changes made here show at once; they stay until the app's copy catches up.
