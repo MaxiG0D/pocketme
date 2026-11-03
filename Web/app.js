@@ -230,8 +230,20 @@
     return null;
   }
   const EMBED_HOSTS = ["www.youtube.com", "www.youtube-nocookie.com", "youtube.com", "youtube-nocookie.com", "player.vimeo.com"];
-  const player = (src, title) => `<div class="player" id="player"><iframe src="${esc(src)}" title="${esc(title || "Video")}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>
+  // Like the apps, the page shows the video's poster first; the provider's player (and its overlays) loads on tap.
+  const player = (src, title, poster) => `<div class="player" id="player" data-src="${esc(src)}" data-title="${esc(title || "Video")}">
+    <button class="poster" id="play" aria-label="Play">${poster ? `<img alt="" src="${esc(poster)}" referrerpolicy="no-referrer">` : ""}<span class="play"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M8 5.5v13l11-6.5z"/></svg></span></button>
     <button class="icon-btn leave" id="leave-theater" aria-label="Leave theater mode">${svg("popcorn")}</button></div>`;
+  function startPlayer() {
+    const el = $("player"), play = $("play");
+    if (!el || !play) return;
+    const frame = document.createElement("iframe");
+    frame.src = el.dataset.src + (el.dataset.src.includes("?") ? "&" : "?") + "autoplay=1";
+    frame.title = el.dataset.title;
+    frame.setAttribute("allow", "autoplay; encrypted-media; picture-in-picture; fullscreen"); frame.setAttribute("allowfullscreen", "");
+    frame.setAttribute("referrerpolicy", "strict-origin-when-cross-origin");
+    play.replaceWith(frame);
+  }
   function setTheater(on) {
     const el = $("player");
     if (!el) return;
@@ -297,7 +309,7 @@
     else if (a.body) body = `<div class="body${embed ? " quiet" : ""}">${clean(a.body)}</div>`;
     else body = embed ? "" : `<a class="original" href="${esc(a.url)}" target="_blank" rel="noopener noreferrer">Open original</a>`;
     $("page").classList.toggle("video", !!embed);
-    $("page").innerHTML = (embed ? player(embed, a.title) : "") + `<div class="kicker">${esc(kicker)}</div><h1>${esc(a.title)}</h1>${a.body === "" ? "" : lead}${body}
+    $("page").innerHTML = (embed ? player(embed, a.title, a.lead && /^https?:/i.test(a.lead) ? a.lead : a.thumb) : "") + `<div class="kicker">${esc(kicker)}</div><h1>${esc(a.title)}</h1>${a.body === "" ? "" : lead}${body}
       <div class="end">${endHTML(a)}</div>`;
     applyPrefs();
   }
@@ -374,6 +386,7 @@
     $("bar-theater").addEventListener("click", () => setTheater(!document.body.classList.contains("theater")));
     $("page").addEventListener("click", (event) => {
       if (event.target.closest("#leave-theater")) setTheater(false);
+      if (event.target.closest("#play")) startPlayer();
       // A video's description stays short; a tap opens the rest.
       const quiet = event.target.closest(".body.quiet");
       if (quiet && !event.target.closest("a")) quiet.classList.toggle("open");
