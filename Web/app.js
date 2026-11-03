@@ -127,6 +127,9 @@
       recordType: "SaveRequest", fields: { url: { value: url }, title: { value: "" }, savedAt: { value: Date.now() } }
     }, { zoneID: REQUESTS });
     if (response.hasErrors) throw response.errors[0];
+    // A record that came back without an id was not stored, whatever hasErrors says.
+    const saved = response.records && response.records[0];
+    if (!saved || !saved.recordName || saved.serverErrorCode) throw new Error(JSON.stringify(saved || response).slice(0, 120));
   }
 
   // ---- Changes
@@ -276,7 +279,11 @@
         saving.unshift({ url: parsed.href, at: Date.now() });
         tab = "reading"; render();
         if (!watching) watchSaves();
-      } catch (error) { console.error(error); toast("Can’t save this link"); }
+      } catch (error) {
+        console.error(error);
+        const why = (error && (error.serverErrorCode || error.ckErrorCode || error.message)) || "";
+        toast(why ? "Can’t save this link: " + String(why).slice(0, 60) : "Can’t save this link");
+      }
     });
     $("rows").addEventListener("click", (event) => {
       const rowEl = event.target.closest(".row");
