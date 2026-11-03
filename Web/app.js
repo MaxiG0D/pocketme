@@ -296,6 +296,7 @@
     if (a.body === undefined) body = "";
     else if (a.body) body = `<div class="body${embed ? " quiet" : ""}">${clean(a.body)}</div>`;
     else body = embed ? "" : `<a class="original" href="${esc(a.url)}" target="_blank" rel="noopener noreferrer">Open original</a>`;
+    $("page").classList.toggle("video", !!embed);
     $("page").innerHTML = (embed ? player(embed, a.title) : "") + `<div class="kicker">${esc(kicker)}</div><h1>${esc(a.title)}</h1>${a.body === "" ? "" : lead}${body}
       <div class="end">${endHTML(a)}</div>`;
     applyPrefs();
@@ -368,7 +369,12 @@
     $("bar-archive").addEventListener("click", () => current && change(current, "archive"));
     $("bar-delete").addEventListener("click", () => current && remove(current));
     $("bar-theater").addEventListener("click", () => setTheater(!document.body.classList.contains("theater")));
-    $("page").addEventListener("click", (event) => { if (event.target.closest("#leave-theater")) setTheater(false); });
+    $("page").addEventListener("click", (event) => {
+      if (event.target.closest("#leave-theater")) setTheater(false);
+      // A video's description stays short; a tap opens the rest.
+      const quiet = event.target.closest(".body.quiet");
+      if (quiet && !event.target.closest("a")) quiet.classList.toggle("open");
+    });
     $("aa").addEventListener("click", () => { $("prefs").hidden = !$("prefs").hidden; });
     $("page").addEventListener("click", (event) => {
       const act = event.target.closest("[data-act]");

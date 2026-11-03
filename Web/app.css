@@ -124,3 +124,14 @@ article.page { max-width: 46rem; margin: 0 auto; padding: 22px 26px 80px; }
 .player.theater .leave:hover { background: rgba(255,255,255,.22); }
 body.theater { overflow: hidden; }
 body.theater .bar { visibility: hidden; }
+
+/* A video page is the player, its title and a short muted description. */
+.page.video { padding-top: 12px; }
+.page.video .player { margin-bottom: 16px; }
+.page.video h1 { font-size: 26px; line-height: 1.2; letter-spacing: -.2px; margin-bottom: 10px; }
+.page.video .kicker { margin-bottom: 6px; }
+.body.quiet { cursor: pointer; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; font: 400 14px/1.5 -apple-system, "Segoe UI", system-ui, sans-serif; }
+.body.quiet.open { display: block; }
+.body.quiet a { color: var(--muted); }
+.body.quiet img, .body.quiet figure, .body.quiet iframe, .body.quiet h2, .body.quiet h3 { display: none; }
+.page.video .end { margin-top: 28px; }
