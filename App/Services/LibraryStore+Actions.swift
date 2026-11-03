@@ -25,7 +25,39 @@ extension LibraryStore {
         drainingWeb = true
         defer { drainingWeb = false }
         // Links saved from the web; offline or signed-out iCloud just tries again next time.
-        if let moved = try? await webInbox.drain(into: queue), moved > 0 { await importLocalInbox() }
+        if let moved = try? await webInbox.drain(into: queue, apply: { [weak self] in self?.applyWebChanges($0) }), moved > 0 { await importLocalInbox() }
+        scheduleWebPublish(after: .seconds(1))
+    }
+
+    /// Archive and favorite changes made in the web app. Setting a state is safe to repeat, so a change applied
+    /// twice (or one the app already made) does no harm.
+    func applyWebChanges(_ changes: [WebChange]) {
+        guard let context = persistence?.container.mainContext else { return }
+        for change in changes {
+            let id = change.articleID
+            guard let article = try? context.fetch(FetchDescriptor<Article>(predicate: #Predicate { $0.id == id })).first else { continue }
+            switch change.action {
+            case "archive": if article.archivedAt == nil { article.archivedAt = change.at }
+            case "unarchive": article.archivedAt = nil
+            case "favorite": article.isFavorite = true
+            case "unfavorite": article.isFavorite = false
+            default: break
+            }
+        }
+        persist()
+        actionToken += 1
+    }
+
+    /// Publishes the library to the web app a moment after the last change.
+    func scheduleWebPublish(after delay: Duration = .seconds(4)) {
+        guard let persistence, persistence.mode == .cloud else { return }
+        webPublish?.cancel()
+        webPublish = Task { [weak self] in
+            try? await Task.sleep(for: delay)
+            guard !Task.isCancelled, let self else { return }
+            if self.webMirror == nil { self.webMirror = WebLibraryMirror() }
+            await self.webMirror?.publish(from: persistence.container.mainContext)
+        }
     }
 
     private func localQueue(_ persistence: AppPersistence) throws -> SaveQueue {
@@ -122,6 +154,7 @@ extension LibraryStore {
     }
     func persist() {
         pendingSave?.cancel()
+        scheduleWebPublish()
         do { try persistence?.container.mainContext.save() }
         catch { errorMessage = "Your changes couldn’t be saved. Please try again." }
     }

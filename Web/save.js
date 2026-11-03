@@ -80,4 +80,4 @@ async function start() {
   container.whenUserSignsIn().then(proceed);
 }
 
-start().catch((error) => show("failed", "Couldn’t save", reason(error)));
+if (params.has("url")) start().catch((error) => show("failed", "Couldn’t save", reason(error)));

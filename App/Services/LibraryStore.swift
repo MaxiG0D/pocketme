@@ -32,6 +32,9 @@ final class LibraryStore {
     #endif
     private var opening = false
     @ObservationIgnored private var remoteChanges: Task<Void, Never>?
+    @ObservationIgnored var webMirror: WebLibraryMirror?
+    @ObservationIgnored var webPublish: Task<Void, Never>?
+    @ObservationIgnored var webPoll: Task<Void, Never>?
     @ObservationIgnored var pendingSave: Task<Void, Never>?
     @ObservationIgnored private var maintenance: Task<Void, Never>?
     /// True while a library list or grid is being scrolled; background bookkeeping waits for it to settle.
@@ -68,6 +71,13 @@ final class LibraryStore {
             #endif
             inboxObserver = InboxObserver { [weak self] in Task { await self?.drainInbox() } }
             await drainInbox()
+            // Changes made in the web app arrive while this one is open, so check for them now and then.
+            webPoll = Task { [weak self] in
+                while !Task.isCancelled {
+                    try? await Task.sleep(for: .seconds(60))
+                    await self?.drainInbox()
+                }
+            }
             // De-duplication and the background pass both walk every article on the main actor; they wait for the first screen.
             scheduleMaintenance()
             remoteChanges = Task { [weak self] in

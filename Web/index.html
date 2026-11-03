@@ -3,9 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PocketMe</title>
+<title>Pocket Me</title>
 <link rel="icon" href="icon.png">
-<link rel="stylesheet" href="save.css?v=12">
+<script>document.documentElement.className = new URLSearchParams(location.search).has("url") ? "save" : "app";</script>
+<link rel="stylesheet" href="save.css?v=13">
+<link rel="stylesheet" href="app.css?v=13">
 </head>
 <body>
 <main id="card" class="saving" role="status" aria-live="polite">
@@ -16,8 +18,60 @@
   <div id="sign-in-wrap" hidden><span id="sign-in-face">Sign in with Apple</span><div id="sign-in"></div></div>
   <div id="sign-out" hidden></div>
 </main>
+<div id="app">
+  <section id="gate" class="view">
+    <span class="mark"></span>
+    <h1>Pocket Me</h1>
+    <span id="gate-status" class="status" role="status"></span>
+    <div id="gate-signin" class="signin" hidden><span class="face">Sign in with Apple</span><div id="sign-in-app"></div></div>
+    <div id="sign-out-app"></div>
+  </section>
+  <section id="library" class="view" hidden>
+    <header class="head">
+      <button id="add" class="add" aria-label="Save a link"></button>
+      <h1>Pocket Me</h1>
+      <button id="layout" class="icon-btn"></button>
+    </header>
+    <form id="save-form" hidden><input id="save-url" type="text" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Paste a link" aria-label="Link"><button type="submit">Save</button></form>
+    <nav class="tabs" role="tablist">
+      <button class="tab" role="tab" data-tab="reading">Reading</button>
+      <button class="tab" role="tab" data-tab="favorites">Favorites</button>
+      <button class="tab" role="tab" data-tab="archive">Archive</button>
+    </nav>
+    <ul id="rows" class="rows"></ul>
+  </section>
+  <section id="reader" class="view" hidden>
+    <div class="bar">
+      <button id="back" class="icon-btn" aria-label="Back"></button>
+      <span class="space"></span>
+      <button id="bar-fav" class="icon-btn" aria-label="Favorite" aria-pressed="false"></button>
+      <button id="bar-archive" class="icon-btn" aria-label="Archive"></button>
+      <button id="aa" class="icon-btn" aria-label="Reading settings"></button>
+      <div class="progress" id="progress"></div>
+    </div>
+    <div id="prefs" class="prefs" hidden>
+      <div class="seg">
+        <button class="t-auto" data-pref="theme" data-value="auto">Auto</button>
+        <button class="t-light" data-pref="theme" data-value="light">Light</button>
+        <button class="t-sepia" data-pref="theme" data-value="sepia">Sepia</button>
+        <button class="t-dark" data-pref="theme" data-value="dark">Dark</button>
+      </div>
+      <div class="seg">
+        <button data-pref="font" data-value="serif" style="font-family:Newsreader,Georgia,serif">Serif</button>
+        <button data-pref="font" data-value="sans">Sans</button>
+      </div>
+      <div class="seg">
+        <button data-pref="size" data-value="-1" aria-label="Smaller" style="font-size:13px">A</button>
+        <button data-pref="size" data-value="1" aria-label="Larger" style="font-size:20px">A</button>
+      </div>
+    </div>
+    <article id="page" class="page"></article>
+  </section>
+  <div id="toast" role="status" aria-live="polite"></div>
+</div>
 <script src="https://cdn.apple-cloudkit.com/ck/2/cloudkit.js"></script>
-<script src="config.js?v=12"></script>
-<script src="save.js?v=12"></script>
+<script src="config.js?v=13"></script>
+<script src="save.js?v=13"></script>
+<script src="app.js?v=13"></script>
 </body>
 </html>
