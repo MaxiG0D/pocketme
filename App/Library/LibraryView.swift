@@ -11,6 +11,7 @@ struct LibraryView: View {
     var favoritesOnly = false
     @State private var archive = false
     @State private var heroSquish: CGFloat = 0
+    @AppStorage(ContinueReadingSetting.storageKey) private var showContinueReading = false
     @State private var search = ""
     @State private var showSearch = false
     @State private var addLink = false
@@ -54,7 +55,7 @@ struct LibraryView: View {
     }
     /// Side by side, the article being read is already open next to the list; promoting it to a hero card
     /// would make its row jump in and out as reading progress changes.
-    private var current: Article? { sizeClass == .regular ? nil : inProgress }
+    private var current: Article? { sizeClass == .regular || !showContinueReading ? nil : inProgress }
     private var inProgress: Article? { inProgress(in: filtered) }
     private func inProgress(in filtered: [Article]) -> Article? {
         guard !favoritesOnly, !archive, search.isEmpty else { return nil }
@@ -266,7 +267,7 @@ struct LibraryView: View {
     private var list: some View {
         // One pass over the library for everything this list needs; each `filtered` is a walk of every article.
         let all = filtered
-        let hero = sizeClass == .regular ? nil : inProgress(in: all)
+        let hero = sizeClass == .regular || !showContinueReading ? nil : inProgress(in: all)
         let items = hero == nil ? all : all.filter { $0.id != hero?.id }
         return ScrollView {
             VStack(spacing: 0) {

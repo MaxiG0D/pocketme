@@ -15,6 +15,7 @@ struct MacLibraryView: View {
     @State private var search = ""
     @State private var searching = false
     @State private var heroSquish: CGFloat = 0
+    @AppStorage(ContinueReadingSetting.storageKey) private var showContinueReading = false
     @FocusState private var searchFocused: Bool
     @FocusState private var gridFocused: Bool
     @AppStorage(LibraryLayout.storageKey) private var layout: LibraryLayout = .list
@@ -31,7 +32,7 @@ struct MacLibraryView: View {
     }
     /// The most recently opened unread article (even if scrolled back to the top), shown as a card above the rest of the list.
     private var inProgress: Article? {
-        guard section == .unread, search.isEmpty else { return nil }
+        guard showContinueReading, section == .unread, search.isEmpty else { return nil }
         return filtered.filter { $0.lastOpenedAt != nil && $0.readingProgress < 0.95 }
             .max { ($0.lastOpenedAt ?? .distantPast) < ($1.lastOpenedAt ?? .distantPast) }
     }

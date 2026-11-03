@@ -5,6 +5,7 @@ struct SettingsView: View {
     @Environment(ReaderPreferences.self) private var preferences
     @State private var bytes: Int64 = 0
     @State private var clear = false
+    @AppStorage(ContinueReadingSetting.storageKey) private var showContinueReading = false
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 28) {
@@ -22,6 +23,7 @@ struct SettingsView: View {
                     Button("Clear downloaded images") { clear = true }.buttonStyle(SecondaryButtonStyle())
                 }
                 section("Reader defaults") { ReaderSettingsControls() }
+                section("Library") { Toggle("Continue reading card", isOn: $showContinueReading).toggleStyle(WarmSwitchStyle()) }
                 section("Video") {
                     Button { preferences.theaterOnPlay.toggle() } label: {
                         HStack {
@@ -75,3 +77,18 @@ struct SettingsView: View {
 #Preview("Light") { PreviewHost { store, articles in SettingsView().frame(width: 390, height: 844) }.preferredColorScheme(.light) }
 #Preview("Dark") { PreviewHost { store, articles in SettingsView().frame(width: 390, height: 844) }.preferredColorScheme(.dark) }
 #endif
+
+struct WarmSwitchStyle: ToggleStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        Button { configuration.isOn.toggle() } label: {
+            HStack {
+                configuration.label.font(Typo.button).foregroundStyle(Theme.ink)
+                Spacer()
+                Capsule().fill(configuration.isOn ? Theme.ink : Theme.chip).overlay(Capsule().stroke(Theme.hairline, lineWidth: 1)).frame(width: 51, height: 31)
+                    .overlay(alignment: configuration.isOn ? .trailing : .leading) { Circle().fill(Theme.segmentSelected).frame(width: 27, height: 27).padding(2) }
+                    .animation(.snappy(duration: 0.2), value: configuration.isOn)
+            }.frame(minHeight: 44).contentShape(Rectangle())
+        }.buttonStyle(.plain)
+            .accessibilityValue(configuration.isOn ? "On" : "Off").accessibilityAddTraits(.isToggle)
+    }
+}

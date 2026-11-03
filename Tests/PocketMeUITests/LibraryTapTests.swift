@@ -10,7 +10,7 @@ final class LibraryTapTests: XCTestCase {
         continueAfterFailure = false
         app = XCUIApplication()
         // Pins the layout for the run, whatever the last run left in the simulator's defaults.
-        app.launchArguments = ["-PocketMeUITest", "-libraryLayout", "list"]
+        app.launchArguments = ["-PocketMeUITest", "-libraryLayout", "list", "-showContinueReading", "YES"]
         app.launch()
     }
 

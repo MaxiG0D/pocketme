@@ -21,3 +21,6 @@ extension AnyTransition {
 extension Animation {
     static let libraryLayout = Animation.smooth(duration: 0.32)
 }
+
+/// The Continue reading card is opt-in.
+enum ContinueReadingSetting { static let storageKey = "showContinueReading" }
