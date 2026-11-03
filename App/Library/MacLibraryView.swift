@@ -197,6 +197,8 @@ struct MacLibraryView: View {
     @ViewBuilder private var reader: some View {
         if let article = openArticle, filtered.contains(where: { $0.id == article.id }) {
             ReaderView(article: article, besideList: true, clearsTrafficLights: !listVisible)
+                // A new identity per article, so the O and T shortcuts always belong to the article on screen.
+                .id(article.id)
         } else {
             emptyContent.frame(maxWidth: .infinity, maxHeight: .infinity)
         }
