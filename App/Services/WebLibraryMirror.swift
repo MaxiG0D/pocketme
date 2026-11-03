@@ -58,7 +58,8 @@ final class WebLibraryMirror {
                            article.leadImageURL ?? "", "\(article.wordCount)", "\(article.readingMinutes)"].joined(separator: "|")
             let details = "\(article.savedAt.timeIntervalSince1970)|\(article.archivedAt?.timeIntervalSince1970 ?? 0)|\(article.isFavorite)"
             let contentChanged = sent?.content != content
-            let needsThumbnail = !(sent?.thumbnail ?? false)
+            // An article without a thumbnail has nothing to send; it must not count as unsent on every pass.
+            let needsThumbnail = !(sent?.thumbnail ?? false) && article.thumbnailData != nil
             guard contentChanged || sent?.details != details || needsThumbnail else { continue }
 
             let record = CKRecord(recordType: Self.recordType, recordID: CKRecord.ID(recordName: name, zoneID: zoneID))
