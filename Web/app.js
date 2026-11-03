@@ -244,6 +244,9 @@
     frame.setAttribute("referrerpolicy", "strict-origin-when-cross-origin");
     play.replaceWith(frame);
   }
+  function openOriginal() {
+    if (current && /^https?:/i.test(current.url)) window.open(current.url, "_blank", "noopener,noreferrer");
+  }
   function setTheater(on) {
     const el = $("player");
     if (!el) return;
@@ -383,6 +386,7 @@
     $("bar-fav").addEventListener("click", () => current && change(current, "favorite"));
     $("bar-archive").addEventListener("click", () => current && change(current, "archive"));
     $("bar-delete").addEventListener("click", () => current && remove(current));
+    $("bar-open").addEventListener("click", openOriginal);
     $("bar-theater").addEventListener("click", () => setTheater(!document.body.classList.contains("theater")));
     $("page").addEventListener("click", (event) => {
       if (event.target.closest("#leave-theater")) setTheater(false);
@@ -411,6 +415,7 @@
     window.addEventListener("hashchange", () => route(false));
     window.addEventListener("keydown", (event) => {
       const typing = /^(INPUT|TEXTAREA)$/.test((event.target.tagName || ""));
+      if ((event.key === "o" || event.key === "O") && !typing && !event.metaKey && !event.ctrlKey && !event.altKey && current) { openOriginal(); return; }
       if ((event.key === "t" || event.key === "T") && !typing && !event.metaKey && !event.ctrlKey && !event.altKey && current && $("player")) { setTheater(!document.body.classList.contains("theater")); return; }
       if (event.key === "Escape" && document.body.classList.contains("theater")) { setTheater(false); return; }
       if (event.key === "Escape" && current) { if (!$("prefs").hidden) $("prefs").hidden = true; else $("back").click(); }
@@ -426,7 +431,7 @@
       try { await loadLibrary(); render(); } catch (error) { console.error(error); }
     });
     $("aa").innerHTML = svg("aa"); $("back").innerHTML = svg("back"); $("add").innerHTML = svg("plus");
-    $("bar-fav").innerHTML = svg("star"); $("bar-archive").innerHTML = svg("archive"); $("bar-delete").innerHTML = svg("trash"); $("bar-theater").innerHTML = svg("popcorn");
+    $("bar-fav").innerHTML = svg("star"); $("bar-archive").innerHTML = svg("archive"); $("bar-delete").innerHTML = svg("trash"); $("bar-theater").innerHTML = svg("popcorn"); $("bar-open").innerHTML = svg("open");
   }
 
   wire();
