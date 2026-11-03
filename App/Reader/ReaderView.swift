@@ -63,7 +63,14 @@ struct ReaderView: View {
         #endif
     }
 
+    /// The article was deleted while this view was still on screen (the delete confirmation closing); its properties can't be read any more.
+    private var isGone: Bool { article.isDeleted || article.modelContext == nil }
+
     var body: some View {
+        if isGone { Color.clear } else { liveBody }
+    }
+
+    @ViewBuilder private var liveBody: some View {
         VStack(spacing: 0) {
             #if os(macOS)
             // In theater mode the header steps aside, so the video centers in the whole window.
@@ -249,6 +256,7 @@ struct ReaderView: View {
         #endif
     }
     private func open(_ article: Article) {
+        guard !article.isDeleted, article.modelContext != nil else { return }
         videoPlaying = false
         pip.reset()
         store.setTheater(false, reduceMotion: reduceMotion)
@@ -280,6 +288,7 @@ struct ReaderView: View {
         }
     }
     private func message(_ action: String, _ value: Double?) {
+        guard !isGone else { return }
         switch action {
         case "progress": if let value, value.isFinite, progress.active { progress.value = min(max(value, 0), 1); saveSoon() }
         case "archive": archiveArticle()
