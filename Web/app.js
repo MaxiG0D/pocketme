@@ -25,6 +25,20 @@
   let loaded = false;
   let tab = "reading";
   let layout = store("layout") === "grid" ? "grid" : "list";
+  // Links just saved from this page, shown until the app has fetched them and published the article.
+  let saving = [];
+  const origin = (value) => { try { const u = new URL(value); return u.host.replace(/^www\./, "") + u.pathname.replace(/\/$/, ""); } catch { return value; } };
+  async function watchSaves() {
+    for (let tries = 0; tries < 30 && saving.length; tries++) {
+      await new Promise((resolve) => setTimeout(resolve, 6000));
+      try { await loadLibrary(); } catch (error) { console.error(error); continue; }
+      const known = new Set(articles.map((a) => origin(a.url)));
+      saving = saving.filter((item) => !known.has(origin(item.url)) && Date.now() - item.at < 180000);
+      render();
+    }
+    saving = [];
+    render();
+  }
   // Changes made here show at once; they stay until the app's copy catches up.
   const overrides = new Map();
   const view = (a) => { const o = overrides.get(a.id); return o ? { ...a, ...o } : a; };
@@ -161,12 +175,14 @@
     rows.className = "rows" + (layout === "grid" ? " grid" : "");
     if (!loaded) { rows.innerHTML = '<li class="sk"></li>'.repeat(5); return; }
     const list = visible();
-    if (!list.length) {
+    if (!list.length && !(tab === "reading" && saving.length)) {
       const text = !articles.length ? "Open PocketMe on your phone or Mac" : tab === "archive" ? "Nothing archived" : tab === "favorites" ? "No favorites" : "All caught up";
       rows.innerHTML = `<li class="empty">${text}</li>`;
       return;
     }
-    rows.innerHTML = list.map(row).join("");
+    const placeholders = tab === "reading" ? saving.map((item) => `<li class="row" aria-busy="true"><div class="thumb"><div class="cover cover${coverIndex(origin(item.url))}"></div></div>
+      <div class="info"><span class="title">${esc(origin(item.url))}</span><span class="meta"><span class="pending" role="img" aria-label="Saving"></span>Saving</span></div></li>`).join("") : "";
+    rows.innerHTML = placeholders + list.map(row).join("");
   }
 
   // ---- Reader
@@ -256,6 +272,10 @@
         if (!/^https?:$/.test(parsed.protocol)) throw new Error("scheme");
         await saveLink(parsed.href);
         input.value = ""; $("save-form").hidden = true; toast("Saved!");
+        const watching = saving.length > 0;
+        saving.unshift({ url: parsed.href, at: Date.now() });
+        tab = "reading"; render();
+        if (!watching) watchSaves();
       } catch (error) { console.error(error); toast("Can’t save this link"); }
     });
     $("rows").addEventListener("click", (event) => {
