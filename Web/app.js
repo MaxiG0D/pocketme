@@ -435,8 +435,6 @@
       const typing = /^(INPUT|TEXTAREA)$/.test((event.target.tagName || ""));
       if ((event.key === "o" || event.key === "O") && !typing && !event.metaKey && !event.ctrlKey && !event.altKey && current) { openOriginal(); return; }
       if ((event.key === "t" || event.key === "T") && !typing && !event.metaKey && !event.ctrlKey && !event.altKey && current && $("player")) { setTheater(!document.body.classList.contains("theater")); return; }
-      // O opens the article's original page, like the Mac app.
-      if ((event.key === "o" || event.key === "O") && !typing && !event.metaKey && !event.ctrlKey && !event.altKey && current && /^https?:/i.test(current.url || "")) { window.open(current.url, "_blank", "noopener,noreferrer"); return; }
       if (event.key === "Escape" && document.body.classList.contains("theater")) { setTheater(false); return; }
       if (event.key === "Escape" && current) { if (!$("prefs").hidden) $("prefs").hidden = true; else $("back").click(); }
     });
