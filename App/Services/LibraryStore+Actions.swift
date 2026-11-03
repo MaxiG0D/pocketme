@@ -53,7 +53,7 @@ extension LibraryStore {
     }
 
     /// Publishes the library to the web app a moment after the last change.
-    func scheduleWebPublish(after delay: Duration = .seconds(4)) {
+    func scheduleWebPublish(after delay: Duration = .seconds(2)) {
         guard let persistence, persistence.mode == .cloud else { return }
         webPublish?.cancel()
         webPublish = Task { [weak self] in
