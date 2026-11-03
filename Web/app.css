@@ -135,3 +135,18 @@ body.theater .bar { visibility: hidden; }
 .body.quiet a { color: var(--muted); }
 .body.quiet img, .body.quiet figure, .body.quiet iframe, .body.quiet h2, .body.quiet h3 { display: none; }
 .page.video .end { margin-top: 28px; }
+
+/* Larger tap targets */
+.icon-btn { width: 44px; height: 44px; border-radius: 22px; }
+.icon-btn svg { width: 24px; height: 24px; }
+.add { width: 44px; height: 44px; border-radius: 22px; }
+.add svg { width: 22px; height: 22px; }
+.tab { height: 40px; padding: 0 18px; border-radius: 20px; font-size: 15px; }
+.bar { padding: 8px 12px; }
+.actions { gap: 4px; }
+.btn { height: 54px; border-radius: 27px; font-size: 16px; }
+.btn.outline { height: 50px; }
+.btn svg { width: 20px; height: 20px; }
+#save-form input, #save-form button { height: 46px; border-radius: 23px; }
+.seg button { height: 44px; font-size: 15px; }
+.player.theater .leave { width: 48px; height: 48px; border-radius: 24px; }
