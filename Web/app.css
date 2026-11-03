@@ -110,3 +110,5 @@ article.page { max-width: 46rem; margin: 0 auto; padding: 22px 26px 80px; }
 #toast { position: fixed; left: 50%; bottom: 28px; transform: translate(-50%, 20px); opacity: 0; pointer-events: none; padding: 11px 18px; border-radius: 22px; background: var(--ink); color: var(--paper); font-weight: 600; font-size: 14px; transition: opacity .2s, transform .2s; z-index: 10; }
 #toast.on { opacity: 1; transform: translate(-50%, 0); }
 @media (max-width: 560px) { .page h1 { font-size: 30px; } .lead { height: 200px; } article.page { padding: 18px 20px 72px; } .head h1 { font-size: 30px; } }
+#toast.undo { pointer-events: auto; display: flex; gap: 14px; align-items: center; }
+#toast button { font-weight: 700; color: var(--accent); }
