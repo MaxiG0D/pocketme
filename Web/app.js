@@ -322,6 +322,9 @@
     }
     if (match) return openReader(decodeURIComponent(match[1]));
     current = null;
+    // Leaving an article ends its video: the player is removed, not just hidden.
+    document.body.classList.remove("theater");
+    $("page").innerHTML = ""; delete $("page").dataset.id; delete $("page").dataset.body; $("page").classList.remove("video");
     $("reader").hidden = true; $("library").hidden = false; $("prefs").hidden = true;
     renderLibrary();
   }
