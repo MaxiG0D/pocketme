@@ -30,8 +30,8 @@
   let saving = [];
   const origin = (value) => { try { const u = new URL(value); return u.host.replace(/^www\./, "") + u.pathname.replace(/\/$/, ""); } catch { return value; } };
   async function watchSaves() {
-    for (let tries = 0; tries < 30 && saving.length; tries++) {
-      await new Promise((resolve) => setTimeout(resolve, 6000));
+    for (let tries = 0; tries < 60 && saving.length; tries++) {
+      await new Promise((resolve) => setTimeout(resolve, 3000));
       try { await loadLibrary(); } catch (error) { console.error(error); continue; }
       const known = new Set(articles.map((a) => origin(a.url)));
       saving = saving.filter((item) => !known.has(origin(item.url)) && Date.now() - item.at < 180000);
