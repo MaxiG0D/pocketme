@@ -112,3 +112,15 @@ article.page { max-width: 46rem; margin: 0 auto; padding: 22px 26px 80px; }
 @media (max-width: 560px) { .page h1 { font-size: 30px; } .lead { height: 200px; } article.page { padding: 18px 20px 72px; } .head h1 { font-size: 30px; } }
 #toast.undo { pointer-events: auto; display: flex; gap: 14px; align-items: center; }
 #toast button { font-weight: 700; color: var(--accent); }
+
+.player { position: relative; margin: 0 0 22px; aspect-ratio: 16/9; border-radius: 14px; overflow: hidden; background: #000; }
+.player iframe, .body iframe { display: block; width: 100%; height: 100%; border: 0; }
+.body iframe { height: auto; aspect-ratio: 16/9; border-radius: 12px; margin: 1.2em 0; }
+.body.quiet { font-size: .9em; color: var(--muted); }
+.player .leave { display: none; }
+.player.theater { position: fixed; inset: 0; z-index: 30; margin: 0; border-radius: 0; aspect-ratio: auto; display: grid; place-items: center; background: #000; }
+.player.theater iframe { width: min(94vw, calc(88vh * 16 / 9)); height: auto; aspect-ratio: 16/9; border-radius: 12px; }
+.player.theater .leave { display: grid; position: absolute; top: 18px; right: 18px; color: #EDEDE8; background: rgba(255,255,255,.12); }
+.player.theater .leave:hover { background: rgba(255,255,255,.22); }
+body.theater { overflow: hidden; }
+body.theater .bar { visibility: hidden; }

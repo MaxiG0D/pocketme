@@ -16,6 +16,7 @@
     grid: '<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/>',
     list: '<path d="M4 7h16M4 12h16M4 17h16"/>',
     trash: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
+    popcorn: '<path d="M6.5 11h11l-1.4 9H7.9zM10 11l.4 9M14 11l-.4 9"/><circle cx="8.6" cy="8.2" r="2.2"/><circle cx="12" cy="6.4" r="2.4"/><circle cx="15.4" cy="8.2" r="2.2"/>',
     open: '<path d="M14 4h6v6M20 4l-9 9M18 14v6H4V6h6"/>'
   };
   const svg = (name) => `<svg aria-hidden="true" viewBox="0 0 24 24">${ICON[name]}</svg>`;
@@ -214,16 +215,50 @@
   const prefs = { theme: store("theme") || "auto", font: store("font") || "serif", size: Number(store("size")) || 19 };
   let current = null;
 
+  // Same providers as the apps' VideoLink: YouTube and Vimeo links play in an embedded player.
+  function videoEmbed(raw) {
+    let u; try { u = new URL(raw); } catch { return null; }
+    const host = u.hostname.toLowerCase().replace(/^www\./, ""), path = u.pathname.split("/").filter(Boolean);
+    const ok = (id) => id && /^[\w-]{1,32}$/.test(id) ? id : null;
+    let id = null;
+    if (["youtube.com", "m.youtube.com", "music.youtube.com", "youtube-nocookie.com"].includes(host)) {
+      id = path[0] === "watch" ? ok(u.searchParams.get("v")) : ["shorts", "live", "embed", "v"].includes(path[0]) ? ok(path[1]) : null;
+      return id && "https://www.youtube-nocookie.com/embed/" + id + "?rel=0&playsinline=1";
+    }
+    if (host === "youtu.be") { id = ok(path[0]); return id && "https://www.youtube-nocookie.com/embed/" + id + "?rel=0&playsinline=1"; }
+    if (host === "vimeo.com" || host === "player.vimeo.com") { id = ok(path.filter((x) => /^\d+$/.test(x)).pop()); return id && "https://player.vimeo.com/video/" + id; }
+    return null;
+  }
+  const EMBED_HOSTS = ["www.youtube.com", "www.youtube-nocookie.com", "youtube.com", "youtube-nocookie.com", "player.vimeo.com"];
+  const player = (src, title) => `<div class="player" id="player"><iframe src="${esc(src)}" title="${esc(title || "Video")}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>
+    <button class="icon-btn leave" id="leave-theater" aria-label="Leave theater mode">${svg("popcorn")}</button></div>`;
+  function setTheater(on) {
+    const el = $("player");
+    if (!el) return;
+    document.body.classList.toggle("theater", on);
+    el.classList.toggle("theater", on);
+    if (on) $("prefs").hidden = true;
+  }
+
   // Keeps what a reading page needs and drops anything that can run or load another page.
   function clean(html) {
     const doc = new DOMParser().parseFromString("<body>" + html + "</body>", "text/html");
-    doc.querySelectorAll("script,style,iframe,object,embed,form,link,meta,base,noscript,svg,video,audio,canvas").forEach((n) => n.remove());
+    // Videos from known players stay as players; every other frame goes.
+    doc.querySelectorAll("iframe").forEach((n) => {
+      let host = ""; try { host = new URL(n.getAttribute("src") || "", "https://x.invalid").hostname; } catch {}
+      if (!EMBED_HOSTS.includes(host) || !/^https:/i.test(n.getAttribute("src") || "")) return n.remove();
+      for (const attr of [...n.attributes]) if (!["src", "title"].includes(attr.name)) n.removeAttribute(attr.name);
+      n.setAttribute("allow", "encrypted-media; picture-in-picture; fullscreen"); n.setAttribute("allowfullscreen", "");
+      n.setAttribute("referrerpolicy", "strict-origin-when-cross-origin"); n.setAttribute("loading", "lazy");
+    });
+    doc.querySelectorAll("script,style,object,embed,form,link,meta,base,noscript,svg,video,audio,canvas").forEach((n) => n.remove());
     doc.body.querySelectorAll("*").forEach((n) => {
       for (const attr of [...n.attributes]) {
         const name = attr.name.toLowerCase();
         if (name.startsWith("on") || name === "style" || name === "srcdoc") n.removeAttribute(attr.name);
         else if ((name === "href" || name === "src") && !/^(https?:|mailto:|#|data:image\/)/i.test(attr.value.trim())) n.removeAttribute(attr.name);
       }
+      if (n.tagName === "IFRAME") return;
       if (n.tagName === "A") { n.target = "_blank"; n.rel = "noopener noreferrer"; }
       if (n.tagName === "IMG") { n.loading = "lazy"; n.referrerPolicy = "no-referrer"; n.removeAttribute("srcset"); }
     });
@@ -238,21 +273,31 @@
     if (!$("reader").hidden) requestAnimationFrame(() => { document.body.style.background = getComputedStyle(reader).backgroundColor; });
   }
 
+  const endHTML = (a) => `<button class="btn primary" data-act="archive">${svg("archive")}<span>${a.archived ? "Move to Reading" : "Archive"}</span></button>
+      <button class="btn outline" data-act="favorite" aria-pressed="${a.favorite}">${svg("star")}<span>Favorite</span></button>`;
+
   function renderReader() {
     const a = view(current);
+    const embed = videoEmbed(a.url);
+    $("bar-theater").hidden = !embed;
+    $("bar-fav").setAttribute("aria-pressed", String(a.favorite));
+    $("bar-archive").setAttribute("aria-label", a.archived ? "Move to Reading" : "Archive");
+    // A change to the same article must not reload a playing video, so only the buttons are refreshed.
+    if ($("player") && $("page").dataset.id === a.id && $("page").dataset.body === String(a.body !== undefined)) {
+      document.querySelector(".end").innerHTML = endHTML(a); applyPrefs(); return;
+    }
+    $("page").dataset.id = a.id; $("page").dataset.body = String(a.body !== undefined);
+    document.body.classList.remove("theater");
     document.title = a.title || "Pocket Me";
     const site = a.site || (a.url ? new URL(a.url).host.replace(/^www\./, "") : "");
-    const kicker = [site, a.minutes ? a.minutes + " min" : ""].filter(Boolean).join(" · ");
-    const lead = a.lead && /^https?:/i.test(a.lead) ? `<img class="lead" alt="" src="${esc(a.lead)}" referrerpolicy="no-referrer">` : "";
+    const kicker = [site, a.minutes && !embed ? a.minutes + " min" : ""].filter(Boolean).join(" · ");
+    const lead = !embed && a.lead && /^https?:/i.test(a.lead) ? `<img class="lead" alt="" src="${esc(a.lead)}" referrerpolicy="no-referrer">` : "";
     let body;
     if (a.body === undefined) body = "";
-    else if (a.body) body = `<div class="body">${clean(a.body)}</div>`;
-    else body = `<a class="original" href="${esc(a.url)}" target="_blank" rel="noopener noreferrer">Open original</a>`;
-    $("page").innerHTML = `<div class="kicker">${esc(kicker)}</div><h1>${esc(a.title)}</h1>${a.body === "" ? "" : lead}${body}
-      <div class="end"><button class="btn primary" data-act="archive">${svg("archive")}<span>${a.archived ? "Move to Reading" : "Archive"}</span></button>
-      <button class="btn outline" data-act="favorite" aria-pressed="${a.favorite}">${svg("star")}<span>Favorite</span></button></div>`;
-    const fav = $("bar-fav"); fav.setAttribute("aria-pressed", String(a.favorite));
-    $("bar-archive").setAttribute("aria-label", a.archived ? "Move to Reading" : "Archive");
+    else if (a.body) body = `<div class="body${embed ? " quiet" : ""}">${clean(a.body)}</div>`;
+    else body = embed ? "" : `<a class="original" href="${esc(a.url)}" target="_blank" rel="noopener noreferrer">Open original</a>`;
+    $("page").innerHTML = (embed ? player(embed, a.title) : "") + `<div class="kicker">${esc(kicker)}</div><h1>${esc(a.title)}</h1>${a.body === "" ? "" : lead}${body}
+      <div class="end">${endHTML(a)}</div>`;
     applyPrefs();
   }
 
@@ -322,6 +367,8 @@
     $("bar-fav").addEventListener("click", () => current && change(current, "favorite"));
     $("bar-archive").addEventListener("click", () => current && change(current, "archive"));
     $("bar-delete").addEventListener("click", () => current && remove(current));
+    $("bar-theater").addEventListener("click", () => setTheater(!document.body.classList.contains("theater")));
+    $("page").addEventListener("click", (event) => { if (event.target.closest("#leave-theater")) setTheater(false); });
     $("aa").addEventListener("click", () => { $("prefs").hidden = !$("prefs").hidden; });
     $("page").addEventListener("click", (event) => {
       const act = event.target.closest("[data-act]");
@@ -341,6 +388,9 @@
     document.addEventListener("click", (event) => { if (!event.target.closest("#prefs,#aa")) $("prefs").hidden = true; });
     window.addEventListener("hashchange", () => route(false));
     window.addEventListener("keydown", (event) => {
+      const typing = /^(INPUT|TEXTAREA)$/.test((event.target.tagName || ""));
+      if ((event.key === "t" || event.key === "T") && !typing && !event.metaKey && !event.ctrlKey && !event.altKey && current && $("player")) { setTheater(!document.body.classList.contains("theater")); return; }
+      if (event.key === "Escape" && document.body.classList.contains("theater")) { setTheater(false); return; }
       if (event.key === "Escape" && current) { if (!$("prefs").hidden) $("prefs").hidden = true; else $("back").click(); }
     });
     window.addEventListener("scroll", () => {
@@ -354,7 +404,7 @@
       try { await loadLibrary(); render(); } catch (error) { console.error(error); }
     });
     $("aa").innerHTML = svg("aa"); $("back").innerHTML = svg("back"); $("add").innerHTML = svg("plus");
-    $("bar-fav").innerHTML = svg("star"); $("bar-archive").innerHTML = svg("archive"); $("bar-delete").innerHTML = svg("trash");
+    $("bar-fav").innerHTML = svg("star"); $("bar-archive").innerHTML = svg("archive"); $("bar-delete").innerHTML = svg("trash"); $("bar-theater").innerHTML = svg("popcorn");
   }
 
   wire();
