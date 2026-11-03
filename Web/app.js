@@ -8,6 +8,7 @@
   const LIST_KEYS = ["articleID", "url", "title", "siteName", "author", "excerpt", "leadImageURL", "status", "wordCount", "readingMinutes", "savedAt", "archived", "isFavorite", "thumbnail"];
   const $ = (id) => document.getElementById(id);
   const ICON = {
+    trash: '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v5M14 11v5"/>',
     archive: '<rect x="3" y="4" width="18" height="5" rx="1"/><path d="M5 9v10h14V9M10 13h4"/>',
     star: '<path d="M7 4h10v16l-5-4-5 4z"/>',
     plus: '<path d="M12 5v14M5 12h14"/>',
@@ -41,6 +42,8 @@
   }
   // Changes made here show at once; they stay until the app's copy catches up.
   const overrides = new Map();
+  // Deleted here until the apps have applied it and the article drops out of the library.
+  const removed = new Set();
   const view = (a) => { const o = overrides.get(a.id); return o ? { ...a, ...o } : a; };
 
   const esc = (text) => String(text == null ? "" : text).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -104,6 +107,7 @@
       const a = articles.find((x) => x.id === id);
       if (!a || ((o.archived === undefined || o.archived === a.archived) && (o.favorite === undefined || o.favorite === a.favorite))) overrides.delete(id);
     }
+    for (const id of removed) if (!articles.some((x) => x.id === id)) removed.delete(id);
     loaded = true;
   }
 
@@ -149,9 +153,24 @@
     }
   }
 
+  async function remove(article) {
+    if (!confirm("Delete this article? It is removed from PocketMe on all your devices.")) return false;
+    removed.add(article.id);
+    toast("Deleted");
+    render();
+    try { await sendChange(article, "delete"); }
+    catch (error) {
+      removed.delete(article.id);
+      toast("Couldn’t delete that");
+      console.error(error);
+      render();
+    }
+    return true;
+  }
+
   // ---- Library
   function visible() {
-    const list = articles.map(view);
+    const list = articles.filter((x) => !removed.has(x.id)).map(view);
     if (tab === "archive") return list.filter((a) => a.archived);
     if (tab === "favorites") return list.filter((a) => a.favorite && !a.archived);
     return list.filter((a) => !a.archived);
@@ -228,7 +247,8 @@
     else body = `<a class="original" href="${esc(a.url)}" target="_blank" rel="noopener noreferrer">Open original</a>`;
     $("page").innerHTML = `<div class="kicker">${esc(kicker)}</div><h1>${esc(a.title)}</h1>${a.body === "" ? "" : lead}${body}
       <div class="end"><button class="btn primary" data-act="archive">${svg("archive")}<span>${a.archived ? "Move to Reading" : "Archive"}</span></button>
-      <button class="btn outline" data-act="favorite" aria-pressed="${a.favorite}">${svg("star")}<span>Favorite</span></button></div>`;
+      <button class="btn outline" data-act="favorite" aria-pressed="${a.favorite}">${svg("star")}<span>Favorite</span></button>
+      <button class="btn outline" data-act="delete">${svg("trash")}<span>Delete</span></button></div>`;
     const fav = $("bar-fav"); fav.setAttribute("aria-pressed", String(a.favorite));
     $("bar-archive").setAttribute("aria-label", a.archived ? "Move to Reading" : "Archive");
     applyPrefs();
@@ -303,6 +323,10 @@
     $("page").addEventListener("click", (event) => {
       const act = event.target.closest("[data-act]");
       if (!act || !current) return;
+      if (act.dataset.act === "delete") {
+        remove(current).then((done) => { if (done) { if (history.length > 1) history.back(); else location.hash = ""; } });
+        return;
+      }
       const wasArchive = act.dataset.act === "archive";
       change(current, act.dataset.act);
       if (wasArchive) setTimeout(() => { if (history.length > 1) history.back(); else location.hash = ""; }, 350);

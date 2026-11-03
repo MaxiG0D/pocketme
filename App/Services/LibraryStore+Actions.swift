@@ -29,7 +29,7 @@ extension LibraryStore {
         scheduleWebPublish(after: .seconds(1))
     }
 
-    /// Archive and favorite changes made in the web app. Setting a state is safe to repeat, so a change applied
+    /// Archive, favorite and delete changes made in the web app. Setting a state is safe to repeat, so a change applied
     /// twice (or one the app already made) does no harm.
     func applyWebChanges(_ changes: [WebChange]) {
         guard let context = persistence?.container.mainContext else { return }
@@ -41,6 +41,7 @@ extension LibraryStore {
             case "unarchive": article.archivedAt = nil
             case "favorite": article.isFavorite = true
             case "unfavorite": article.isFavorite = false
+            case "delete": delete(article)
             default: break
             }
         }

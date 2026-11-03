@@ -10,5 +10,5 @@ isFavorite Int(64), thumbnail Asset.
 Indexes: `recordName` Queryable; `savedAt` Queryable + Sortable.
 
 **WebChange** (zone `WebSaves`, written by the web, deleted by the apps after applying)
-articleID String, action String (`archive` | `unarchive` | `favorite` | `unfavorite`), at Date/Time.
+articleID String, action String (`archive` | `unarchive` | `favorite` | `unfavorite` | `delete`), at Date/Time.
 Index: `recordName` Queryable.
