@@ -15,6 +15,7 @@
     aa: '<path d="M3 19l5-13 5 13M5 14h6M15 19l3.5-9 3.5 9M16.5 16h4"/>',
     grid: '<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/>',
     list: '<path d="M4 7h16M4 12h16M4 17h16"/>',
+    trash: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
     open: '<path d="M14 4h6v6M20 4l-9 9M18 14v6H4V6h6"/>'
   };
   const svg = (name) => `<svg aria-hidden="true" viewBox="0 0 24 24">${ICON[name]}</svg>`;
@@ -60,9 +61,11 @@
 
   // ---- Toast
   let toastTimer;
-  function toast(text) {
+  function toast(text, undo) {
     const el = $("toast"); el.textContent = text; el.classList.add("on");
-    clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove("on"), 1800);
+    el.classList.toggle("undo", !!undo);
+    if (undo) { const b = document.createElement("button"); b.textContent = "Undo"; b.addEventListener("click", () => { el.classList.remove("on"); undo(); }); el.append(b); }
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => el.classList.remove("on"), undo ? 5000 : 1800);
   }
 
   // ---- Cloud
@@ -149,9 +152,23 @@
     }
   }
 
+  // Deleting waits a few seconds so Undo can take it back; only then does the request go out.
+  const removed = new Set();
+  function remove(article) {
+    removed.add(article.id);
+    if (current && current.id === article.id) $("back").click();
+    render();
+    const timer = setTimeout(async () => {
+      if (!removed.has(article.id)) return;
+      try { await sendChange(article, "delete"); }
+      catch (error) { console.error(error); removed.delete(article.id); toast("Couldn’t delete"); render(); }
+    }, 5000);
+    toast("Deleted", () => { clearTimeout(timer); removed.delete(article.id); render(); });
+  }
+
   // ---- Library
   function visible() {
-    const list = articles.map(view);
+    const list = articles.filter((a) => !removed.has(a.id)).map(view);
     if (tab === "archive") return list.filter((a) => a.archived);
     if (tab === "favorites") return list.filter((a) => a.favorite && !a.archived);
     return list.filter((a) => !a.archived);
@@ -165,7 +182,8 @@
     return `<li class="row" data-id="${esc(a.id)}" tabindex="0" role="link"><div class="thumb">${art}</div>
       <div class="info"><span class="title">${esc(a.title || site)}</span><span class="meta">${dot}${esc(meta)}</span></div>
       <div class="actions"><button class="icon-btn" data-act="favorite" aria-label="Favorite" aria-pressed="${a.favorite}">${svg("star")}</button>
-      <button class="icon-btn" data-act="archive" aria-label="${a.archived ? "Move to Reading" : "Archive"}">${svg("archive")}</button></div></li>`;
+      <button class="icon-btn" data-act="archive" aria-label="${a.archived ? "Move to Reading" : "Archive"}">${svg("archive")}</button>
+      <button class="icon-btn" data-act="delete" aria-label="Delete">${svg("trash")}</button></div></li>`;
   }
 
   function renderLibrary() {
@@ -290,7 +308,7 @@
       if (!rowEl) return;
       const id = rowEl.dataset.id;
       const act = event.target.closest("[data-act]");
-      if (act) { event.stopPropagation(); change(articles.find((x) => x.id === id), act.dataset.act); return; }
+      if (act) { event.stopPropagation(); const target = articles.find((x) => x.id === id); if (act.dataset.act === "delete") remove(target); else change(target, act.dataset.act); return; }
       location.hash = "#/a/" + encodeURIComponent(id);
     });
     $("rows").addEventListener("keydown", (event) => {
@@ -299,6 +317,7 @@
     $("back").addEventListener("click", () => { if (history.length > 1) history.back(); else location.hash = ""; });
     $("bar-fav").addEventListener("click", () => current && change(current, "favorite"));
     $("bar-archive").addEventListener("click", () => current && change(current, "archive"));
+    $("bar-delete").addEventListener("click", () => current && remove(current));
     $("aa").addEventListener("click", () => { $("prefs").hidden = !$("prefs").hidden; });
     $("page").addEventListener("click", (event) => {
       const act = event.target.closest("[data-act]");
@@ -331,7 +350,7 @@
       try { await loadLibrary(); render(); } catch (error) { console.error(error); }
     });
     $("aa").innerHTML = svg("aa"); $("back").innerHTML = svg("back"); $("add").innerHTML = svg("plus");
-    $("bar-fav").innerHTML = svg("star"); $("bar-archive").innerHTML = svg("archive");
+    $("bar-fav").innerHTML = svg("star"); $("bar-archive").innerHTML = svg("archive"); $("bar-delete").innerHTML = svg("trash");
   }
 
   wire();

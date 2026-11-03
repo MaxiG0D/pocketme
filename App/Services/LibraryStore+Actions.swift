@@ -41,6 +41,10 @@ extension LibraryStore {
             case "unarchive": article.archivedAt = nil
             case "favorite": article.isFavorite = true
             case "unfavorite": article.isFavorite = false
+            case "delete":
+                let removedID = article.id
+                context.delete(article)
+                Task { try? await processor?.assets.delete(removedID) }
             default: break
             }
         }
