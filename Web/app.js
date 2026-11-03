@@ -17,6 +17,7 @@
     list: '<path d="M4 7h16M4 12h16M4 17h16"/>',
     trash: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
     popcorn: '<path d="M6.5 11h11l-1.4 9H7.9zM10 11l.4 9M14 11l-.4 9"/><circle cx="8.6" cy="8.2" r="2.2"/><circle cx="12" cy="6.4" r="2.4"/><circle cx="15.4" cy="8.2" r="2.2"/>',
+    share: '<path d="M12 3v12M7 8l5-5 5 5M5 13v7h14v-7"/>',
     open: '<path d="M14 4h6v6M20 4l-9 9M18 14v6H4V6h6"/>'
   };
   const svg = (name) => `<svg aria-hidden="true" viewBox="0 0 24 24">${ICON[name]}</svg>`;
@@ -187,6 +188,7 @@
     return `<li class="row" data-id="${esc(a.id)}" tabindex="0" role="link"><div class="thumb">${art}</div>
       <div class="info"><span class="title">${esc(a.title || site)}</span><span class="meta">${dot}${esc(meta)}</span></div>
       <div class="actions"><button class="icon-btn" data-act="favorite" aria-label="Favorite" aria-pressed="${a.favorite}">${svg("star")}</button>
+      <button class="icon-btn" data-act="share" aria-label="Copy link">${svg("share")}</button>
       <button class="icon-btn" data-act="archive" aria-label="${a.archived ? "Move to Reading" : "Archive"}">${svg("archive")}</button>
       <button class="icon-btn" data-act="delete" aria-label="Delete">${svg("trash")}</button></div></li>`;
   }
@@ -243,6 +245,21 @@
     frame.setAttribute("allow", "autoplay; encrypted-media; picture-in-picture; fullscreen"); frame.setAttribute("allowfullscreen", "");
     frame.setAttribute("referrerpolicy", "strict-origin-when-cross-origin");
     play.replaceWith(frame);
+  }
+  async function copyLink(article) {
+    const link = article && article.url;
+    if (!link) return;
+    try { await navigator.clipboard.writeText(link); }
+    catch {
+      // Without clipboard access (an insecure page, a strict browser) fall back to a selection copy.
+      const box = document.createElement("textarea");
+      box.value = link; box.style.position = "fixed"; box.style.opacity = "0";
+      document.body.append(box); box.select();
+      let ok = false; try { ok = document.execCommand("copy"); } catch {}
+      box.remove();
+      if (!ok) return toast("Couldn’t copy the link");
+    }
+    toast("Link copied");
   }
   function openOriginal() {
     if (current && /^https?:/i.test(current.url)) window.open(current.url, "_blank", "noopener,noreferrer");
@@ -376,7 +393,7 @@
       if (!rowEl) return;
       const id = rowEl.dataset.id;
       const act = event.target.closest("[data-act]");
-      if (act) { event.stopPropagation(); const target = articles.find((x) => x.id === id); if (act.dataset.act === "delete") remove(target); else change(target, act.dataset.act); return; }
+      if (act) { event.stopPropagation(); const target = articles.find((x) => x.id === id); if (act.dataset.act === "delete") remove(target); else if (act.dataset.act === "share") copyLink(target); else change(target, act.dataset.act); return; }
       location.hash = "#/a/" + encodeURIComponent(id);
     });
     $("rows").addEventListener("keydown", (event) => {
@@ -386,6 +403,7 @@
     $("bar-fav").addEventListener("click", () => current && change(current, "favorite"));
     $("bar-archive").addEventListener("click", () => current && change(current, "archive"));
     $("bar-delete").addEventListener("click", () => current && remove(current));
+    $("bar-share").addEventListener("click", () => copyLink(current));
     $("bar-open").addEventListener("click", openOriginal);
     $("bar-theater").addEventListener("click", () => setTheater(!document.body.classList.contains("theater")));
     $("page").addEventListener("click", (event) => {
@@ -431,7 +449,7 @@
       try { await loadLibrary(); render(); } catch (error) { console.error(error); }
     });
     $("aa").innerHTML = svg("aa"); $("back").innerHTML = svg("back"); $("add").innerHTML = svg("plus");
-    $("bar-fav").innerHTML = svg("star"); $("bar-archive").innerHTML = svg("archive"); $("bar-delete").innerHTML = svg("trash"); $("bar-theater").innerHTML = svg("popcorn"); $("bar-open").innerHTML = svg("open");
+    $("bar-fav").innerHTML = svg("star"); $("bar-archive").innerHTML = svg("archive"); $("bar-delete").innerHTML = svg("trash"); $("bar-theater").innerHTML = svg("popcorn"); $("bar-open").innerHTML = svg("open"); $("bar-share").innerHTML = svg("share");
   }
 
   wire();
