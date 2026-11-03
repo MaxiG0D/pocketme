@@ -214,6 +214,11 @@ struct ReaderView: View {
                     theaterDisc("popcorn.fill", label: "Leave theater mode") { store.setTheater(false, reduceMotion: reduceMotion) }
                         .keyboardShortcut(.cancelAction)
                 }
+                .background {
+                    // The header and its T shortcut are gone in theater mode, so T keeps toggling from here.
+                    Button("Theater shortcut") { store.setTheater(false, reduceMotion: reduceMotion) }
+                        .keyboardShortcut("t", modifiers: []).opacity(0).allowsHitTesting(false).accessibilityHidden(true)
+                }
                 .padding(.top, isMac ? 0 : 8).padding(.trailing, 12).transition(.opacity)
             }
         }
