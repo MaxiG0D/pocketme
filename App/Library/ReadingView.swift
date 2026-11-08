@@ -38,6 +38,14 @@ private struct TabBarTint: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> Probe { Probe() }
     func updateUIViewController(_ controller: Probe, context: Context) { controller.apply(); controller.fade(away: theater) }
 
+    /// Reports the moment the probe joins the window, before the library has laid itself out and picked an article.
+    private final class WindowWatcher: UIView {
+        private let joined: () -> Void
+        init(joined: @escaping () -> Void) { self.joined = joined; super.init(frame: .zero) }
+        required init?(coder: NSCoder) { fatalError() }
+        override func didMoveToWindow() { super.didMoveToWindow(); if window != nil { joined() } }
+    }
+
     final class Probe: UIViewController {
         private let symbols = ["book", "bookmark", "gearshape"]
         private var selection: NSKeyValueObservation?
@@ -49,12 +57,29 @@ private struct TabBarTint: UIViewControllerRepresentable {
         /// Tabs whose top inset UIKit has worked out with their content already built (see `settleInsets`).
         private var settled: Set<ObjectIdentifier> = []
 
+        override func loadView() { view = WindowWatcher { [weak self] in self?.limitSplit() } }
+
         override func viewDidLoad() {
             super.viewDidLoad()
             registerForTraitChanges([UITraitUserInterfaceStyle.self]) { (probe: Probe, _) in probe.glyphs = [:]; probe.apply() }
         }
 
-        override func viewDidAppear(_ animated: Bool) { super.viewDidAppear(animated); apply() }
+        override func viewDidAppear(_ animated: Bool) { super.viewDidAppear(animated); apply(); limitSplit() }
+
+        override func viewDidLayoutSubviews() { super.viewDidLayoutSubviews(); limitSplit() }
+
+        /// A window narrower than this has no room for a sidebar beside a reader, though the system still reports a
+        /// regular width (an unfolded Duo in portrait is about 600 pt). Forcing the compact class on the root controller
+        /// makes the split view collapse to a stack and every size-class check below it follow, as on an iPhone.
+        private func limitSplit() {
+            guard let window = view.window, let root = window.rootViewController else { return }
+            let narrow = window.bounds.width < 700
+            if narrow, !root.traitOverrides.contains(UITraitHorizontalSizeClass.self) {
+                root.traitOverrides.horizontalSizeClass = .compact
+            } else if !narrow, root.traitOverrides.contains(UITraitHorizontalSizeClass.self) {
+                root.traitOverrides.remove(UITraitHorizontalSizeClass.self)
+            }
+        }
 
         func apply() {
             guard let root = view.window?.rootViewController, let tabs = tabBarController(in: root) else { return }

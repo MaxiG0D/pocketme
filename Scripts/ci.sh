@@ -22,7 +22,7 @@ build build -destination 'platform=macOS'
 # The unsigned Mac UI runner is rejected by Gatekeeper, so Mac runs unit tests only.
 build test -destination 'platform=macOS' -skip-testing:PocketMeUITests
 if [[ "${1:-}" == --ui ]]; then
-  sim="$(xcrun simctl list devices available | sed -nE 's/^ *(iPhone [^(]*[^ (]) \(.*/\1/p' | head -1)"
+  sim="$(xcrun simctl list devices available | grep -v Duo | sed -nE 's/^ *(iPhone [^(]*[^ (]) \(.*/\1/p' | head -1)"
   # Not -quiet: on failure GitHub's log must show which assertion failed (and the hierarchy), not only the test's name.
   log="${build_dir}/ui-tests.log"
   xcodebuild test -project "${project}" -scheme PocketMe -derivedDataPath "${build_dir}/Derived" CODE_SIGNING_ALLOWED=NO \
