@@ -113,9 +113,10 @@ struct LibraryView: View {
     }
 
     /// Over the reader the library shows while nothing is open and slides away once an article is.
+    /// Whenever the width band or the open article changes, not only when narrow: wide again, the library returns beside the reader.
     private func settleOverlay() {
-        guard overlay, !store.theater else { return }
-        columns = selection == nil ? .doubleColumn : .detailOnly
+        guard sideBySide, !store.theater else { return }
+        columns = narrow && selection != nil ? .detailOnly : .doubleColumn
     }
 
     private func open(_ id: UUID) {
