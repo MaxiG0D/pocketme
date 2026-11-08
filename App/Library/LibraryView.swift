@@ -17,6 +17,7 @@ struct LibraryView: View {
     @State private var addLink = false
     @State private var selection: UUID?
     @State private var columns = NavigationSplitViewVisibility.doubleColumn
+    @State private var narrow = LibraryView.windowIsNarrow
     /// What the columns showed before theater mode folded them away, so they return as they were.
     @State private var columnsBeforeTheater: NavigationSplitViewVisibility?
     @State private var toDelete: Article?
@@ -39,6 +40,11 @@ struct LibraryView: View {
     /// Side by side the header draws its own search field, as on the Mac; the system one lives in the bar the sidebar hides there.
     @State private var searching = false
     @FocusState private var searchFocused: Bool
+
+    private static var windowIsNarrow: Bool {
+        let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
+        return (scene?.coordinateSpace.bounds.width ?? .infinity) < narrowLimit
+    }
 
     init(favoritesOnly: Bool = false) {
         self.favoritesOnly = favoritesOnly
@@ -70,6 +76,12 @@ struct LibraryView: View {
     ]}
 
     private var sideBySide: Bool { sizeClass == .regular }
+    /// Regular, but too narrow for a sidebar beside a reader (an unfolded Duo in portrait is about 600 pt): the reader fills
+    /// the screen and the library slides over it, as on an iPad in portrait.
+    private var overlay: Bool { sideBySide && narrow }
+    /// Room for the sidebar and a reader together; the grid and the pane fades only exist here.
+    private var wide: Bool { sideBySide && !narrow }
+    static let narrowLimit: CGFloat = 700
     private var gridBuilt: Bool { layout == .grid || front == .grid }
     private var gridFront: Bool { front == .grid }
 
@@ -81,6 +93,7 @@ struct LibraryView: View {
             .onChange(of: compactColumn) { _, column in compactColumnChanged(to: column) }
             .onChange(of: filtered.map(\.id)) { _, _ in ensureSelection() }
             .onChange(of: sizeClass) { _, _ in ensureSelection(); leaveHeaderSearch() }
+            .onChange(of: narrow) { _, _ in settleOverlay() }
             .onChange(of: store.requestedArticleID) { _, id in openRequested(id) }
             .sensoryFeedback(.success, trigger: store.savedToken)
             .sensoryFeedback(.success, trigger: store.actionToken)
@@ -91,11 +104,23 @@ struct LibraryView: View {
 
     private func selectionChanged(to new: UUID?) {
         openSwipe = nil
+        settleOverlay()
         // Folded, the split view only moves to the reader when told; the list no longer does it through its selection.
         if sizeClass != .regular {
             let target: NavigationSplitViewColumn = new == nil ? .sidebar : .detail
             compactColumn = target
         }
+    }
+
+    /// Over the reader the library shows while nothing is open and slides away once an article is.
+    private func settleOverlay() {
+        guard overlay, !store.theater else { return }
+        columns = selection == nil ? .doubleColumn : .detailOnly
+    }
+
+    private func open(_ id: UUID) {
+        selection = id
+        if overlay { columns = .detailOnly }
     }
 
     /// Folded, the system search field takes over; the header's own field closes and takes its search with it.
@@ -119,13 +144,14 @@ struct LibraryView: View {
         // The list stays built underneath, so it keeps its scroll spot and hidden search field for the way back.
         // The bars and pills match in both, so only the articles change; every step is a plain fade, which also suits Reduce Motion.
         ZStack {
-            split.layoutLayer(shown: layout == .list || sideBySide)
+            split.layoutLayer(shown: layout == .list || wide)
             if gridBuilt {
                 // Never faded as a whole: UIKit fades each piece on its own, so the matching bars and pills would dip grey.
                 gridLayer.layoutLayer(shown: layout == .grid).opacity(gridFront ? 1.0 : 0.0)
             }
         }
         .sensoryFeedback(.selection, trigger: layout)
+        .onGeometryChange(for: Bool.self) { $0.size.width < Self.narrowLimit } action: { narrow = $0 }
         // Side by side, theater mode hands the whole screen to the reader so the video can center on it.
         .onChange(of: store.theater) { _, on in
             guard sizeClass == .regular else { return }
@@ -136,10 +162,10 @@ struct LibraryView: View {
         }
         // Side by side the sidebar carries the header in both layouts, so a collapse that is not theater mode is undone.
         .onChange(of: columns) { _, new in
-            if new == .detailOnly && sideBySide && !store.theater && columnsBeforeTheater == nil { columns = .doubleColumn }
+            if new == .detailOnly && wide && !store.theater && columnsBeforeTheater == nil { columns = .doubleColumn }
         }
         .onChange(of: layout) { _, new in
-            let paneFades = sizeClass == .regular
+            let paneFades = wide
             // Side by side the reader pane fades out with the articles and unmounts once hidden, so no reader (or playing video)
             // stays open behind the grid; coming back, it mounts hidden and fades in with the articles.
             if paneFades {
@@ -164,7 +190,12 @@ struct LibraryView: View {
         .onChange(of: articles.map(\.id)) { _, ids in if let selection, !ids.contains(selection) { self.selection = nil } }
     }
 
-    private var split: some View {
+    /// Over the reader the sidebar overlays it; with room it pushes the reader aside. Two styles, so two branches.
+    @ViewBuilder private var split: some View {
+        if overlay { splitView.navigationSplitViewStyle(.prominentDetail) } else { splitView.navigationSplitViewStyle(.balanced) }
+    }
+
+    private var splitView: some View {
         NavigationSplitView(columnVisibility: $columns, preferredCompactColumn: $compactColumn) {
             list
                 .navigationTitle(favoritesOnly ? "Favorites" : "Pocket Me")
@@ -181,7 +212,7 @@ struct LibraryView: View {
     }
 
     @ViewBuilder private var gridLayer: some View {
-        if sideBySide { gridSideBySide } else { gridStack }
+        if wide { gridSideBySide } else { gridStack }
     }
 
     /// Side by side the sidebar keeps its own header, so the title and buttons never move; the grid fills the window below it
@@ -202,7 +233,7 @@ struct LibraryView: View {
             .refreshable { store.refresh(); await store.drainInbox() }
         }
         .ignoresSafeArea(.container, edges: .top)
-        .fullScreenCover(isPresented: Binding(get: { gridOpen != nil && sideBySide }, set: { if !$0 { gridOpen = nil } })) {
+        .fullScreenCover(isPresented: Binding(get: { gridOpen != nil && wide }, set: { if !$0 { gridOpen = nil } })) {
             if let id = gridOpen, let article = articles.first(where: { $0.id == id }) {
                 NavigationStack {
                     ReaderView(article: article, close: { gridOpen = nil })
@@ -283,7 +314,7 @@ struct LibraryView: View {
                     }.opacity(articlesShown(.list) ? 1 : 0)
                 } else {
                     if let hero {
-                        ContinueReadingCard(article: hero, squish: reduceMotion ? 0 : heroSquish) { selection = hero.id }
+                        ContinueReadingCard(article: hero, squish: reduceMotion ? 0 : heroSquish) { open(hero.id) }
                             .padding(.horizontal, Theme.gutter)
                             .swipeReveal(id: hero.id, open: $openSwipe, actions: swipeActions(for: hero), inset: Theme.gutter, gap: 12, cornerRadius: Theme.radiusHero + 10)
                             .contextMenu { articleMenu(hero) }
@@ -294,7 +325,7 @@ struct LibraryView: View {
                     // Only the rows are lazy: with the filters and the hero card in the same stack their very different
                     // heights skewed the stack's estimate of the rows it had not built.
                     LazyVStack(spacing: 0) { ForEach(items, id: \.id) { article in
-                        Button { selection = article.id } label: { ArticleRow(article: article).padding(.horizontal, Theme.gutter) }
+                        Button { open(article.id) } label: { ArticleRow(article: article).padding(.horizontal, Theme.gutter) }
                             .buttonStyle(RowPressStyle())
                             // Behind the swipe, so the row slides over one still surface instead of dragging a slab along.
                             .swipeReveal(id: article.id, open: $openSwipe, actions: swipeActions(for: article), inset: Theme.gutter, gap: 12, cornerRadius: Theme.radiusThumb, maxHeight: Theme.rowThumb, edge: 12)
@@ -486,21 +517,30 @@ struct LibraryView: View {
                 .opacity(sideBySide ? readerFade : 1)
                 .environment(\.readerChromeOpacity, sideBySide ? readerFade : 1)
                 .background(Theme.paper.ignoresSafeArea())
+                .toolbar { sidebarButton }
         } else {
             Theme.paper.ignoresSafeArea()
         }
     }
 
+    @ToolbarContentBuilder private var sidebarButton: some ToolbarContent {
+        if overlay {
+            ToolbarItem(placement: .topBarLeading) {
+                Button("Show library", systemImage: "sidebar.leading") { columns = .doubleColumn }.labelStyle(.iconOnly)
+            }
+        }
+    }
+
     /// Side by side, the reader pane never opens blank: it shows the article being read, else the newest.
     private func ensureSelection() {
-        guard sizeClass == .regular, layout == .list else { return }
+        guard wide, layout == .list else { return }
         if let selection, filtered.contains(where: { $0.id == selection }) { return }
         selection = (inProgress ?? filtered.first)?.id
     }
     /// The list's bar behind the grid keeps its buttons drawn, since removing them re-forms the glass bar on the way back,
     /// but they go unlabeled and hidden so VoiceOver finds one of each. The grid is only built while it is (nearly) in front.
     private func reachable(_ layer: LibraryLayout) -> Bool {
-        if sideBySide { return layer == .list }
+        if wide { return layer == .list }
         return layer == .grid || front == .list
     }
     private func articlesShown(_ layer: LibraryLayout) -> Bool { front == layer && !articlesHidden }
