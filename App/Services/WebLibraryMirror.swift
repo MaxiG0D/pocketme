@@ -19,6 +19,7 @@ final class WebLibraryMirror {
     private let zoneID: CKRecordZone.ID
     private var running = false
     private var rerun = false
+    private var zoneReady = false
 
     /// What the web already has for an article: signatures of its content and details, and whether it has a thumbnail.
     private struct Sent: Codable, Equatable { var content: String; var details: String; var thumbnail: Bool }
@@ -41,8 +42,10 @@ final class WebLibraryMirror {
     }
 
     private func pass(_ context: ModelContext) async {
-        do { _ = try await database.modifyRecordZones(saving: [CKRecordZone(zoneID: zoneID)], deleting: []) }
-        catch { Self.log.error("zone setup failed: \(error.localizedDescription, privacy: .public)"); return }
+        if !zoneReady {
+            do { _ = try await database.modifyRecordZones(saving: [CKRecordZone(zoneID: zoneID)], deleting: []); zoneReady = true }
+            catch { Self.log.error("zone setup failed: \(error.localizedDescription, privacy: .public)"); return }
+        }
         guard let articles = try? context.fetch(FetchDescriptor<Article>()) else { return }
         let previous = Self.load()
         var next = previous

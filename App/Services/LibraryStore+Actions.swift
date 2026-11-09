@@ -25,8 +25,10 @@ extension LibraryStore {
         drainingWeb = true
         defer { drainingWeb = false }
         // Links saved from the web; offline or signed-out iCloud just tries again next time.
-        if let moved = try? await webInbox.drain(into: queue, apply: { [weak self] in self?.applyWebChanges($0) }), moved > 0 { await importLocalInbox() }
-        scheduleWebPublish(after: .seconds(1))
+        let moved = (try? await webInbox.drain(into: queue, apply: { [weak self] in self?.applyWebChanges($0) })) ?? 0
+        if moved > 0 { await importLocalInbox() }
+        // The saved link reaches the web as soon as it is in the library; the page fills in when it has been fetched.
+        scheduleWebPublish(after: moved > 0 ? .milliseconds(100) : .seconds(1))
     }
 
     /// Archive, favorite and delete changes made in the web app. Setting a state is safe to repeat, so a change applied
@@ -53,7 +55,7 @@ extension LibraryStore {
     }
 
     /// Publishes the library to the web app a moment after the last change.
-    func scheduleWebPublish(after delay: Duration = .seconds(2)) {
+    func scheduleWebPublish(after delay: Duration = .milliseconds(400)) {
         guard let persistence, persistence.mode == .cloud else { return }
         webPublish?.cancel()
         webPublish = Task { [weak self] in

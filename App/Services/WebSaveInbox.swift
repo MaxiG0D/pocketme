@@ -1,6 +1,7 @@
 import CloudKit
 import Foundation
 import OSLog
+import os
 
 /// An archive or favorite change made in the web app, waiting for the app to apply it.
 struct WebChange: Sendable {
@@ -17,6 +18,8 @@ struct WebSaveInbox: Sendable {
     static let recordType = "SaveRequest"
     static let changeType = "WebChange"
     private static let log = Logger(subsystem: "com.maxigariepy.pocketme", category: "WebSave")
+    /// The zone only needs creating once per launch; every later check is a single request.
+    private static let zoneReady = OSAllocatedUnfairLock(initialState: false)
     private let database: CKDatabase
     private let zoneID: CKRecordZone.ID
 
@@ -28,8 +31,11 @@ struct WebSaveInbox: Sendable {
 
     /// Creates the zone on first use so the web page has somewhere to write.
     func prepare() async {
-        do { _ = try await database.modifyRecordZones(saving: [CKRecordZone(zoneID: zoneID)], deleting: []) }
-        catch { Self.log.error("zone setup failed: \(error.localizedDescription, privacy: .public)") }
+        if Self.zoneReady.withLock({ $0 }) { return }
+        do {
+            _ = try await database.modifyRecordZones(saving: [CKRecordZone(zoneID: zoneID)], deleting: [])
+            Self.zoneReady.withLock { $0 = true }
+        } catch { Self.log.error("zone setup failed: \(error.localizedDescription, privacy: .public)") }
     }
 
     /// Moves every pending request into `queue` and hands the web app's changes to `apply`. A record is deleted
@@ -38,10 +44,7 @@ struct WebSaveInbox: Sendable {
         do {
             await prepare()
             let changes = try await database.recordZoneChanges(inZoneWith: zoneID, since: nil)
-            if let user = try? await CKContainer(identifier: AppIdentity.cloudIdentifier ?? "").userRecordID() {
-                Self.log.info("signed in as …\(String(user.recordName.suffix(6)), privacy: .public)")
-            }
-            Self.log.info("fetched \(changes.modificationResultsByID.count) web save request(s)")
+            if !changes.modificationResultsByID.isEmpty { Self.log.info("fetched \(changes.modificationResultsByID.count) web request(s)") }
             var handled: [CKRecord.ID] = []
             var saved = 0
             var edits: [WebChange] = []

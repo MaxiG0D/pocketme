@@ -34,10 +34,24 @@
   // A saved link counts as arrived only when the library holds that page saved after this save: a page that was
   // already in the library keeps its old row until the app has bumped it, so it must not clear the placeholder early.
   const arrived = (item) => articles.some((a) => origin(a.url) === origin(item.url) && a.savedAt >= item.at - 120000);
+  // While a save is waiting, only the newest articles are asked for, so checking every second is cheap.
+  async function loadRecent() {
+    const since = Math.min(...saving.map((item) => item.at)) - 120000;
+    const response = await database.performQuery(
+      { recordType: "WebArticle", filterBy: [{ fieldName: "savedAt", comparator: "GREATER_THAN", fieldValue: { value: since } }], sortBy: [{ fieldName: "savedAt", ascending: false }] },
+      { zoneID: LIBRARY, desiredKeys: LIST_KEYS, resultsLimit: 50 });
+    if (response.hasErrors) { if (response.errors[0].serverErrorCode === "ZONE_NOT_FOUND") return; throw response.errors[0]; }
+    for (const record of response.records || []) {
+      if (!record.recordName) continue;
+      const next = toArticle(record), index = articles.findIndex((a) => a.id === next.id);
+      if (index >= 0) articles[index] = { ...articles[index], ...next, body: articles[index].body }; else articles.push(next);
+    }
+    articles.sort((a, b) => b.savedAt - a.savedAt);
+  }
   async function watchSaves() {
-    for (let tries = 0; tries < 100 && saving.length; tries++) {
-      await new Promise((resolve) => setTimeout(resolve, 3000));
-      try { await loadLibrary(); } catch (error) { console.error(error); continue; }
+    for (let tries = 0; tries < 150 && saving.length; tries++) {
+      await new Promise((resolve) => setTimeout(resolve, tries < 10 ? 1000 : 2000));
+      try { await loadRecent(); } catch (error) { console.error(error); continue; }
       saving = saving.filter(item => !arrived(item));
       render();
     }
