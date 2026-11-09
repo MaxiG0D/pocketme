@@ -74,7 +74,7 @@ final class LibraryStore {
             // Changes made in the web app arrive while this one is open, so check for them now and then.
             webPoll = Task { [weak self] in
                 while !Task.isCancelled {
-                    try? await Task.sleep(for: .seconds(15))
+                    try? await Task.sleep(for: .seconds(4))
                     await self?.drainInbox()
                 }
             }
