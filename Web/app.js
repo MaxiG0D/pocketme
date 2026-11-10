@@ -34,9 +34,11 @@
   // A saved link counts as arrived only when the library holds that page saved after this save: a page that was
   // already in the library keeps its old row until the app has bumped it, so it must not clear the placeholder early.
   const arrived = (item) => articles.some((a) => origin(a.url) === origin(item.url) && a.savedAt >= item.at - 120000);
-  // While a save is waiting, only the newest articles are asked for, so checking every second is cheap.
+  // While a save is in progress, only the newest articles are asked for, so checking every second is cheap.
+  let watching = false, watchFrom = 0, watchEnd = 0;
+  const readyAt = new Map();
   async function loadRecent() {
-    const since = Math.min(...saving.map((item) => item.at)) - 120000;
+    const since = Math.min(watchFrom, ...saving.map((item) => item.at)) - 120000;
     const response = await database.performQuery(
       { recordType: "WebArticle", filterBy: [{ fieldName: "savedAt", comparator: "GREATER_THAN", fieldValue: { value: since } }], sortBy: [{ fieldName: "savedAt", ascending: false }] },
       { zoneID: LIBRARY, desiredKeys: LIST_KEYS, resultsLimit: 50 });
@@ -48,17 +50,29 @@
     }
     articles.sort((a, b) => b.savedAt - a.savedAt);
   }
+  // A saved article keeps being watched after its row appears: the app fills in the title and preview a few seconds later.
+  const unfinished = () => articles.some((a) => {
+    if (a.savedAt < watchFrom - 120000 || a.status === "failed") return false;
+    if (a.status === "pending") return true;
+    if (a.thumb) return false;
+    if (!readyAt.has(a.id)) readyAt.set(a.id, Date.now());
+    return Date.now() - readyAt.get(a.id) < 30000;
+  });
   async function watchSaves() {
-    for (let tries = 0; tries < 150 && saving.length; tries++) {
-      await new Promise((resolve) => setTimeout(resolve, tries < 10 ? 1000 : 2000));
-      try { await loadRecent(); } catch (error) { console.error(error); continue; }
-      saving = saving.filter(item => !arrived(item));
+    if (watching) return;
+    watching = true;
+    try {
+      for (let tries = 0; Date.now() < watchEnd && (saving.length || unfinished()); tries++) {
+        await new Promise((resolve) => setTimeout(resolve, tries < 10 ? 1000 : 2000));
+        try { await loadRecent(); } catch (error) { console.error(error); continue; }
+        saving = saving.filter(item => !arrived(item));
+        render();
+      }
+      if (saving.length) toast("Still saving. It will appear in your library soon.");
+      saving = [];
+      try { await loadLibrary(); } catch (error) { console.error(error); }
       render();
-    }
-    if (saving.length) toast("Still saving. It will appear in your library soon.");
-    saving = [];
-    try { await loadLibrary(); } catch (error) { console.error(error); }
-    render();
+    } finally { watching = false; readyAt.clear(); }
   }
   // Changes made here show at once; they stay until the app's copy catches up.
   const overrides = new Map();
@@ -392,10 +406,10 @@
         if (!/^https?:$/.test(parsed.protocol)) throw new Error("scheme");
         await saveLink(parsed.href);
         input.value = ""; $("save-form").hidden = true; toast("Saved!");
-        const watching = saving.length > 0;
         saving.unshift({ url: parsed.href, at: Date.now() });
+        watchFrom = Date.now(); watchEnd = Date.now() + 240000;
         tab = "reading"; render();
-        if (!watching) watchSaves();
+        watchSaves();
       } catch (error) {
         console.error(error);
         const why = (error && (error.serverErrorCode || error.ckErrorCode || error.message)) || "";
