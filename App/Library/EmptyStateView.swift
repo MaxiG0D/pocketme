@@ -22,7 +22,7 @@ struct EmptyStateView: View {
             VStack(spacing: 10) {
                 #if os(macOS)
                 step(1, text: "In Safari or any app, click **Share**, then **PocketMe**")
-                step(2, text: "Or paste a link in the field up top")
+                step(2, text: "Or copy a link and click **+** up top")
                 #else
                 step(1, text: "In Safari or any app, tap **Share**, then **PocketMe**")
                 step(2, text: "Or copy a link and tap **+** up top")

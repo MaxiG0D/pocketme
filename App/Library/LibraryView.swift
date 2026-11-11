@@ -423,7 +423,7 @@ struct LibraryView: View {
 
     private func addButton(_ reachable: Bool) -> some View {
         Button { addLink = true } label: {
-            Image(systemName: "plus").fontWeight(.bold).foregroundStyle(.white)
+            Image(systemName: "plus").fontWeight(.bold).foregroundStyle(Theme.onAccent)
                 .frame(width: 44, height: 44).background(Theme.accent, in: Circle())
         }
         .buttonStyle(.plain).barLabel("Save a link", reachable: reachable)
