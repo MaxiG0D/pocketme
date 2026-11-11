@@ -27,6 +27,36 @@ final class LibraryTapTests: XCTestCase {
         #endif
     }
 
+    private func search(_ text: String) {
+        app.buttons["Search"].firstMatch.tap()
+        let field = app.searchFields.firstMatch.waitForExistence(timeout: 5) ? app.searchFields.firstMatch : app.textFields["Search"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5), "Hierarchy: \(app.debugDescription)")
+        field.typeText(text)
+    }
+
+    /// Search matches article text ignoring case and accents, narrows the list, says so when nothing matches, and a result still opens.
+    func testSearchFiltersAndOpensResult() {
+        let other = app.staticTexts[title].firstMatch
+        XCTAssertTrue(other.waitForExistence(timeout: 10))
+        search("CAFE marmalade")
+        let result = app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "A very long article title")).firstMatch
+        XCTAssertTrue(result.waitForExistence(timeout: 5), "Hierarchy: \(app.debugDescription)")
+        XCTAssertTrue(other.waitForNonExistence(timeout: 5))
+        let field = app.searchFields.firstMatch.exists ? app.searchFields.firstMatch : app.textFields["Search"]
+        field.typeText("zzz")
+        XCTAssertTrue(app.staticTexts["No results"].waitForExistence(timeout: 5))
+        XCTAssertTrue(result.waitForNonExistence(timeout: 5))
+        for _ in 0..<3 { field.typeText(XCUIKeyboardKey.delete.rawValue) }
+        XCTAssertTrue(result.waitForExistence(timeout: 5))
+        result.tap()
+        #if os(iOS)
+        XCTAssertTrue(app.buttons["Reader settings"].waitForExistence(timeout: 5))
+        #else
+        let card = app.buttons.containing(.staticText, identifier: "A very long article title about the small everyday rituals that help us find time to read again").firstMatch
+        XCTAssertTrue(card.wait(for: \.isSelected, toEqual: true, timeout: 5))
+        #endif
+    }
+
     private func openVideo() {
         let video = app.staticTexts["A short film about slow mornings"].firstMatch
         XCTAssertTrue(app.staticTexts[title].firstMatch.waitForExistence(timeout: 10))

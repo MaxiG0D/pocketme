@@ -18,7 +18,8 @@
     trash: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
     popcorn: '<path d="M6.5 11h11l-1.4 9H7.9zM10 11l.4 9M14 11l-.4 9"/><circle cx="8.6" cy="8.2" r="2.2"/><circle cx="12" cy="6.4" r="2.4"/><circle cx="15.4" cy="8.2" r="2.2"/>',
     share: '<path d="M12 3v12M7 8l5-5 5 5M5 13v7h14v-7"/>',
-    open: '<path d="M14 4h6v6M20 4l-9 9M18 14v6H4V6h6"/>'
+    open: '<path d="M14 4h6v6M20 4l-9 9M18 14v6H4V6h6"/>',
+    search: '<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/>'
   };
   const svg = (name) => `<svg aria-hidden="true" viewBox="0 0 24 24">${ICON[name]}</svg>`;
   const store = (key, value) => { try { if (value === undefined) return localStorage.getItem("pocketme." + key); localStorage.setItem("pocketme." + key, value); } catch { return null; } };
@@ -200,12 +201,32 @@
     toast("Deleted", () => { clearTimeout(timer); removed.delete(article.id); render(); });
   }
 
+  // ---- Search
+  // Matches title, site, domain, author and the saved excerpt, ignoring case and accents. The list query does not carry
+  // article bodies (they can be large), so text is searched only for articles whose body has already been opened here.
+  let query = "";
+  const fold = (text) => String(text || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const plain = (html) => new DOMParser().parseFromString(html, "text/html").body.textContent || "";
+  const haystacks = new Map();   // article id -> { key, text }
+  function haystack(a) {
+    const key = [a.title, a.site, a.url, a.author, a.excerpt, a.body === undefined ? "" : a.body.length].join("\u0001");
+    const hit = haystacks.get(a.id);
+    if (hit && hit.key === key) return hit.text;
+    let host = ""; try { host = new URL(a.url).host; } catch {}
+    const text = fold([a.title, a.site, host, a.author, a.excerpt, a.body ? plain(a.body).slice(0, 400000) : ""].join(" "));
+    haystacks.set(a.id, { key, text });
+    return text;
+  }
+  const matches = (a, terms) => { const text = haystack(a); return terms.every((t) => text.includes(t)); };
+
   // ---- Library
   function visible() {
-    const list = articles.filter((a) => !removed.has(a.id)).map(view);
-    if (tab === "archive") return list.filter((a) => a.archived);
-    if (tab === "favorites") return list.filter((a) => a.favorite && !a.archived);
-    return list.filter((a) => !a.archived);
+    let list = articles.filter((a) => !removed.has(a.id)).map(view);
+    if (tab === "archive") list = list.filter((a) => a.archived);
+    else if (tab === "favorites") list = list.filter((a) => a.favorite && !a.archived);
+    else list = list.filter((a) => !a.archived);
+    const terms = fold(query).split(/\s+/).filter(Boolean);
+    return terms.length ? list.filter((a) => matches(a, terms)) : list;
   }
 
   function row(a) {
@@ -231,12 +252,13 @@
     rows.className = "rows" + (layout === "grid" ? " grid" : "");
     if (!loaded) { rows.innerHTML = '<li class="sk"></li>'.repeat(5); return; }
     const list = visible();
+    if (!list.length && query.trim() && articles.length) { rows.innerHTML = '<li class="empty results">No results</li>'; return; }
     if (!list.length && !(tab === "reading" && saving.length)) {
       const text = !articles.length ? "Open PocketMe on your phone or Mac" : tab === "archive" ? "Nothing archived" : tab === "favorites" ? "No favorites" : "All caught up";
       rows.innerHTML = `<li class="empty">${text}</li>`;
       return;
     }
-    const placeholders = tab === "reading" ? saving.map((item) => `<li class="row" aria-busy="true"><div class="thumb"><div class="cover cover${coverIndex(origin(item.url))}"></div></div>
+    const placeholders = tab === "reading" && !query.trim() ? saving.map((item) => `<li class="row" aria-busy="true"><div class="thumb"><div class="cover cover${coverIndex(origin(item.url))}"></div></div>
       <div class="info"><span class="title">${esc(origin(item.url))}</span><span class="meta"><span class="pending" role="img" aria-label="Saving"></span>Saving</span></div></li>`).join("") : "";
     rows.innerHTML = placeholders + list.map(row).join("");
   }
@@ -394,6 +416,15 @@
   function wire() {
     root.querySelectorAll(".tab").forEach((t) => t.addEventListener("click", () => { tab = t.dataset.tab; renderLibrary(); }));
     $("layout").addEventListener("click", () => { layout = layout === "grid" ? "list" : "grid"; store("layout", layout); renderLibrary(); });
+    const closeSearch = () => { query = ""; $("search").value = ""; $("search-form").hidden = true; $("search-toggle").setAttribute("aria-expanded", "false"); renderLibrary(); };
+    const openSearch = () => { $("search-form").hidden = false; $("search-toggle").setAttribute("aria-expanded", "true"); $("search").focus(); };
+    let searchTimer;
+    $("search-toggle").addEventListener("click", () => { if ($("search-form").hidden) openSearch(); else closeSearch(); });
+    $("search").addEventListener("input", () => {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(() => { query = $("search").value; renderLibrary(); }, $("search").value ? 120 : 0);
+    });
+    $("search").addEventListener("keydown", (event) => { if (event.key === "Escape") { event.stopPropagation(); closeSearch(); } });
     $("add").addEventListener("click", () => { const form = $("save-form"); form.hidden = !form.hidden; if (!form.hidden) $("save-url").focus(); });
     $("save-form").addEventListener("submit", async (event) => {
       event.preventDefault();
@@ -461,6 +492,7 @@
     window.addEventListener("hashchange", () => route(false));
     window.addEventListener("keydown", (event) => {
       const typing = /^(INPUT|TEXTAREA)$/.test((event.target.tagName || ""));
+      if (event.key === "/" && !typing && !current && !$("library").hidden && !event.metaKey && !event.ctrlKey) { event.preventDefault(); openSearch(); return; }
       if ((event.key === "o" || event.key === "O") && !typing && !event.metaKey && !event.ctrlKey && !event.altKey && current) { openOriginal(); return; }
       if ((event.key === "t" || event.key === "T") && !typing && !event.metaKey && !event.ctrlKey && !event.altKey && current && $("player")) { setTheater(!document.body.classList.contains("theater")); return; }
       if (event.key === "Escape" && document.body.classList.contains("theater")) { setTheater(false); return; }
@@ -476,7 +508,7 @@
       if (document.visibilityState !== "visible" || !database || !loaded) return;
       try { await loadLibrary(); render(); } catch (error) { console.error(error); }
     });
-    $("aa").innerHTML = svg("aa"); $("back").innerHTML = svg("back"); $("add").innerHTML = svg("plus");
+    $("aa").innerHTML = svg("aa"); $("back").innerHTML = svg("back"); $("add").innerHTML = svg("plus"); $("search-toggle").innerHTML = svg("search");
     $("bar-fav").innerHTML = svg("star"); $("bar-archive").innerHTML = svg("archive"); $("bar-delete").innerHTML = svg("trash"); $("bar-theater").innerHTML = svg("popcorn"); $("bar-open").innerHTML = svg("open"); $("bar-share").innerHTML = svg("share");
   }
 

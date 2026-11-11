@@ -13,6 +13,8 @@ struct MacLibraryView: View {
     @State private var openSwipe: SwipeOpen?
     @State private var showAdd = false
     @State private var search = ""
+    @State private var query = ""
+    @State private var searchIndex = LibrarySearchIndex.shared
     @State private var searching = false
     @State private var heroSquish: CGFloat = 0
     @AppStorage(ContinueReadingSetting.storageKey) private var showContinueReading = false
@@ -26,13 +28,14 @@ struct MacLibraryView: View {
     @State private var windowSize = CGSize.zero
     @State private var frames = CardFrames()
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    private var terms: [String] { _ = searchIndex.version; return LibrarySearchIndex.terms(query) }
     private var filtered: [Article] {
-        articles.filter { section.includes($0) && (search.isEmpty || ($0.title + " " + $0.siteName).localizedCaseInsensitiveContains(search)) }
+        articles.filter { section.includes($0) && searchIndex.matches($0, terms: terms) }
             .sorted { section == .archive ? ($0.archivedAt ?? .distantPast) > ($1.archivedAt ?? .distantPast) : $0.savedAt > $1.savedAt }
     }
     /// The most recently opened unread article (even if scrolled back to the top), shown as a card above the rest of the list.
     private var inProgress: Article? {
-        guard showContinueReading, section == .unread, search.isEmpty else { return nil }
+        guard showContinueReading, section == .unread, query.isEmpty else { return nil }
         return filtered.filter { $0.lastOpenedAt != nil && $0.readingProgress < 0.95 }
             .max { ($0.lastOpenedAt ?? .distantPast) < ($1.lastOpenedAt ?? .distantPast) }
     }
@@ -59,6 +62,13 @@ struct MacLibraryView: View {
         .onAppear(perform: ensureSelection)
         .onChange(of: readerID) { _, _ in openSwipe = nil }
         .onChange(of: section) { _, _ in ensureSelection() }
+        .task(id: search) {
+            if search.isEmpty { query = ""; return }
+            try? await Task.sleep(for: .milliseconds(150))
+            guard !Task.isCancelled else { return }
+            query = search
+            searchIndex.prepare(articles)
+        }
         .onChange(of: filtered.map(\.id)) { _, _ in ensureSelection() }
         .onChange(of: store.focusPasteToken) { _, _ in addLink() }
         .onChange(of: store.findToken) { _, _ in listVisible = true; searching = true; searchFocused = true }
@@ -208,7 +218,7 @@ struct MacLibraryView: View {
         if articles.isEmpty {
             EmptyStateView { pasteFromClipboard() }
         } else {
-            Text(search.isEmpty ? "No articles here yet" : "No matching articles").font(Typo.meta).foregroundStyle(Theme.muted)
+            NoResultsView(searching: !query.isEmpty)
         }
     }
 
@@ -305,7 +315,7 @@ struct MacLibraryView: View {
     }
     private var searchField: some View {
         HStack(spacing: 6) {
-            TextField("Title or site", text: $search).textFieldStyle(.plain).font(Typo.sans(13)).focused($searchFocused)
+            TextField("Search", text: $search).textFieldStyle(.plain).font(Typo.sans(13)).focused($searchFocused)
                 .onSubmit { searchFocused = false }
                 .onExitCommand { search = ""; searching = false; searchFocused = false }
             if !search.isEmpty {

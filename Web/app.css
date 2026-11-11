@@ -40,6 +40,10 @@ html.app #sign-in-app .apple-auth-button { text-align: left; }
 #save-form input { flex: 1; min-width: 0; height: 42px; border-radius: 21px; border: 1px solid var(--hair); background: var(--surface); color: var(--ink); padding: 0 16px; font: inherit; }
 #save-form button { height: 42px; padding: 0 18px; border-radius: 21px; background: var(--accent); color: #fff; font-weight: 600; }
 
+#search-form { margin: 0 0 12px; }
+#search { width: 100%; box-sizing: border-box; height: 42px; border-radius: 21px; border: 1px solid var(--hair); background: var(--surface); color: var(--ink); padding: 0 16px; font: inherit; -webkit-appearance: none; appearance: none; }
+#search::placeholder { color: var(--muted); }
+.empty.results { font: 600 18px/1.3 var(--serif); }
 .rows { list-style: none; margin: 0; padding: 0; }
 .row { position: relative; display: flex; align-items: center; gap: 14px; padding: 12px 0; border-bottom: 1px solid var(--hair); cursor: pointer; }
 .row .thumb { width: 76px; height: 76px; flex-shrink: 0; border-radius: 12px; overflow: hidden; background: var(--chip); }

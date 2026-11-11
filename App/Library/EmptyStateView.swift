@@ -46,3 +46,14 @@ struct EmptyStateView: View {
 #Preview("Light") { PreviewHost { store, articles in EmptyStateView(paste: {}).frame(width: 390) }.preferredColorScheme(.light) }
 #Preview("Dark") { PreviewHost { store, articles in EmptyStateView(paste: {}).frame(width: 390) }.preferredColorScheme(.dark) }
 #endif
+
+/// An empty section, or a search that found nothing: one quiet serif line, no hints.
+struct NoResultsView: View {
+    let searching: Bool
+    var body: some View {
+        Text(searching ? "No results" : "No articles here yet")
+            .font(searching ? Typo.cardTitleSerif : Typo.meta).foregroundStyle(Theme.muted)
+            .frame(maxWidth: .infinity)
+            .accessibilityIdentifier(searching ? "No results" : "No articles")
+    }
+}

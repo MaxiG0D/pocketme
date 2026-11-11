@@ -13,6 +13,9 @@ struct LibraryView: View {
     @State private var heroSquish: CGFloat = 0
     @AppStorage(ContinueReadingSetting.storageKey) private var showContinueReading = false
     @State private var search = ""
+    /// `search` after a short pause, so a fast typist filters once, not per letter. Clearing is immediate.
+    @State private var query = ""
+    @State private var searchIndex = LibrarySearchIndex.shared
     @State private var showSearch = false
     @State private var addLink = false
     @State private var selection: UUID?
@@ -52,9 +55,10 @@ struct LibraryView: View {
     }
     @Namespace private var zoom
 
+    private var terms: [String] { _ = searchIndex.version; return LibrarySearchIndex.terms(query) }
     private var filtered: [Article] {
         let section: LibrarySection = favoritesOnly ? .favorites : archive ? .archive : .unread
-        let matches = articles.filter { section.includes($0) && (search.isEmpty || ($0.title + " " + $0.siteName).localizedCaseInsensitiveContains(search)) }
+        let matches = articles.filter { section.includes($0) && searchIndex.matches($0, terms: terms) }
         // The query already arrives newest first; only the archive reorders, so the common case sorts nothing.
         guard archive && !favoritesOnly else { return matches }
         return matches.sorted { ($0.archivedAt ?? .distantPast) > ($1.archivedAt ?? .distantPast) }
@@ -64,7 +68,7 @@ struct LibraryView: View {
     private var current: Article? { sizeClass == .regular || !showContinueReading ? nil : inProgress }
     private var inProgress: Article? { inProgress(in: filtered) }
     private func inProgress(in filtered: [Article]) -> Article? {
-        guard !favoritesOnly, !archive, search.isEmpty else { return nil }
+        guard !favoritesOnly, !archive, query.isEmpty else { return nil }
         return filtered.filter { $0.lastOpenedAt != nil && $0.readingProgress < 0.95 }
             .max { ($0.lastOpenedAt ?? .distantPast) < ($1.lastOpenedAt ?? .distantPast) }
     }
@@ -93,6 +97,13 @@ struct LibraryView: View {
             .onChange(of: compactColumn) { _, column in compactColumnChanged(to: column) }
             .onChange(of: filtered.map(\.id)) { _, _ in ensureSelection() }
             .onChange(of: sizeClass) { _, _ in ensureSelection(); leaveHeaderSearch() }
+            .task(id: search) {
+                if search.isEmpty { query = ""; return }
+                try? await Task.sleep(for: .milliseconds(150))
+                guard !Task.isCancelled else { return }
+                query = search
+                searchIndex.prepare(articles)
+            }
             .onChange(of: narrow) { _, _ in settleOverlay() }
             .onChange(of: store.requestedArticleID) { _, id in openRequested(id) }
             .sensoryFeedback(.success, trigger: store.savedToken)
@@ -249,7 +260,7 @@ struct LibraryView: View {
         Group {
             if filtered.isEmpty {
                 if articles.isEmpty { EmptyStateView(paste: pasteOrAdd).frame(maxWidth: .infinity).padding(.top, 30) }
-                else { Text(search.isEmpty ? "No articles here yet" : "No matching articles").font(Typo.meta).foregroundStyle(Theme.muted).frame(maxWidth: .infinity).padding(.top, 40) }
+                else { NoResultsView(searching: !query.isEmpty).padding(.top, 40) }
             }
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4, alignment: .top), count: gridColumns), spacing: 10) {
                 ForEach(filtered, id: \.id) { article in
@@ -311,7 +322,7 @@ struct LibraryView: View {
                 if all.isEmpty {
                     Group {
                         if articles.isEmpty { EmptyStateView(paste: pasteOrAdd).frame(maxWidth: .infinity).padding(.top, 30) }
-                        else { Text(search.isEmpty ? "No articles here yet" : "No matching articles").font(Typo.meta).foregroundStyle(Theme.muted).frame(maxWidth: .infinity).padding(.top, 40) }
+                        else { NoResultsView(searching: !query.isEmpty).padding(.top, 40) }
                     }.opacity(articlesShown(.list) ? 1 : 0)
                 } else {
                     if let hero {
@@ -484,7 +495,7 @@ struct LibraryView: View {
 
     private var searchField: some View {
         HStack(spacing: 6) {
-            TextField("Title or site", text: $search).font(Typo.sans(15)).foregroundStyle(Theme.ink)
+            TextField("Search", text: $search).font(Typo.sans(15)).foregroundStyle(Theme.ink)
                 .focused($searchFocused).submitLabel(.search).onSubmit { searchFocused = false }
             if !search.isEmpty {
                 Button { search = "" } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(Theme.muted) }
@@ -614,7 +625,7 @@ private struct LibrarySearch: ViewModifier {
     @Binding var text: String
     @Binding var isPresented: Bool
     func body(content: Content) -> some View {
-        if enabled { content.searchable(text: $text, isPresented: $isPresented, prompt: "Title or site") }
+        if enabled { content.searchable(text: $text, isPresented: $isPresented, prompt: "Search") }
         else { content }
     }
 }

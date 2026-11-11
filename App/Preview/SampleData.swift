@@ -24,6 +24,8 @@ enum SampleData {
             if index == 0 { article.readingProgress = 0.4; article.lastOpenedAt = .now }
             if index == 4 { article.archivedAt = .now }
             article.isFavorite = index == 1 || index == 4
+            // Text only search can find: the accent and the word are not in any title.
+            if index == 5 { article.contentHTML = Data("<p>Marmalade on toast, and a café ritual.</p>".utf8) }
             if index == 0 || index == 1 { article.thumbnailData = thumbnail(siteName: sites[index]) }
             container.mainContext.insert(article)
         }
