@@ -1,7 +1,8 @@
+@font-face { font-family: Inter; src: url(Inter.woff2) format("woff2"); font-weight: 100 900; font-display: swap; }
 @font-face { font-family: Newsreader; src: url(Newsreader.ttf); font-weight: 200 800; font-display: swap; }
 html.save #app { display: none; }
 html.app #card { display: none; }
-html.app body { display: block; min-height: 100vh; font: 400 15px/1.4 -apple-system, "Segoe UI", system-ui, sans-serif; }
+html.app body { display: block; min-height: 100vh; font: 400 15px/1.4 Inter, -apple-system, "Segoe UI", system-ui, sans-serif; }
 html.app { --surface:#fff; --chip:#EEEEEA; --hair:#ECECE7; --icon:#7A6E64; --accent:#C7461C; --archive:#4A855D; --favorite:#B57A2C; --ink:#1A1A1A; --paper:#FAFAF8; --muted:#6B6B66; --success:#3D7A4F; --on-accent:#fff; }
 @media (prefers-color-scheme: dark) { html.app { --surface:#1E1E1C; --chip:#2A2A28; --hair:rgba(255,255,255,.08); --icon:#AEA296; --accent:#E2562B; --on-accent:#1A1A1A; --archive:#3E724F; --favorite:#9C682C; --ink:#EDEDE8; --paper:#141414; --muted:#9C9C95; } }
 #app { width: 100%; --serif: Newsreader, Georgia, "Times New Roman", serif; }
@@ -75,7 +76,7 @@ html.app #sign-in-app .apple-auth-button { text-align: left; }
 #reader { --paper: #FAFAF8; --ink: #1A1A1A; --body: #262624; --muted: #6B6B66; --hair: #ECECE7; --size: 19px; --font-body: Newsreader, Georgia, serif; min-height: 100vh; background: var(--paper); color: var(--body); }
 #reader[data-theme=sepia] { --paper:#F4ECDC; --ink:#2B2418; --body:#3A3022; --muted:#6E6150; --hair:#E4D9C3; }
 #reader[data-theme=dark] { --paper:#141414; --ink:#EDEDE8; --body:#D6D6D0; --muted:#9C9C95; --hair:rgba(255,255,255,.08); }
-#reader[data-font=sans] { --font-body: -apple-system, "Segoe UI", system-ui, sans-serif; }
+#reader[data-font=sans] { --font-body: Inter, -apple-system, "Segoe UI", system-ui, sans-serif; }
 @media (prefers-color-scheme: dark) { #reader[data-theme=auto] { --paper:#141414; --ink:#EDEDE8; --body:#D6D6D0; --muted:#9C9C95; --hair:rgba(255,255,255,.08); } }
 .bar { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 4px; padding: 10px 14px; background: color-mix(in srgb, var(--paper) 90%, transparent); backdrop-filter: blur(10px); }
 .bar .space { flex: 1; }
@@ -92,7 +93,7 @@ html.app #sign-in-app .apple-auth-button { text-align: left; }
 .seg .t-light { background: #FAFAF8; color: #1A1A1A; } .seg .t-sepia { background: #F4ECDC; color: #2B2418; } .seg .t-dark { background: #141414; color: #EDEDE8; }
 .seg .t-auto { background: linear-gradient(90deg,#FAFAF8 50%,#141414 50%); color: #888; }
 article.page { max-width: 46rem; margin: 0 auto; padding: 22px 26px 80px; }
-.kicker { font: 600 12px/1.4 -apple-system, "Segoe UI", system-ui, sans-serif; letter-spacing: .4px; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+.kicker { font: 600 12px/1.4 Inter, -apple-system, "Segoe UI", system-ui, sans-serif; letter-spacing: .4px; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
 .page h1 { font: 600 36px/1.12 Newsreader, Georgia, serif; letter-spacing: -.5px; color: var(--ink); margin: 0 0 14px; }
 .lead { width: 100%; height: 256px; object-fit: cover; border-radius: 14px; margin: 0 0 20px; }
 .body { font: 400 var(--size)/1.65 var(--font-body); overflow-wrap: break-word; }
@@ -134,7 +135,7 @@ body.theater .bar { visibility: hidden; }
 .page.video .player { margin-bottom: 16px; }
 .page.video h1 { font-size: 26px; line-height: 1.2; letter-spacing: -.2px; margin-bottom: 10px; }
 .page.video .kicker { margin-bottom: 6px; }
-.body.quiet { cursor: pointer; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; font: 400 14px/1.5 -apple-system, "Segoe UI", system-ui, sans-serif; }
+.body.quiet { cursor: pointer; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; font: 400 14px/1.5 Inter, -apple-system, "Segoe UI", system-ui, sans-serif; }
 .body.quiet.open { display: block; }
 .body.quiet a { color: var(--muted); }
 .body.quiet img, .body.quiet figure, .body.quiet iframe, .body.quiet h2, .body.quiet h3 { display: none; }
